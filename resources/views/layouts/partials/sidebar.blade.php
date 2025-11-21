@@ -50,6 +50,31 @@
                     </a>
                 </li>
                 @endif
+
+                @if(Auth::user()->hasRole('admin'))
+                <li class="nav-header">DEPARTMENTS</li>
+                
+                <li class="nav-item">
+                    <a href="{{ route('departments.index') }}" class="nav-link {{ request()->is('admin/departments*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-users"></i>
+                        <p>Departments</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{{ route('sub-departments.index') }}" class="nav-link {{ request()->is('admin/sub-departments*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-user-tag"></i>
+                        <p>Sub-Departments</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{{ route('divisions.index') }}" class="nav-link {{ request()->is('admin/divisions*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-lock"></i>
+                        <p>Divisions</p>
+                    </a>
+                </li>
+                @endif
             </ul>
         </nav>
     </div>
