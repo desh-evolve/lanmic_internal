@@ -43,7 +43,7 @@ class DivisionController extends Controller
             'name' => 'required|string|max:255|unique:divisions',
             'short_code' => 'nullable|string|max:50|unique:divisions',
             'description' => 'nullable|string',
-            'is_active' => 'boolean',
+            'status' => 'string|max:11',
             'sub_departments' => 'nullable|array',
             'sub_departments.*' => 'exists:sub_departments,id',
         ]);
@@ -58,7 +58,7 @@ class DivisionController extends Controller
             'name' => $request->name,
             'short_code' => $request->short_code,
             'description' => $request->description,
-            'is_active' => $request->has('is_active'),
+            'status' => $request->status,
         ]);
 
         if ($request->has('sub_departments')) {
@@ -97,7 +97,7 @@ class DivisionController extends Controller
             'name' => 'required|string|max:255|unique:divisions,name,' . $division->id,
             'short_code' => 'nullable|string|max:50|unique:divisions,short_code,' . $division->id,
             'description' => 'nullable|string',
-            'is_active' => 'boolean',
+            'status' => 'string|max:11',
             'sub_departments' => 'nullable|array',
             'sub_departments.*' => 'exists:sub_departments,id',
         ]);
@@ -112,7 +112,7 @@ class DivisionController extends Controller
             'name' => $request->name,
             'short_code' => $request->short_code,
             'description' => $request->description,
-            'is_active' => $request->has('is_active'),
+            'status' => $request->status,
         ]);
 
         $division->subDepartments()->sync($request->sub_departments ?? []);

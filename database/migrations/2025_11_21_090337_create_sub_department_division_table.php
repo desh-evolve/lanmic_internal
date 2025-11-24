@@ -12,7 +12,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('sub_department_id')->constrained()->onDelete('cascade');
             $table->foreignId('division_id')->constrained()->onDelete('cascade');
-            $table->timestamps();
+            
+            $table->string('status')->default('active')->nullable();
+            $table->timestamp('created_at')->useCurrent();
+            $table->integer('created_by')->default(0)->nullable();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->integer('updated_by')->default(0)->nullable();
             
             // Ensure unique combinations
             $table->unique(['sub_department_id', 'division_id']);

@@ -45,7 +45,7 @@ class SubDepartmentController extends Controller
             'name' => 'required|string|max:255|unique:sub_departments',
             'short_code' => 'nullable|string|max:50|unique:sub_departments',
             'description' => 'nullable|string',
-            'is_active' => 'boolean',
+            'status' => 'string|max:11',
             'departments' => 'nullable|array',
             'departments.*' => 'exists:departments,id',
             'divisions' => 'nullable|array',
@@ -62,7 +62,7 @@ class SubDepartmentController extends Controller
             'name' => $request->name,
             'short_code' => $request->short_code,
             'description' => $request->description,
-            'is_active' => $request->has('is_active'),
+            'status' => $request->status,
         ]);
 
         if ($request->has('departments')) {
@@ -107,7 +107,7 @@ class SubDepartmentController extends Controller
             'name' => 'required|string|max:255|unique:sub_departments,name,' . $subDepartment->id,
             'short_code' => 'nullable|string|max:50|unique:sub_departments,short_code,' . $subDepartment->id,
             'description' => 'nullable|string',
-            'is_active' => 'boolean',
+            'status' => 'string|max:11',
             'departments' => 'nullable|array',
             'departments.*' => 'exists:departments,id',
             'divisions' => 'nullable|array',
@@ -124,7 +124,7 @@ class SubDepartmentController extends Controller
             'name' => $request->name,
             'short_code' => $request->short_code,
             'description' => $request->description,
-            'is_active' => $request->has('is_active'),
+            'status' => $request->status,
         ]);
 
         $subDepartment->departments()->sync($request->departments ?? []);

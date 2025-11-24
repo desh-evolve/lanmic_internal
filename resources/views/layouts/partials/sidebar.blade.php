@@ -27,53 +27,53 @@
                 </li>
                 
                 @if(Auth::user()->hasRole('admin'))
-                <li class="nav-header">ADMINISTRATION</li>
-                
-                <li class="nav-item">
-                    <a href="{{ route('users.index') }}" class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-users"></i>
-                        <p>User Management</p>
-                    </a>
-                </li>
+                    <li class="nav-header">ADMINISTRATION</li>
+                    
+                    <li class="nav-item">
+                        <a href="{{ route('users.index') }}" class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-users"></i>
+                            <p>User Management</p>
+                        </a>
+                    </li>
 
-                <li class="nav-item">
-                    <a href="{{ route('roles.index') }}" class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-user-tag"></i>
-                        <p>Role Management</p>
-                    </a>
-                </li>
+                    <li class="nav-item">
+                        <a href="{{ route('roles.index') }}" class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-user-tag"></i>
+                            <p>Role Management</p>
+                        </a>
+                    </li>
 
-                <li class="nav-item">
-                    <a href="{{ route('permissions.index') }}" class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-lock"></i>
-                        <p>Permission Management</p>
-                    </a>
-                </li>
+                    <li class="nav-item">
+                        <a href="{{ route('permissions.index') }}" class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-lock"></i>
+                            <p>Permission Management</p>
+                        </a>
+                    </li>
                 @endif
 
                 @if(Auth::user()->hasRole('admin'))
-                <li class="nav-header">DEPARTMENTS</li>
-                
-                <li class="nav-item">
-                    <a href="{{ route('departments.index') }}" class="nav-link {{ request()->is('admin/departments*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-users"></i>
-                        <p>Departments</p>
-                    </a>
-                </li>
+                    <li class="nav-header">ORGANIZATION</li>
 
-                <li class="nav-item">
-                    <a href="{{ route('sub-departments.index') }}" class="nav-link {{ request()->is('admin/sub-departments*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-user-tag"></i>
-                        <p>Sub-Departments</p>
-                    </a>
-                </li>
+                    <li class="nav-item">
+                        <a href="{{ route('departments.index') }}" class="nav-link {{ request()->is('admin/departments*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-building"></i>
+                            <p>Departments</p>
+                        </a>
+                    </li>
 
-                <li class="nav-item">
-                    <a href="{{ route('divisions.index') }}" class="nav-link {{ request()->is('admin/divisions*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-lock"></i>
-                        <p>Divisions</p>
-                    </a>
-                </li>
+                    <li class="nav-item">
+                        <a href="{{ route('sub-departments.index') }}" class="nav-link {{ request()->is('admin/sub-departments*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-sitemap"></i>
+                            <p>Sub-Departments</p>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="{{ route('divisions.index') }}" class="nav-link {{ request()->is('admin/divisions*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-layer-group"></i>
+                            <p>Divisions</p>
+                        </a>
+                    </li>
                 @endif
             </ul>
         </nav>

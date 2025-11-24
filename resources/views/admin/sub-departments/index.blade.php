@@ -72,7 +72,7 @@
                                 <span class="badge badge-info">{{ $subDepartment->divisions_count }}</span>
                             </td>
                             <td>
-                                @if($subDepartment->is_active)
+                                @if($subDepartment->status == 'active')
                                     <span class="badge badge-success">Active</span>
                                 @else
                                     <span class="badge badge-danger">Inactive</span>

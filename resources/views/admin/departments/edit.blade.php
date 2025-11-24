@@ -49,8 +49,15 @@
 
                     <div class="form-group">
                         <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" id="is_active" name="is_active" {{ old('is_active', $department->is_active) ? 'checked' : '' }}>
-                            <label class="custom-control-label" for="is_active">Active</label>
+                            <input 
+                                type="checkbox" 
+                                class="custom-control-input" 
+                                id="status" 
+                                name="status" 
+                                value="active"
+                                {{ old('status', $department->status ?? 'active') === 'active' ? 'checked' : '' }}
+                            >
+                            <label class="custom-control-label" for="status">Active</label>
                         </div>
                     </div>
 

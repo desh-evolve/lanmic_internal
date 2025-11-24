@@ -47,7 +47,7 @@
                 <div class="row mb-3">
                     <div class="col-md-3"><strong>Status:</strong></div>
                     <div class="col-md-9">
-                        @if($division->is_active)
+                        @if($division->status == 'active')
                             <span class="badge badge-success">Active</span>
                         @else
                             <span class="badge badge-danger">Inactive</span>

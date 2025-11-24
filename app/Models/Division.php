@@ -13,11 +13,11 @@ class Division extends Model
         'name',
         'short_code',
         'description',
-        'is_active'
+        'status'
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'status' => 'string',
     ];
 
     /**
@@ -49,6 +49,6 @@ class Division extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('status', 'active');
     }
 }
