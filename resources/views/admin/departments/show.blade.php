@@ -11,7 +11,7 @@
 
 @section('content')
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12">
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Department Information</h3>
@@ -94,8 +94,8 @@
             </div>
         </div>
 
-        <div class="card-footer">
-            <a href="{{ route('departments.index') }}" class="btn btn-default">
+        <div class="card-footer" style="display:flex; justify-content:right; align-items:right;">
+            <a href="{{ route('departments.index') }}"  class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Back to List
             </a>
         </div>

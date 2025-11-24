@@ -124,10 +124,21 @@ class DepartmentController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Department $department)
+    // public function destroy(Department $department)
+    // {
+    //     $department->subDepartments()->detach();
+    //     $department->delete();
+
+    //     return redirect()->route('departments.index')
+    //         ->with('success', 'Department deleted successfully.');
+    // }
+
+    public function destroy(Request $request, Department $department)
     {
-        $department->subDepartments()->detach();
-        $department->delete();
+        dd('delete');
+        $department->update([
+            'status' => "Delete",
+        ]);
 
         return redirect()->route('departments.index')
             ->with('success', 'Department deleted successfully.');
