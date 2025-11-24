@@ -27,6 +27,8 @@ class SubDepartment extends Model
     {
         return $this->belongsToMany(Department::class, 'department_sub_department')
                     ->withTimestamps();
+
+                    
     }
 
     /**
