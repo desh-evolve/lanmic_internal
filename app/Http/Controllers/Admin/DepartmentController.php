@@ -21,7 +21,7 @@ class DepartmentController extends Controller
      */
     public function index()
     {
-        $departments = Department::withCount('subDepartments')->paginate(10);
+        $departments = Department::active()->withCount('subDepartments')->paginate(10);
         return view('admin.departments.index', compact('departments'));
     }
 
@@ -121,23 +121,10 @@ class DepartmentController extends Controller
             ->with('success', 'Department updated successfully.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    // public function destroy(Department $department)
-    // {
-    //     $department->subDepartments()->detach();
-    //     $department->delete();
-
-    //     return redirect()->route('departments.index')
-    //         ->with('success', 'Department deleted successfully.');
-    // }
-
     public function destroy(Request $request, Department $department)
     {
-        dd('delete');
         $department->update([
-            'status' => "Delete",
+            'status' => "delete",
         ]);
 
         return redirect()->route('departments.index')

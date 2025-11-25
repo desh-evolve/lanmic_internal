@@ -81,16 +81,13 @@
                                 <a href="{{ route('departments.edit', $department->id) }}" class="btn btn-warning btn-sm">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{{ route('departments.destroy', $department->id) }}" class="btn btn-danger btn-sm">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                                {{-- <form action="{{ route('departments.destroy', $department->id) }}" method="POST" style="display: inline-block;">
+                                <form action="{{ route('departments.destroy', $department->id) }}" method="POST" style="display: inline-block;">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this department?')">
                                         <i class="fas fa-trash"></i>
                                     </button>
-                                </form> --}}
+                                </form>
                             </td>
                         </tr>
                         @empty
