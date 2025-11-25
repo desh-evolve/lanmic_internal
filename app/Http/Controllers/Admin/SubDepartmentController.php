@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Division;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class SubDepartmentController extends Controller
 {
@@ -15,6 +16,10 @@ class SubDepartmentController extends Controller
     {
         $this->middleware('auth');
         $this->middleware('role:admin');
+        // $this->middleware('permission:view-sub-departments')->only(['index', 'show']);
+        // $this->middleware('permission:create-sub-departments')->only(['create', 'store']);
+        // $this->middleware('permission:edit-sub-departments')->only(['edit', 'update']);
+        // $this->middleware('permission:delete-sub-departments')->only(['destroy']);
     }
 
     /**
@@ -22,7 +27,7 @@ class SubDepartmentController extends Controller
      */
     public function index()
     {
-        $subDepartments = SubDepartment::withCount(['departments', 'divisions'])->paginate(10);
+        $subDepartments = SubDepartment::active()->withCount(['departments', 'divisions'])->paginate(10);
         return view('admin.sub-departments.index', compact('subDepartments'));
     }
 
@@ -134,16 +139,53 @@ class SubDepartmentController extends Controller
             ->with('success', 'Sub Department updated successfully.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(SubDepartment $subDepartment)
+    public function destroy(Request $request, SubDepartment $subDepartment)
     {
-        $subDepartment->departments()->detach();
-        $subDepartment->divisions()->detach();
-        $subDepartment->delete();
+        // Update status in the department_sub_department pivot table
+        $subDepartment->departments()->updateExistingPivot(
+            $subDepartment->departments()->pluck('departments.id'),
+            ['status' => 'delete']
+        );
+
+        // Update status in the division_sub_department pivot table
+        $subDepartment->divisions()->updateExistingPivot(
+            $subDepartment->divisions()->pluck('divisions.id'),
+            ['status' => 'delete']
+        );
+
+        // Update the sub_department itself
+        $subDepartment->update(['status' => 'delete']);
 
         return redirect()->route('sub-departments.index')
             ->with('success', 'Sub Department deleted successfully.');
     }
+
+
+
+    // public function destroy(Request $request, SubDepartment $subDepartment)
+    // {
+    //     DB::transaction(function () use ($subDepartment) {
+    //         // Update all relationships in department_sub_department pivot
+    //         DB::table('department_sub_department')
+    //             ->where('sub_department_id', $subDepartment->id)
+    //             ->update([
+    //                 'status' => 'delete',
+    //                 'updated_at' => now()
+    //             ]);
+
+    //         // Update all relationships in division_sub_department pivot
+    //         DB::table('division_sub_department')
+    //             ->where('sub_department_id', $subDepartment->id)
+    //             ->update([
+    //                 'status' => 'delete',
+    //                 'updated_at' => now()
+    //             ]);
+
+    //         // Update the sub_department status
+    //         $subDepartment->update(['status' => 'delete']);
+    //     });
+
+    //     return redirect()->route('sub-departments.index')
+    //         ->with('success', 'Sub Department deleted successfully.');
+    // }
 }

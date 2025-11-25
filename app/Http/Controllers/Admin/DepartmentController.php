@@ -14,6 +14,12 @@ class DepartmentController extends Controller
     {
         $this->middleware('auth');
         $this->middleware('role:admin');
+        // Apply middleware to all methods
+        $this->middleware('permission:view-departments')->only(['index', 'show']);
+        $this->middleware('permission:create-departments')->only(['create', 'store']);
+        $this->middleware('permission:edit-departments')->only(['edit', 'update']);
+        $this->middleware('permission:delete-departments')->only(['destroy']);
+    
     }
 
     /**

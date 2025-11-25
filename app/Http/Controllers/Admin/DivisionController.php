@@ -14,6 +14,10 @@ class DivisionController extends Controller
     {
         $this->middleware('auth');
         $this->middleware('role:admin');
+        // $this->middleware('permission:view-divisions')->only(['index', 'show']);
+        // $this->middleware('permission:create-divisions')->only(['create', 'store']);
+        // $this->middleware('permission:edit-divisions')->only(['edit', 'update']);
+        // $this->middleware('permission:delete-divisions')->only(['destroy']);
     }
 
     /**
@@ -21,7 +25,7 @@ class DivisionController extends Controller
      */
     public function index()
     {
-        $divisions = Division::withCount('subDepartments')->paginate(10);
+        $divisions = Division::active()->withCount('subDepartments')->paginate(10);
         return view('admin.divisions.index', compact('divisions'));
     }
 

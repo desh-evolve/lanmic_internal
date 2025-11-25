@@ -11,9 +11,9 @@
 
 @section('content')
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header" style="background-color: rgb(192, 189, 189)">
                 <h3 class="card-title">Sub-Department Information</h3>
                 <div class="card-tools">
                     <a href="{{ route('sub-departments.edit', $subDepartment->id) }}" class="btn btn-warning btn-sm">
@@ -66,7 +66,7 @@
         </div>
 
         <div class="card">
-            <div class="card-header">
+            <div class="card-header" style="background-color: rgb(192, 189, 189)">
                 <h3 class="card-title">Parent Departments ({{ $subDepartment->departments->count() }})</h3>
             </div>
             <div class="card-body">
@@ -93,7 +93,7 @@
         </div>
 
         <div class="card">
-            <div class="card-header">
+            <div class="card-header" style="background-color: rgb(192, 189, 189)">
                 <h3 class="card-title">Divisions ({{ $subDepartment->divisions->count() }})</h3>
             </div>
             <div class="card-body">
@@ -119,11 +119,12 @@
             </div>
         </div>
 
-        <div class="card-footer">
-            <a href="{{ route('sub-departments.index') }}" class="btn btn-default">
-                <i class="fas fa-arrow-left"></i> Back to List
-            </a>
-        </div>
+        <div class="card-footer d-flex justify-content-end"
+                style="position: sticky; bottom: 0; background: white; z-index: 10;">
+                <a href="{{ route('sub-departments.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
     </div>
 </div>
 @endsection
