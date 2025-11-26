@@ -128,9 +128,9 @@
                             </td>
                             <td>${{ number_format($requisition->items->sum('total_price'), 2) }}</td>
                             <td>
-                                @if($requisition->status === 'pending')
+                                @if($requisition->approve_status === 'pending')
                                     <span class="badge badge-warning">Pending</span>
-                                @elseif($requisition->status === 'approved')
+                                @elseif($requisition->approve_status === 'approved')
                                     <span class="badge badge-success">Approved</span>
                                 @else
                                     <span class="badge badge-danger">Rejected</span>

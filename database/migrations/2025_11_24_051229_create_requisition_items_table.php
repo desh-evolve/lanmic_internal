@@ -20,7 +20,7 @@ return new class extends Migration
             $table->decimal('total_price', 10, 2)->nullable();
             $table->text('specifications')->nullable();
             
-            $table->enum('status', ['pending', 'active', 'delete'])->default('active');
+            $table->enum('status', ['pending', 'active', 'delete'])->default('pending');
             $table->timestamp('created_at')->useCurrent();
             $table->integer('created_by')->default(0)->nullable();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();

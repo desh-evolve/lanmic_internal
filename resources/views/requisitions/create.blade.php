@@ -88,7 +88,7 @@
                 <div class="card-body">
                     <!-- Item Entry Form -->
                     <div class="row">
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <div class="form-group">
                                 <label>Select Item <span class="text-danger">*</span></label>
                                 <select class="form-control select2" id="itemSelect" style="width: 100%;">
@@ -96,7 +96,7 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <div class="form-group">
                                 <label>Quantity <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" id="itemQuantity" min="1" value="1">
@@ -112,11 +112,9 @@
                                 <input type="text" class="form-control" id="itemSpecifications" placeholder="Optional">
                             </div>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-12">
+                        <div class="col-md-2 d-flex align-items-center pb-2">
                             <button type="button" class="btn btn-success" id="addItemBtn">
-                                <i class="fas fa-plus"></i> Check & Add Item
+                                <i class="fas fa-plus"></i> Add Item
                             </button>
                         </div>
                     </div>
@@ -170,29 +168,37 @@
                 <div class="card-header">
                     <h3 class="card-title">Summary</h3>
                 </div>
-                <div class="card-body">
-                    <div class="info-box bg-light">
-                        <div class="info-box-content">
-                            <span class="info-box-text">Total Items</span>
-                            <span class="info-box-number" id="totalItemsCount">0</span>
+                <div class="card-body row">
+                    <div class="col-md-6">
+                        <div class="info-box bg-success">
+                            <div class="info-box-content">
+                                <span class="info-box-text">Available Items</span>
+                                <span class="info-box-number" id="availableItemsCount">0</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="info-box bg-success">
-                        <div class="info-box-content">
-                            <span class="info-box-text">Available Items</span>
-                            <span class="info-box-number" id="availableItemsCount">0</span>
+                    <div class="col-md-6">
+                        <div class="info-box bg-warning">
+                            <div class="info-box-content">
+                                <span class="info-box-text">Purchase Order Items</span>
+                                <span class="info-box-number" id="poItemsCount">0</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="info-box bg-warning">
-                        <div class="info-box-content">
-                            <span class="info-box-text">Purchase Order Items</span>
-                            <span class="info-box-number" id="poItemsCount">0</span>
+                    <div class="col-md-6">
+                        <div class="info-box bg-light">
+                            <div class="info-box-content">
+                                <span class="info-box-text">Total Items</span>
+                                <span class="info-box-number" id="totalItemsCount">0</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="info-box bg-light">
-                        <div class="info-box-content">
-                            <span class="info-box-text">Total Amount</span>
-                            <span class="info-box-number" id="totalAmount">Rs. 0.00</span>
+                    <div class="col-md-6">
+                        <div class="info-box bg-light">
+                            <div class="info-box-content">
+                                <span class="info-box-text">Total Amount</span>
+                                <span class="info-box-number" id="totalAmount">Rs. 0.00</span>
+                            </div>
                         </div>
                     </div>
                 </div>

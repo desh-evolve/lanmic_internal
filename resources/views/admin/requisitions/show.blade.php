@@ -34,7 +34,7 @@
             <div class="card-header">
                 <h3 class="card-title">Requisition Information</h3>
                 <div class="card-tools">
-                    @if($requisition->status === 'pending')
+                    @if($requisition->approve_status === 'pending')
                         <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#approveModal">
                             <i class="fas fa-check"></i> Approve
                         </button>
@@ -45,7 +45,7 @@
                 </div>
             </div>
             <div class="card-body">
-                @if($requisition->status === 'pending')
+                @if($requisition->approve_status === 'pending')
                 <div class="alert alert-warning">
                     <i class="icon fas fa-exclamation-triangle"></i>
                     <strong>Action Required:</strong> This requisition is pending your approval.
@@ -61,9 +61,9 @@
                 <div class="row mb-3">
                     <div class="col-md-4"><strong>Status:</strong></div>
                     <div class="col-md-8">
-                        @if($requisition->status === 'pending')
+                        @if($requisition->approve_status === 'pending')
                             <span class="badge badge-warning badge-lg">Pending</span>
-                        @elseif($requisition->status === 'approved')
+                        @elseif($requisition->approve_status === 'approved')
                             <span class="badge badge-success badge-lg">Approved</span>
                         @else
                             <span class="badge badge-danger badge-lg">Rejected</span>
@@ -122,17 +122,17 @@
                     <div class="col-md-4"><strong>Created At:</strong></div>
                     <div class="col-md-8">{{ $requisition->created_at->format('Y-m-d H:i:s') }}</div>
                 </div>
-                @if($requisition->status !== 'pending')
+                @if($requisition->approve_status !== 'pending')
                 <div class="row mb-3">
-                    <div class="col-md-4"><strong>{{ $requisition->status === 'approved' ? 'Approved' : 'Rejected' }} By:</strong></div>
+                    <div class="col-md-4"><strong>{{ $requisition->approve_status === 'approved' ? 'Approved' : 'Rejected' }} By:</strong></div>
                     <div class="col-md-8">{{ $requisition->approvedBy->name ?? '-' }}</div>
                 </div>
                 <div class="row mb-3">
-                    <div class="col-md-4"><strong>{{ $requisition->status === 'approved' ? 'Approved' : 'Rejected' }} At:</strong></div>
+                    <div class="col-md-4"><strong>{{ $requisition->approve_status === 'approved' ? 'Approved' : 'Rejected' }} At:</strong></div>
                     <div class="col-md-8">{{ $requisition->approved_at ? $requisition->approved_at->format('Y-m-d H:i:s') : '-' }}</div>
                 </div>
                 @endif
-                @if($requisition->status === 'rejected' && $requisition->rejection_reason)
+                @if($requisition->approve_status === 'rejected' && $requisition->rejection_reason)
                 <div class="row mb-3">
                     <div class="col-md-4"><strong>Rejection Reason:</strong></div>
                     <div class="col-md-8">
@@ -192,7 +192,7 @@
             <a href="{{ route('admin.requisitions.index') }}" class="btn btn-default">
                 <i class="fas fa-arrow-left"></i> Back to List
             </a>
-            @if($requisition->status === 'pending')
+            @if($requisition->approve_status === 'pending')
                 <button type="button" class="btn btn-success" data-toggle="modal" data-target="#approveModal">
                     <i class="fas fa-check"></i> Approve
                 </button>

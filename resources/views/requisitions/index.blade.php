@@ -66,9 +66,9 @@
                             </td>
                             <td>${{ number_format($requisition->items->sum('total_price'), 2) }}</td>
                             <td>
-                                @if($requisition->status === 'pending')
+                                @if($requisition->approve_status === 'pending')
                                     <span class="badge badge-warning">Pending</span>
-                                @elseif($requisition->status === 'approved')
+                                @elseif($requisition->approve_status === 'approved')
                                     <span class="badge badge-success">Approved</span>
                                 @else
                                     <span class="badge badge-danger">Rejected</span>
@@ -79,10 +79,10 @@
                                 <a href="{{ route('requisitions.show', $requisition->id) }}" class="btn btn-info btn-sm">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                @if($requisition->status === 'pending')
-                                <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning btn-sm">
+                                @if($requisition->approve_status === 'pending')
+                                {{-- <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning btn-sm">
                                     <i class="fas fa-edit"></i>
-                                </a>
+                                </a> --}}
                                 <form action="{{ route('requisitions.destroy', $requisition->id) }}" method="POST" style="display: inline-block;">
                                     @csrf
                                     @method('DELETE')

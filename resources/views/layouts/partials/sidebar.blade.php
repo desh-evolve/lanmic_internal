@@ -29,14 +29,14 @@
                 <li class="nav-header">REQUISITIONS</li>
 
                 <li class="nav-item">
-                    <a href="{{ route('requisitions.index') }}" class="nav-link {{ request()->is('requisitions*') && !request()->is('admin/requisitions*') ? 'active' : '' }}">
+                    <a href="{{ route('requisitions.index') }}" class="nav-link {{ request()->is('requisitions') && !request()->is('admin/requisitions*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-file-alt"></i>
                         <p>My Requisitions</p>
                     </a>
                 </li>
 
                 <li class="nav-item">
-                    <a href="{{ route('requisitions.create') }}" class="nav-link">
+                    <a href="{{ route('requisitions.create') }}" class="nav-link {{ request()->is('requisitions/create*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-plus-circle"></i>
                         <p>Create Requisition</p>
                     </a>

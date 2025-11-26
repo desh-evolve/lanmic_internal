@@ -34,7 +34,7 @@
             <div class="card-header">
                 <h3 class="card-title">Requisition Information</h3>
                 <div class="card-tools">
-                    @if($requisition->status === 'pending' && $requisition->user_id === Auth::id())
+                    @if($requisition->approve_status === 'pending' && $requisition->user_id === Auth::id())
                         <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning btn-sm">
                             <i class="fas fa-edit"></i> Edit
                         </a>
@@ -49,14 +49,26 @@
                     </div>
                 </div>
                 <div class="row mb-3">
-                    <div class="col-md-4"><strong>Status:</strong></div>
+                    <div class="col-md-4"><strong>Approve Status:</strong></div>
                     <div class="col-md-8">
-                        @if($requisition->status === 'pending')
+                        @if($requisition->approve_status === 'pending')
                             <span class="badge badge-warning">Pending</span>
-                        @elseif($requisition->status === 'approved')
+                        @elseif($requisition->approve_status === 'approved')
                             <span class="badge badge-success">Approved</span>
                         @else
                             <span class="badge badge-danger">Rejected</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4"><strong>Clear Status:</strong></div>
+                    <div class="col-md-8">
+                        @if($requisition->clear_status === 'pending')
+                            <span class="badge badge-warning">Pending</span>
+                        @elseif($requisition->clear_status === 'cleared')
+                            <span class="badge badge-success">Cleared</span>
+                        @else
+                            <span class="badge badge-danger">Error</span>
                         @endif
                     </div>
                 </div>
@@ -95,10 +107,6 @@
                     </div>
                 </div>
                 @endif
-                <div class="row mb-3">
-                    <div class="col-md-4"><strong>Purpose:</strong></div>
-                    <div class="col-md-8">{{ $requisition->purpose }}</div>
-                </div>
                 @if($requisition->notes)
                 <div class="row mb-3">
                     <div class="col-md-4"><strong>Notes:</strong></div>
@@ -109,17 +117,17 @@
                     <div class="col-md-4"><strong>Created At:</strong></div>
                     <div class="col-md-8">{{ $requisition->created_at->format('Y-m-d H:i:s') }}</div>
                 </div>
-                @if($requisition->status !== 'pending')
+                @if($requisition->approve_status !== 'pending')
                 <div class="row mb-3">
-                    <div class="col-md-4"><strong>{{ $requisition->status === 'approved' ? 'Approved' : 'Rejected' }} By:</strong></div>
+                    <div class="col-md-4"><strong>{{ $requisition->approve_status === 'approved' ? 'Approved' : 'Rejected' }} By:</strong></div>
                     <div class="col-md-8">{{ $requisition->approvedBy->name ?? '-' }}</div>
                 </div>
                 <div class="row mb-3">
-                    <div class="col-md-4"><strong>{{ $requisition->status === 'approved' ? 'Approved' : 'Rejected' }} At:</strong></div>
+                    <div class="col-md-4"><strong>{{ $requisition->approve_status === 'approved' ? 'Approved' : 'Rejected' }} At:</strong></div>
                     <div class="col-md-8">{{ $requisition->approved_at ? $requisition->approved_at->format('Y-m-d H:i:s') : '-' }}</div>
                 </div>
                 @endif
-                @if($requisition->status === 'rejected' && $requisition->rejection_reason)
+                @if($requisition->approve_status === 'rejected' && $requisition->rejection_reason)
                 <div class="row mb-3">
                     <div class="col-md-4"><strong>Rejection Reason:</strong></div>
                     <div class="col-md-8">
@@ -160,13 +168,13 @@
                             </td>
                             <td>{{ $item->item_category ?? '-' }}</td>
                             <td>{{ $item->quantity }} {{ $item->unit }}</td>
-                            <td>${{ number_format($item->unit_price, 2) }}</td>
-                            <td><strong>${{ number_format($item->total_price, 2) }}</strong></td>
+                            <td>Rs. {{ number_format($item->unit_price, 2) }}</td>
+                            <td><strong>Rs. {{ number_format($item->total_price, 2) }}</strong></td>
                         </tr>
                         @endforeach
                         <tr class="bg-light">
                             <td colspan="5" class="text-right"><strong>Grand Total:</strong></td>
-                            <td><strong>${{ number_format($grandTotal, 2) }}</strong></td>
+                            <td><strong>Rs. {{ number_format($grandTotal, 2) }}</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -177,18 +185,6 @@
             <a href="{{ route('requisitions.index') }}" class="btn btn-default">
                 <i class="fas fa-arrow-left"></i> Back to List
             </a>
-            @if($requisition->status === 'pending' && $requisition->user_id === Auth::id())
-                <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning">
-                    <i class="fas fa-edit"></i> Edit
-                </a>
-                <form action="{{ route('requisitions.destroy', $requisition->id) }}" method="POST" style="display: inline-block;">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this requisition?')">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </form>
-            @endif
         </div>
     </div>
 
@@ -213,7 +209,7 @@
                 <div class="info-box bg-light">
                     <div class="info-box-content">
                         <span class="info-box-text">Total Amount</span>
-                        <span class="info-box-number">${{ number_format($requisition->items->sum('total_price'), 2) }}</span>
+                        <span class="info-box-number">Rs. {{ number_format($requisition->items->sum('total_price'), 2) }}</span>
                     </div>
                 </div>
             </div>

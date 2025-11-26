@@ -54,26 +54,26 @@ class RequisitionController extends Controller
      */
     public function store(Request $request)
     {
+        
         $validator = Validator::make($request->all(), [
             'department_id' => 'required|exists:departments,id',
             'sub_department_id' => 'nullable|exists:sub_departments,id',
             'division_id' => 'nullable|exists:divisions,id',
-            'purpose' => 'required|string',
             'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.item_code' => 'required|string',
-            'items.*.item_name' => 'required|string',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'nullable|numeric|min:0',
-            'items.*.specifications' => 'nullable|string',
+            'requisition_items' => 'required|array|min:1',
+            'requisition_items.*.item_code' => 'required|string',
+            'requisition_items.*.item_name' => 'required|string',
+            'requisition_items.*.quantity' => 'required|integer|min:1',
+            'requisition_items.*.unit_price' => 'nullable|numeric|min:0',
+            'requisition_items.*.specifications' => 'nullable|string',
         ]);
-
+        
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
         }
-
+        
         DB::beginTransaction();
         try {
             // Create requisition
@@ -92,7 +92,7 @@ class RequisitionController extends Controller
             ]);
 
             // Process each item
-            foreach ($request->items as $item) {
+            foreach ($request->requisition_items as $item) {
                 $unitPrice = $item['unit_price'] ?? 0;
                 $quantity = $item['quantity'];
                 $totalPrice = $unitPrice * $quantity;
@@ -108,13 +108,13 @@ class RequisitionController extends Controller
                     'unit_price' => $unitPrice,
                     'total_price' => $totalPrice,
                     'specifications' => $item['specifications'] ?? null,
-                    'status' => 'active',
+                    'status' => 'pending',
                     'created_by' => Auth::id(),
                     'updated_by' => Auth::id(),
                 ]);
 
                 // Check availability and insert into purchase_order_items if needed
-                $split = $this->itemAvailabilityService->splitAvailableAndPO($item['item_code'], $quantity);
+                $split = $this->itemAvailabilityService->splitAvailableAndPO($item['item_code'], $quantity, $requisition->id);
                 
                 if ($split['needs_po'] > 0) {
                     $poTotalPrice = $unitPrice * $split['needs_po'];
@@ -134,6 +134,7 @@ class RequisitionController extends Controller
                     ]);
                 }
             }
+
 
             DB::commit();
 
@@ -204,7 +205,6 @@ class RequisitionController extends Controller
             'department_id' => 'required|exists:departments,id',
             'sub_department_id' => 'nullable|exists:sub_departments,id',
             'division_id' => 'nullable|exists:divisions,id',
-            'purpose' => 'required|string',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.item_code' => 'required|string',

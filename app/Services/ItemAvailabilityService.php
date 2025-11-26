@@ -41,16 +41,16 @@ class ItemAvailabilityService
      * Calculate available quantity for an item.
      * Available = Stock - (Pending Requisition Items - Pending PO Items)
      */
-    public function getAvailableQuantity($itemCode)
+    public function getAvailableQuantity($itemCode, $requisitionId = '')
     {
         // Get the item's stock from JSON
         $items = $this->getItemsFromJson();
         $item = collect($items)->firstWhere('code', $itemCode);
-        $stockQuantity = $item['stock_quantity'] ?? 0;
-
+        $stockQuantity = $item['available_qty'] ?? 0;
+       
         // Get pending quantity
-        $pendingQuantity = $this->getPendingQuantity($itemCode);
-
+        $pendingQuantity = $this->getPendingQuantity($itemCode, $requisitionId);
+        
         // Available = Stock - Pending
         return max(0, $stockQuantity - $pendingQuantity);
     }
@@ -58,7 +58,7 @@ class ItemAvailabilityService
     /**
      * Get pending quantity (items in pending requisitions that are not in PO).
      */
-    public function getPendingQuantity($itemCode)
+    public function getPendingQuantity($itemCode, $requisitionId = '')
     {
         // Get total quantity in pending requisition items
         $pendingRequisitionItems = RequisitionItem::whereHas('requisition', function($query) {
@@ -66,6 +66,7 @@ class ItemAvailabilityService
                   ->where('status', 'active');
         })
         ->where('item_code', $itemCode)
+        ->where('requisition_id', '!=', $requisitionId)
         ->where('status', '!=', 'delete')
         ->sum('quantity');
 
@@ -94,9 +95,9 @@ class ItemAvailabilityService
     /**
      * Determine how much of the requested quantity is available and how much needs PO.
      */
-    public function splitAvailableAndPO($itemCode, $requestedQuantity)
+    public function splitAvailableAndPO($itemCode, $requestedQuantity, $requisitionId = '')
     {
-        $availableQuantity = $this->getAvailableQuantity($itemCode);
+        $availableQuantity = $this->getAvailableQuantity($itemCode, $requisitionId);
         
         if ($availableQuantity >= $requestedQuantity) {
             return [
