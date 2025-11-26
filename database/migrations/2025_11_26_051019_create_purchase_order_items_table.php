@@ -8,19 +8,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('requisition_items', function (Blueprint $table) {
+        Schema::create('purchase_order_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('requisition_id')->constrained()->onDelete('cascade');
             $table->string('item_code');
             $table->string('item_name');
             $table->string('item_category')->nullable();
             $table->string('unit')->nullable();
-            $table->integer('quantity');
             $table->decimal('unit_price', 10, 2)->nullable();
             $table->decimal('total_price', 10, 2)->nullable();
-            $table->text('specifications')->nullable();
+            $table->integer('quantity');
+            $table->enum('status', ['pending', 'cleared'])->default('pending');
+            $table->foreignId('cleared_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamp('cleared_at')->nullable();
             
-            $table->enum('status', ['pending', 'active', 'delete'])->default('active');
             $table->timestamp('created_at')->useCurrent();
             $table->integer('created_by')->default(0)->nullable();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
@@ -30,6 +31,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('requisition_items');
+        Schema::dropIfExists('purchase_order_items');
     }
 };

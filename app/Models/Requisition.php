@@ -11,7 +11,7 @@ class Requisition extends Model
 
     protected $fillable = [
         'requisition_number',
-        'requested_by',
+        'user_id',
         'department_id',
         'sub_department_id',
         'division_id',
@@ -23,13 +23,14 @@ class Requisition extends Model
         'cleared_at',
         'rejection_reason',
         'notes',
-        'status'
+        'status',
+        'created_by',
+        'updated_by'
     ];
 
     protected $casts = [
         'approved_at' => 'datetime',
         'cleared_at' => 'datetime',
-        'status' => 'string',
     ];
 
     /**
@@ -81,11 +82,43 @@ class Requisition extends Model
     }
 
     /**
+     * Get the user who created the requisition.
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
      * Get the items for the requisition.
      */
     public function items()
     {
+        return $this->hasMany(RequisitionItem::class)->where('status', '!=', 'delete');
+    }
+
+    /**
+     * Get all items including deleted.
+     */
+    public function allItems()
+    {
         return $this->hasMany(RequisitionItem::class);
+    }
+
+    /**
+     * Get purchase order items.
+     */
+    public function purchaseOrderItems()
+    {
+        return $this->hasMany(PurchaseOrderItem::class);
+    }
+
+    /**
+     * Get issued items.
+     */
+    public function issuedItems()
+    {
+        return $this->hasMany(RequisitionIssuedItem::class)->where('status', '!=', 'delete');
     }
 
     /**
@@ -116,7 +149,7 @@ class Requisition extends Model
      */
     public function scopePending($query)
     {
-        return $query->where('approve_status', 'pending');
+        return $query->where('approve_status', 'pending')->where('status', 'active');
     }
 
     /**
@@ -124,7 +157,7 @@ class Requisition extends Model
      */
     public function scopeApproved($query)
     {
-        return $query->where('approve_status', 'approved');
+        return $query->where('approve_status', 'approved')->where('status', 'active');
     }
 
     /**
@@ -132,28 +165,11 @@ class Requisition extends Model
      */
     public function scopeRejected($query)
     {
-        return $query->where('approve_status', 'rejected');
-    }
-
-    
-    /**
-     * Scope for pending clearance requisitions.
-     */
-    public function scopePendingClearance($query)
-    {
-        return $query->where('clear_status', 'pending');
+        return $query->where('approve_status', 'rejected')->where('status', 'active');
     }
 
     /**
-     * Scope for cleared requisitions.
-     */
-    public function scopeCleared($query)
-    {
-        return $query->where('clear_status', 'cleared');
-    }
-
-    /**
-     * Scope to get only active requisitions.
+     * Scope for active requisitions.
      */
     public function scopeActive($query)
     {

@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class RequisitionItem extends Model
+class PurchaseOrderItem extends Model
 {
     use HasFactory;
 
@@ -15,11 +15,12 @@ class RequisitionItem extends Model
         'item_name',
         'item_category',
         'unit',
-        'quantity',
         'unit_price',
         'total_price',
-        'specifications',
+        'quantity',
         'status',
+        'cleared_by',
+        'cleared_at',
         'created_by',
         'updated_by'
     ];
@@ -28,6 +29,7 @@ class RequisitionItem extends Model
         'quantity' => 'integer',
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'cleared_at' => 'datetime',
     ];
 
     /**
@@ -39,27 +41,26 @@ class RequisitionItem extends Model
     }
 
     /**
-     * Get issued items for this requisition item.
+     * Get the user who cleared the item.
      */
-    public function issuedItems()
+    public function clearedBy()
     {
-        return $this->hasMany(RequisitionIssuedItem::class)->where('status', '!=', 'delete');
+        return $this->belongsTo(User::class, 'cleared_by');
     }
 
     /**
-     * Get the remaining quantity to be issued.
+     * Scope for pending items.
      */
-    public function getRemainingQuantityAttribute()
+    public function scopePending($query)
     {
-        $issuedQuantity = $this->issuedItems()->sum('issued_quantity');
-        return $this->quantity - $issuedQuantity;
+        return $query->where('status', 'pending');
     }
 
     /**
-     * Check if item is fully issued.
+     * Scope for cleared items.
      */
-    public function isFullyIssued()
+    public function scopeCleared($query)
     {
-        return $this->remaining_quantity <= 0;
+        return $query->where('status', 'cleared');
     }
 }

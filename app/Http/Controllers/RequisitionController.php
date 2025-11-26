@@ -4,20 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
+use App\Models\PurchaseOrderItem;
 use App\Models\Department;
 use App\Models\SubDepartment;
 use App\Models\Division;
+use App\Services\ItemAvailabilityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class RequisitionController extends Controller
 {
-    public function __construct()
+    protected $itemAvailabilityService;
+
+    public function __construct(ItemAvailabilityService $itemAvailabilityService)
     {
         $this->middleware('auth');
+        $this->itemAvailabilityService = $itemAvailabilityService;
     }
 
     /**
@@ -26,6 +30,7 @@ class RequisitionController extends Controller
     public function index()
     {
         $requisitions = Requisition::where('user_id', Auth::id())
+            ->where('status', 'active')
             ->with(['department', 'subDepartment', 'division', 'items'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -39,7 +44,7 @@ class RequisitionController extends Controller
     public function create()
     {
         $departments = Department::active()->get();
-        $items = $this->getItemsFromJson();
+        $items = $this->itemAvailabilityService->getItemsWithAvailability();
         
         return view('requisitions.create', compact('departments', 'items'));
     }
@@ -78,17 +83,21 @@ class RequisitionController extends Controller
                 'department_id' => $request->department_id,
                 'sub_department_id' => $request->sub_department_id,
                 'division_id' => $request->division_id,
-                'purpose' => $request->purpose,
                 'notes' => $request->notes,
-                'status' => 'pending',
+                'approve_status' => 'pending',
+                'clear_status' => 'pending',
+                'status' => 'active',
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
             ]);
 
-            // Create requisition items
+            // Process each item
             foreach ($request->items as $item) {
                 $unitPrice = $item['unit_price'] ?? 0;
                 $quantity = $item['quantity'];
                 $totalPrice = $unitPrice * $quantity;
 
+                // Insert into requisition_items (all items)
                 RequisitionItem::create([
                     'requisition_id' => $requisition->id,
                     'item_code' => $item['item_code'],
@@ -99,7 +108,31 @@ class RequisitionController extends Controller
                     'unit_price' => $unitPrice,
                     'total_price' => $totalPrice,
                     'specifications' => $item['specifications'] ?? null,
+                    'status' => 'active',
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
                 ]);
+
+                // Check availability and insert into purchase_order_items if needed
+                $split = $this->itemAvailabilityService->splitAvailableAndPO($item['item_code'], $quantity);
+                
+                if ($split['needs_po'] > 0) {
+                    $poTotalPrice = $unitPrice * $split['needs_po'];
+                    
+                    PurchaseOrderItem::create([
+                        'requisition_id' => $requisition->id,
+                        'item_code' => $item['item_code'],
+                        'item_name' => $item['item_name'],
+                        'item_category' => $item['item_category'] ?? null,
+                        'unit' => $item['unit'] ?? null,
+                        'unit_price' => $unitPrice,
+                        'total_price' => $poTotalPrice,
+                        'quantity' => $split['needs_po'],
+                        'status' => 'pending',
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                    ]);
+                }
             }
 
             DB::commit();
@@ -109,7 +142,7 @@ class RequisitionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
-                ->with('error', 'Failed to create requisition. Please try again.')
+                ->with('error', 'Failed to create requisition: ' . $e->getMessage())
                 ->withInput();
         }
     }
@@ -124,7 +157,7 @@ class RequisitionController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $requisition->load(['department', 'subDepartment', 'division', 'items', 'user', 'approvedBy']);
+        $requisition->load(['department', 'subDepartment', 'division', 'items', 'purchaseOrderItems', 'user', 'approvedBy']);
         
         return view('requisitions.show', compact('requisition'));
     }
@@ -139,18 +172,18 @@ class RequisitionController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        if ($requisition->status !== 'pending') {
+        if ($requisition->approve_status !== 'pending') {
             return redirect()->route('requisitions.show', $requisition->id)
-                ->with('error', 'Cannot edit a requisition that has been ' . $requisition->status);
+                ->with('error', 'Cannot edit a requisition that has been ' . $requisition->approve_status);
         }
 
         $departments = Department::active()->get();
         $subDepartments = SubDepartment::active()->get();
         $divisions = Division::active()->get();
-        $items = $this->getItemsFromJson();
+        $items = $this->itemAvailabilityService->getItemsWithAvailability();
         
         return view('requisitions.edit', compact('requisition', 'departments', 'subDepartments', 'divisions', 'items'));
-    }
+        }
 
     /**
      * Update the specified requisition in storage.
@@ -162,9 +195,9 @@ class RequisitionController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        if ($requisition->status !== 'pending') {
+        if ($requisition->approve_status !== 'pending') {
             return redirect()->route('requisitions.show', $requisition->id)
-                ->with('error', 'Cannot edit a requisition that has been ' . $requisition->status);
+                ->with('error', 'Cannot edit a requisition that has been ' . $requisition->approve_status);
         }
 
         $validator = Validator::make($request->all(), [
@@ -194,18 +227,21 @@ class RequisitionController extends Controller
                 'department_id' => $request->department_id,
                 'sub_department_id' => $request->sub_department_id,
                 'division_id' => $request->division_id,
-                'purpose' => $request->purpose,
                 'notes' => $request->notes,
+                'updated_by' => Auth::id(),
             ]);
 
-            // Delete old items and create new ones
-            $requisition->items()->delete();
+            // Delete old items and PO items
+            $requisition->allItems()->update(['status' => 'delete', 'updated_by' => Auth::id()]);
+            $requisition->purchaseOrderItems()->delete();
 
+            // Create new items
             foreach ($request->items as $item) {
                 $unitPrice = $item['unit_price'] ?? 0;
                 $quantity = $item['quantity'];
                 $totalPrice = $unitPrice * $quantity;
 
+                // Insert into requisition_items
                 RequisitionItem::create([
                     'requisition_id' => $requisition->id,
                     'item_code' => $item['item_code'],
@@ -216,7 +252,31 @@ class RequisitionController extends Controller
                     'unit_price' => $unitPrice,
                     'total_price' => $totalPrice,
                     'specifications' => $item['specifications'] ?? null,
+                    'status' => 'active',
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
                 ]);
+
+                // Check availability and insert into purchase_order_items if needed
+                $split = $this->itemAvailabilityService->splitAvailableAndPO($item['item_code'], $quantity);
+                
+                if ($split['needs_po'] > 0) {
+                    $poTotalPrice = $unitPrice * $split['needs_po'];
+                    
+                    PurchaseOrderItem::create([
+                        'requisition_id' => $requisition->id,
+                        'item_code' => $item['item_code'],
+                        'item_name' => $item['item_name'],
+                        'item_category' => $item['item_category'] ?? null,
+                        'unit' => $item['unit'] ?? null,
+                        'unit_price' => $unitPrice,
+                        'total_price' => $poTotalPrice,
+                        'quantity' => $split['needs_po'],
+                        'status' => 'pending',
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                    ]);
+                }
             }
 
             DB::commit();
@@ -226,7 +286,7 @@ class RequisitionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
-                ->with('error', 'Failed to update requisition. Please try again.')
+                ->with('error', 'Failed to update requisition: ' . $e->getMessage())
                 ->withInput();
         }
     }
@@ -241,12 +301,12 @@ class RequisitionController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        if ($requisition->status !== 'pending') {
+        if ($requisition->approve_status !== 'pending') {
             return redirect()->route('requisitions.index')
-                ->with('error', 'Cannot delete a requisition that has been ' . $requisition->status);
+                ->with('error', 'Cannot delete a requisition that has been ' . $requisition->approve_status);
         }
 
-        $requisition->delete();
+        $requisition->update(['status' => 'delete', 'updated_by' => Auth::id()]);
 
         return redirect()->route('requisitions.index')
             ->with('success', 'Requisition deleted successfully.');
@@ -255,7 +315,6 @@ class RequisitionController extends Controller
     /**
      * Get sub-departments based on department.
      */
-
     public function getSubDepartments($departmentId)
     {
         $subDepartments = SubDepartment::query()
@@ -279,24 +338,27 @@ class RequisitionController extends Controller
             ->where('status', 'active')
             ->whereHas('subDepartments', function ($query) use ($subDepartmentId) {
                 $query->where('sub_departments.id', $subDepartmentId)
-                      ->where('division_sub_department.status', 'active'); // pivot table status
+                    ->where('division_sub_department.status', 'active'); // pivot table status
             })
             ->select('divisions.id', 'divisions.name', 'divisions.short_code')
             ->get();
-    
+
         return response()->json($divisions);
     }
 
     /**
-     * Get items from JSON file.
+     * Get item availability.
      */
-    private function getItemsFromJson()
+    public function getItemAvailability($itemCode)
     {
-        if (Storage::exists('ex_items.json')) {
-            $json = Storage::get('ex_items.json');
-            return json_decode($json, true);
-        }
-        
-        return [];
+        $availableQuantity = $this->itemAvailabilityService->getAvailableQuantity($itemCode);
+        $pendingQuantity = $this->itemAvailabilityService->getPendingQuantity($itemCode);
+
+        return response()->json([
+            'item_code' => $itemCode,
+            'available_quantity' => $availableQuantity,
+            'pending_quantity' => $pendingQuantity,
+            'is_available' => $availableQuantity > 0
+        ]);
     }
 }

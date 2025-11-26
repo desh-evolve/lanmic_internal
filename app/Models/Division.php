@@ -26,7 +26,7 @@ class Division extends Model
     public function subDepartments()
     {
         return $this->belongsToMany(SubDepartment::class, 'division_sub_department')
-                    ->withTimestamps();
+                    ->wherePivot('status', 'active');
     }
 
     /**
