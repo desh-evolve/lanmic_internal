@@ -87,7 +87,16 @@ class SubDepartmentController extends Controller
      */
     public function show(SubDepartment $subDepartment)
     {
-        $subDepartment->load('departments', 'divisions');
+        $subDepartment->load([
+            'departments' => function ($query) {
+                $query->where('departments.status', 'active')   // department table
+                    ->where('department_sub_department.status', 'active'); // pivot table
+            },
+            'divisions' => function ($query) {
+                $query->where('divisions.status', 'active');
+            },
+        ]);
+
         return view('admin.sub-departments.show', compact('subDepartment'));
     }
 
@@ -159,33 +168,4 @@ class SubDepartmentController extends Controller
         return redirect()->route('sub-departments.index')
             ->with('success', 'Sub Department deleted successfully.');
     }
-
-
-
-    // public function destroy(Request $request, SubDepartment $subDepartment)
-    // {
-    //     DB::transaction(function () use ($subDepartment) {
-    //         // Update all relationships in department_sub_department pivot
-    //         DB::table('department_sub_department')
-    //             ->where('sub_department_id', $subDepartment->id)
-    //             ->update([
-    //                 'status' => 'delete',
-    //                 'updated_at' => now()
-    //             ]);
-
-    //         // Update all relationships in division_sub_department pivot
-    //         DB::table('division_sub_department')
-    //             ->where('sub_department_id', $subDepartment->id)
-    //             ->update([
-    //                 'status' => 'delete',
-    //                 'updated_at' => now()
-    //             ]);
-
-    //         // Update the sub_department status
-    //         $subDepartment->update(['status' => 'delete']);
-    //     });
-
-    //     return redirect()->route('sub-departments.index')
-    //         ->with('success', 'Sub Department deleted successfully.');
-    // }
-}
+   }

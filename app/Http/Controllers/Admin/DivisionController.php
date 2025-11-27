@@ -76,9 +76,34 @@ class DivisionController extends Controller
     /**
      * Display the specified resource.
      */
+    // public function show(Division $division)
+    // {
+    //     // $division->load('subDepartments.departments');
+
+    //     $division->load([
+    //         'subDepartments' => function ($query) {
+    //             $query->where('sub_departments.status', 'active')   // correct
+    //                 ->where('division_sub_department.status', 'active'); // correct pivot
+    //         },
+    //         'departments' => function ($query) {
+    //             $query->where('departments.status', 'active');
+    //         },
+    //     ]);
+    //     return view('admin.divisions.show', compact('division'));
+    // }
+
     public function show(Division $division)
     {
-        $division->load('subDepartments.departments');
+        $division->load([
+            'subDepartments' => function ($q) {
+                $q->where('sub_departments.status', 'active')
+                    ->with(['departments' => function ($d) {
+                        $d->where('departments.status', 'active')
+                            ->where('department_sub_department.status', 'active');
+                    }]);
+            }
+        ]);
+
         return view('admin.divisions.show', compact('division'));
     }
 

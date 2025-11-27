@@ -114,8 +114,7 @@
                                     @endif
                                 </div>
 
-                                <a href="{{ route('divisions.show', $subDepartment->id) }}"
-                                    class="btn btn-xs btn-info">
+                                <a href="{{ route('sub-departments.show', $subDepartment->id) }}" class="btn btn-xs btn-info">
                                     <i class="fas fa-eye"></i> View
                                 </a>
                             </div>
@@ -126,19 +125,20 @@
                                     <strong class="text-primary d-block mb-2">Divisions:</strong>
 
                                     @foreach ($subDepartment->departments as $department)
-                                        <div class="mb-2 pl-3"> {{-- <<< more indentation --}}
-                                            <strong>{{ $department->name }}</strong>
+                                    <div class="mb-2 pl-3">
+                                    <strong>{{ $department->name }}</strong>
 
-                                            @if ($department->short_code)
-                                                <span class="badge badge-secondary">{{ $department->short_code }}</span>
-                                            @endif
+                                    @if ($department->short_code)
+                                    <span class="badge badge-secondary">{{ $department->short_code }}</span>
+                                    @endif
 
-                                            <br>
-                                            <small class="text-muted">
-                                                {{ $department->description ?? '-' }}
-                                            </small>
-                                        </div>
+                                    <br>
+                                    <small class="text-muted">
+                                    {{ $department->description ?? '-' }}
+                                    </small>
+                                    </div>
                                     @endforeach
+
                                 </div>
                             @else
                                 <p class="text-muted ml-4">No department assigned</p>

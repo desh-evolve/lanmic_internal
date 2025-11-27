@@ -32,17 +32,17 @@ class Division extends Model
     /**
      * Get all departments through sub-departments.
      */
-    public function departments()
-    {
-        return $this->hasManyThrough(
-            Department::class,
-            SubDepartment::class,
-            'division_id', // Foreign key on division_sub_department table
-            'department_id', // Foreign key on department_sub_department table
-            'id', // Local key on divisions table
-            'id' // Local key on sub_departments table
-        );
-    }
+    // public function departments()
+    // {
+    //     return $this->hasManyThrough(
+    //         Department::class,
+    //         SubDepartment::class,
+    //         'division_id', // Foreign key on division_sub_department table
+    //         'department_id', // Foreign key on department_sub_department table
+    //         'id', // Local key on divisions table
+    //         'id' // Local key on sub_departments table
+    //     );
+    // }
 
     /**
      * Scope to get only active divisions.

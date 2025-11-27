@@ -19,7 +19,6 @@ class DepartmentController extends Controller
         $this->middleware('permission:create-departments')->only(['create', 'store']);
         $this->middleware('permission:edit-departments')->only(['edit', 'update']);
         $this->middleware('permission:delete-departments')->only(['destroy']);
-    
     }
 
     /**
@@ -80,7 +79,17 @@ class DepartmentController extends Controller
      */
     public function show(Department $department)
     {
-        $department->load('subDepartments.divisions');
+        // $department->load('subDepartments.divisions');
+
+        $department->load([
+            'subDepartments' => function ($query) {
+                $query->where('sub_departments.status', 'active')   // department table
+                    ->where('department_sub_department.status', 'active'); // pivot table
+            },
+            'subDepartments.divisions' => function ($query) {
+                $query->where('divisions.status', 'active');
+            },
+        ]);
         return view('admin.departments.show', compact('department'));
     }
 
