@@ -26,7 +26,7 @@ class SubDepartment extends Model
     public function departments()
     {
         return $this->belongsToMany(Department::class, 'department_sub_department')
-                    ->withTimestamps();
+                    ->wherePivot('status', 'active');
     }
 
     /**
@@ -35,7 +35,9 @@ class SubDepartment extends Model
     public function divisions()
     {
         return $this->belongsToMany(Division::class, 'division_sub_department')
-                    ->withTimestamps();
+                    ->wherePivot('status', 'active')           // only active links
+                    ->where('divisions.status', 'active')      // only active divisions
+                    ->select('divisions.*');                   // avoids "id ambiguous" error
     }
 
     /**

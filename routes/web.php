@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\SubDepartmentController;
 use App\Http\Controllers\Admin\DivisionController;
+use App\Http\Controllers\Admin\RequisitionApprovalController;
+use App\Http\Controllers\RequisitionController;
 
 Route::get('/', function () {
     return redirect('/login');
@@ -18,12 +20,18 @@ Auth::routes();
 Route::middleware(['auth'])->group(function () {
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     
-    
     // Profile routes
     //Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'index'])->name('profile.index');
     //Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     
-
+    // Requisition routes (for all authenticated users)
+    Route::resource('requisitions', RequisitionController::class);
+    Route::get('api/items/{itemCode}/availability', [RequisitionController::class, 'getItemAvailability']);
+    
+    Route::get('api/departments/{department}/sub-departments', [RequisitionController::class, 'getSubDepartments']);
+    Route::get('api/sub-departments/{subDepartment}/divisions', [RequisitionController::class, 'getDivisions']);
+    Route::get('api/requisitions/pending-items', [RequisitionController::class, 'getItemAvailability']);
+    
     // Admin routes
     Route::middleware(['role:admin'])->prefix('admin')->group(function () {
         Route::resource('users', UserController::class);
@@ -32,5 +40,14 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('departments', DepartmentController::class);
         Route::resource('sub-departments', SubDepartmentController::class);
         Route::resource('divisions', DivisionController::class);
+        
+        // Requisition approval routes
+        Route::get('requisitions', [RequisitionApprovalController::class, 'index'])->name('admin.requisitions.index');
+        Route::get('requisitions/{requisition}', [RequisitionApprovalController::class, 'show'])->name('admin.requisitions.show');
+        Route::post('requisitions/{requisition}/approve', [RequisitionApprovalController::class, 'approve'])->name('admin.requisitions.approve');
+        Route::post('requisitions/{requisition}/reject', [RequisitionApprovalController::class, 'reject'])->name('admin.requisitions.reject');
+        Route::get('requisitions/{requisition}/issue-items', [RequisitionApprovalController::class, 'issueItemsForm'])->name('admin.requisitions.issue-items');
+        Route::post('requisitions/{requisition}/issue-items', [RequisitionApprovalController::class, 'issueItems'])->name('admin.requisitions.issue-items.store');
+    
     });
 });
