@@ -41,6 +41,22 @@
                         <p>Create Requisition</p>
                     </a>
                 </li>
+
+                <li class="nav-header">RETURNS</li>
+
+                <li class="nav-item">
+                    <a href="{{ route('returns.index') }}" class="nav-link {{ request()->is('returns') && !request()->is('admin/requisitions*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-file-alt"></i>
+                        <p>My Returns</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{{ route('returns.create') }}" class="nav-link {{ request()->is('returns/create*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-plus-circle"></i>
+                        <p>Create Return</p>
+                    </a>
+                </li>
                 
                 @if(Auth::user()->hasRole('admin'))
                 <li class="nav-header">ADMINISTRATION</li>
@@ -55,6 +71,21 @@
                             @endphp
                             @if($pendingCount > 0)
                                 <span class="badge badge-warning right">{{ $pendingCount }}</span>
+                            @endif
+                        </p>
+                    </a>
+                </li>
+                
+                <li class="nav-item">
+                    <a href="{{ route('admin.returns.index') }}" class="nav-link {{ request()->is('admin/returns*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-clipboard-check"></i>
+                        <p>
+                            Return Approvals
+                            @php
+                                $pendingReturns = \App\Models\ReturnModel::pending()->count();
+                            @endphp
+                            @if($pendingReturns > 0)
+                                <span class="badge badge-warning right">{{ $pendingReturns }}</span>
                             @endif
                         </p>
                     </a>
