@@ -19,6 +19,17 @@
             <form action="{{ route('permissions.store') }}" method="POST">
                 @csrf
                 <div class="card-body">
+
+                     <div class="form-group">
+                        <label for="module">Module Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control @error('module') is-invalid @enderror" 
+                               id="module" name="module" value="{{ old('module') }}" required placeholder="e.g., departments, divisions">
+                        @error('module')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                        <small class="form-text text-muted">Use lowercase with hyphens (e.g., permission-management)</small>
+                    </div>
+
                     <div class="form-group">
                         <label for="name">Permission Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control @error('name') is-invalid @enderror" 

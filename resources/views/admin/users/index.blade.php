@@ -78,6 +78,9 @@
                                     </button>
                                 </form>
                                 @endif
+                                  <a href="{{ route('users.user_permission', $user->id) }}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-key"></i>
+                                </a>
                             </td>
                         </tr>
                         @empty

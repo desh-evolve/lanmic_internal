@@ -7,18 +7,34 @@ use App\Models\Department;
 use App\Models\SubDepartment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Middleware\CheckPermission;
 
 class DepartmentController extends Controller
 {
+    // public function __construct()
+    // {
+    //     $this->middleware('auth');
+    //     $this->middleware('role:admin');
+    //     // Apply middleware to all methods
+    //     $this->middleware('permission:view-departments')->only(['index', 'show']);
+    //     $this->middleware('permission:create-departments')->only(['create', 'store']);
+    //     $this->middleware('permission:edit-departments')->only(['edit', 'update']);
+    //     $this->middleware('permission:delete-departments')->only(['destroy']);
+    // }
     public function __construct()
     {
-        $this->middleware('auth');
-        $this->middleware('role:admin');
-        // Apply middleware to all methods
-        $this->middleware('permission:view-departments')->only(['index', 'show']);
-        $this->middleware('permission:create-departments')->only(['create', 'store']);
-        $this->middleware('permission:edit-departments')->only(['edit', 'update']);
-        $this->middleware('permission:delete-departments')->only(['destroy']);
+        // Apply permission middleware to specific methods
+        $this->middleware(CheckPermission::class . ':department.view')
+             ->only(['index', 'show']);
+        
+        $this->middleware(CheckPermission::class . ':department.create')
+             ->only(['create', 'store']);
+        
+        $this->middleware(CheckPermission::class . ':department.edit')
+             ->only(['edit', 'update']);
+        
+        $this->middleware(CheckPermission::class . ':department.delete')
+             ->only(['destroy']);
     }
 
     /**

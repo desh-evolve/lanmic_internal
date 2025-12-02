@@ -9,14 +9,14 @@ use Illuminate\Support\Facades\Validator;
 
 class PermissionController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-        $this->middleware('permission:view-permissions')->only(['index', 'show']);
-        $this->middleware('permission:create-permissions')->only(['create', 'store']);
-        $this->middleware('permission:edit-permissions')->only(['edit', 'update']);
-        $this->middleware('permission:delete-permissions')->only('destroy');
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware('auth');
+    //     $this->middleware('permission:view-permissions')->only(['index', 'show']);
+    //     $this->middleware('permission:create-permissions')->only(['create', 'store']);
+    //     $this->middleware('permission:edit-permissions')->only(['edit', 'update']);
+    //     $this->middleware('permission:delete-permissions')->only('destroy');
+    // }
 
     /**
      * Display a listing of the resource.
@@ -42,6 +42,7 @@ class PermissionController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:permissions',
+            'module' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:255',
         ]);
 
@@ -53,6 +54,7 @@ class PermissionController extends Controller
 
         Permission::create([
             'name' => $request->name,
+            'module' => $request->module,
             'description' => $request->description,
         ]);
 
@@ -84,6 +86,7 @@ class PermissionController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:permissions,name,' . $permission->id,
+            'module' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:255',
         ]);
 
@@ -95,6 +98,7 @@ class PermissionController extends Controller
 
         $permission->update([
             'name' => $request->name,
+            'module' => $request->module,
             'description' => $request->description,
         ]);
 
