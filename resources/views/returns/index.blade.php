@@ -73,9 +73,6 @@
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 @if($return->status === 'pending')
-                                <a href="{{ route('returns.edit', $return->id) }}" class="btn btn-warning btn-sm">
-                                    <i class="fas fa-edit"></i>
-                                </a>
                                 <form action="{{ route('returns.destroy', $return->id) }}" method="POST" style="display: inline-block;">
                                     @csrf
                                     @method('DELETE')

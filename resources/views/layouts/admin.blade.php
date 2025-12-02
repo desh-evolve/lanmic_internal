@@ -12,6 +12,26 @@
     <!-- AdminLTE -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
     @stack('styles')
+
+    <style>
+        @media print {
+            .btn, .card-header button, form, nav, .breadcrumb, .pagination {
+                display: none !important;
+            }
+            .card {
+                border: 1px solid #ddd !important;
+                box-shadow: none !important;
+            }
+            .table {
+                font-size: 10px !important;
+            }
+            .badge {
+                border: 1px solid #333 !important;
+                color: #333 !important;
+                background: white !important;
+            }
+        }
+    </style>
 </head>
 <body class="hold-transition sidebar-mini">
 <div class="wrapper">

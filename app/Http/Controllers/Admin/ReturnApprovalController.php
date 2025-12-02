@@ -119,6 +119,7 @@ class ReturnApprovalController extends Controller
                     'return_type' => $itemData['return_type'],
                     'return_location_id' => $itemData['return_location_id'],
                     'updated_by' => Auth::id(),
+                    'admin_note' => $itemData['admin_note'] ?? null,
                 ]);
 
                 // Create GRN item if quantity > 0

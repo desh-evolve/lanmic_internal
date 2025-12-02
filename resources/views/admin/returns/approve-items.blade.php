@@ -58,142 +58,189 @@
                     <h3 class="card-title">Process Return Items</h3>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="icon fas fa-info"></i>
-                        <strong>Instructions:</strong><br>
-                        - Review each item and its quantity<br>
-                        - Split quantity between GRN (approved) and Scrap (rejected)<br>
-                        - GRN Qty + Scrap Qty must equal Total Return Qty<br>
-                        - You can send all to GRN, all to Scrap, or split between both<br>
-                        - You can change the return type and location before processing
-                    </div>
-
+                    
                     @foreach($return->items->where('approve_status', 'pending') as $index => $item)
                     @php
                         $location = \App\Models\Location::find($item->return_location_id);
                     @endphp
                     <div class="card mb-3 item-card" data-item-index="{{ $index }}">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">
-                                {{ $item->item_name }} 
-                                <small class="text-muted">({{ $item->item_code }})</small>
-                                <span class="badge badge-primary float-right">Total: {{ $item->return_quantity }} {{ $item->unit }}</span>
-                            </h5>
+                        <div class="card-header bg-light item-header" style="cursor: pointer;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center flex-grow-1" data-toggle="collapse" data-target="#item-{{ $index }}">
+                                    <i class="fas fa-chevron-down toggle-icon mr-2"></i>
+                                    <h5 class="mb-0">
+                                        {{ $item->item_name }} 
+                                        <small class="text-muted">({{ $item->item_code }})</small>
+                                        <span class="badge badge-primary ml-2">Total: {{ $item->return_quantity }} {{ $item->unit }}</span>
+                                    </h5>
+                                </div>
+                                <div class="custom-control custom-checkbox" onclick="event.stopPropagation();">
+                                    <input type="checkbox" class="custom-control-input item-checkbox" id="check-{{ $index }}">
+                                    <label class="custom-control-label" for="check-{{ $index }}">
+                                        <span class="badge badge-success" style="display: none;">✓ Checked</span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <input type="hidden" name="items[{{ $index }}][return_item_id]" value="{{ $item->id }}">
-                            
-                            @if($item->notes)
-                                <div class="alert alert-secondary">
-                                    <i class="fas fa-info-circle"></i> <strong>Notes:</strong> {{ $item->notes }}
-                                </div>
-                            @endif
+                        <div class="collapse show" id="item-{{ $index }}">
+                            <div class="card-body">
+                                <input type="hidden" name="items[{{ $index }}][return_item_id]" value="{{ $item->id }}">
+                                
+                                @if($item->notes)
+                                    <div class="alert alert-secondary">
+                                        <i class="fas fa-info-circle"></i> <strong>User Notes:</strong> {{ $item->notes }}
+                                    </div>
+                                @endif
 
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Current Type</label>
-                                        <input type="text" class="form-control" value="{{ ucfirst($item->return_type) }}" readonly>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Current Type</label>
+                                            <input type="text" class="form-control" value="{{ ucfirst($item->return_type) }}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="form-group">
+                                            <label>Current Location</label>
+                                            <input type="text" class="form-control" value="{{ $location ? $location['name'] . ' (' . $location['code'] . ')' : '-' }}" readonly>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-8">
-                                    <div class="form-group">
-                                        <label>Current Location</label>
-                                        <input type="text" class="form-control" value="{{ $location ? $location['name'] . ' (' . $location['code'] . ')' : '-' }}" readonly>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <hr>
+                                <hr>
 
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>Return Type <span class="text-danger">*</span></label>
-                                        <select class="form-control return-type-select" name="items[{{ $index }}][return_type]" required>
-                                            <option value="used" {{ $item->return_type === 'used' ? 'selected' : '' }}>Used</option>
-                                            <option value="same" {{ $item->return_type === 'same' ? 'selected' : '' }}>Same</option>
-                                        </select>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Return Type <span class="text-danger">*</span></label>
+                                            <select class="form-control return-type-select" name="items[{{ $index }}][return_type]" required>
+                                                <option value="used" {{ $item->return_type === 'used' ? 'selected' : '' }}>Used</option>
+                                                <option value="same" {{ $item->return_type === 'same' ? 'selected' : '' }}>Same</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="form-group">
+                                            <label>Location <span class="text-danger">*</span></label>
+                                            <select class="form-control location-select" name="items[{{ $index }}][return_location_id]" data-current-type="{{ $item->return_type }}" data-current-location="{{ $item->return_location_id }}" required>
+                                                <option value="">Select Location</option>
+                                                @foreach($locations as $loc)
+                                                    <option value="{{ $loc['id'] }}" data-type="{{ $loc['type'] }}" {{ $item->return_location_id == $loc['id'] ? 'selected' : '' }}>
+                                                        {{ $loc['name'] }} ({{ $loc['code'] }})
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-8">
-                                    <div class="form-group">
-                                        <label>Location <span class="text-danger">*</span></label>
-                                        <select class="form-control location-select" name="items[{{ $index }}][return_location_id]" data-current-type="{{ $item->return_type }}" data-current-location="{{ $item->return_location_id }}" required>
-                                            <option value="">Select Location</option>
-                                            @foreach($locations as $loc)
-                                                <option value="{{ $loc['id'] }}" data-type="{{ $loc['type'] }}" {{ $item->return_location_id == $loc['id'] ? 'selected' : '' }}>
-                                                    {{ $loc['name'] }} ({{ $loc['code'] }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <hr>
+                                <hr>
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>
-                                            <i class="fas fa-check-circle text-success"></i> 
-                                            GRN Quantity (Approved) <span class="text-danger">*</span>
-                                        </label>
-                                        <input type="number" 
-                                               class="form-control grn-quantity" 
-                                               name="items[{{ $index }}][grn_quantity]" 
-                                               min="0" 
-                                               max="{{ $item->return_quantity }}" 
-                                               value="{{ $item->return_quantity }}"
-                                               data-max="{{ $item->return_quantity }}"
-                                               required>
-                                        <small class="form-text text-muted">Max: {{ $item->return_quantity }}</small>
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <div class="form-group">
+                                            <label>
+                                                <i class="fas fa-check-circle text-success"></i> 
+                                                GRN Quantity (Approved) <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="number" 
+                                                   class="form-control grn-quantity" 
+                                                   name="items[{{ $index }}][grn_quantity]" 
+                                                   min="0" 
+                                                   max="{{ $item->return_quantity }}" 
+                                                   value="{{ $item->return_quantity }}"
+                                                   data-max="{{ $item->return_quantity }}"
+                                                   required>
+                                            <small class="form-text text-muted">Max: {{ $item->return_quantity }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <div class="form-group">
+                                            <label>
+                                                <i class="fas fa-times-circle text-danger"></i> 
+                                                Scrap Quantity (Rejected) <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="number" 
+                                                   class="form-control scrap-quantity" 
+                                                   name="items[{{ $index }}][scrap_quantity]" 
+                                                   min="0" 
+                                                   max="{{ $item->return_quantity }}" 
+                                                   value="0"
+                                                   data-max="{{ $item->return_quantity }}"
+                                                   required>
+                                            <small class="form-text text-muted">Max: {{ $item->return_quantity }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="">
+                                            <button type="button" class="btn btn-sm btn-outline-success quick-btn col-md-12 mb-1" data-action="all-grn">
+                                                <i class="fas fa-check-double"></i> All to GRN
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger quick-btn col-md-12 mb-1" data-action="all-scrap">
+                                                <i class="fas fa-trash-alt"></i> All to Scrap
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-warning quick-btn col-md-12" data-action="split-half">
+                                                <i class="fas fa-divide"></i> Split 50/50
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>
-                                            <i class="fas fa-times-circle text-danger"></i> 
-                                            Scrap Quantity (Rejected) <span class="text-danger">*</span>
-                                        </label>
-                                        <input type="number" 
-                                               class="form-control scrap-quantity" 
-                                               name="items[{{ $index }}][scrap_quantity]" 
-                                               min="0" 
-                                               max="{{ $item->return_quantity }}" 
-                                               value="0"
-                                               data-max="{{ $item->return_quantity }}"
-                                               required>
-                                        <small class="form-text text-muted">Max: {{ $item->return_quantity }}</small>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="alert alert-warning quantity-warning" style="display: none;">
-                                        <i class="fas fa-exclamation-triangle"></i> 
-                                        <strong>Warning:</strong> Total must equal {{ $item->return_quantity }}. 
-                                        Current total: <span class="current-total">{{ $item->return_quantity }}</span>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="alert alert-warning quantity-warning" style="display: none;">
+                                            <i class="fas fa-exclamation-triangle"></i> 
+                                            <strong>Warning:</strong> Total must equal {{ $item->return_quantity }}. 
+                                            Current total: <span class="current-total">{{ $item->return_quantity }}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="d-flex justify-content-between">
-                                        <button type="button" class="btn btn-sm btn-success quick-btn" data-action="all-grn">
-                                            <i class="fas fa-check-double"></i> All to GRN
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-danger quick-btn" data-action="all-scrap">
-                                            <i class="fas fa-trash-alt"></i> All to Scrap
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-warning quick-btn" data-action="split-half">
-                                            <i class="fas fa-divide"></i> Split 50/50
-                                        </button>
+                                <hr>
+
+                                <!-- Admin Note Section -->
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group mb-0">
+                                            <label>
+                                                <i class="fas fa-comment-alt text-info"></i> 
+                                                Admin Note <small class="text-muted">(Optional)</small>
+                                            </label>
+                                            <textarea 
+                                                class="form-control admin-note" 
+                                                name="items[{{ $index }}][admin_note]" 
+                                                rows="2" 
+                                                placeholder="Add a note for this item (e.g., reason for rejection, condition remarks, etc.)"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <div class="">
+                                            <small class="text-muted">Quick Notes:</small>
+                                        </div>
+                                        <div class="btn-group btn-group-sm flex-wrap" role="group">
+                                            <button type="button" class="btn btn-outline-success quick-note-btn" data-note="Item in good condition, approved for inventory.">
+                                                <i class="fas fa-thumbs-up"></i> Good Condition
+                                            </button>
+                                            <button type="button" class="btn btn-outline-warning quick-note-btn" data-note="Item shows signs of wear, partial approval.">
+                                                <i class="fas fa-exclamation"></i> Signs of Wear
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger quick-note-btn" data-note="Item damaged beyond use, sent to scrap.">
+                                                <i class="fas fa-times"></i> Damaged
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info quick-note-btn" data-note="Item requires inspection before final decision.">
+                                                <i class="fas fa-search"></i> Needs Inspection
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary quick-note-btn" data-note="">
+                                                <i class="fas fa-eraser"></i> Clear
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
+
+                                <div class="row mt-4">
+                                    <button class="btn btn-info" id="mark-as-read-{{ $index }}">Mark as checked</button>
+                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -207,6 +254,56 @@
                     @endif
                 </div>
             </div>
+
+            <!-- Already Processed Items (with admin notes) -->
+            @if($return->items->where('approve_status', '!=', 'pending')->count() > 0)
+            <div class="card">
+                <div class="card-header bg-secondary">
+                    <h3 class="card-title text-white">
+                        <i class="fas fa-history"></i> Already Processed Items
+                    </h3>
+                </div>
+                <div class="card-body">
+                    @foreach($return->items->where('approve_status', '!=', 'pending') as $item)
+                    @php
+                        $location = \App\Models\Location::find($item->return_location_id);
+                    @endphp
+                    <div class="card mb-2">
+                        <div class="card-body py-2">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <strong>{{ $item->item_name }}</strong>
+                                    <small class="text-muted d-block">{{ $item->item_code }}</small>
+                                </div>
+                                <div class="col-md-2">
+                                    @if($item->approve_status === 'approved')
+                                        <span class="badge badge-success">Approved</span>
+                                    @elseif($item->approve_status === 'rejected')
+                                        <span class="badge badge-danger">Rejected</span>
+                                    @else
+                                        <span class="badge badge-warning">{{ ucfirst($item->approve_status) }}</span>
+                                    @endif
+                                </div>
+                                <div class="col-md-2">
+                                    <small>GRN: {{ $item->grn_quantity ?? 0 }}</small><br>
+                                    <small>Scrap: {{ $item->scrap_quantity ?? 0 }}</small>
+                                </div>
+                                <div class="col-md-4">
+                                    @if($item->admin_note)
+                                        <div class="alert alert-info py-1 px-2 mb-0">
+                                            <small><i class="fas fa-comment"></i> {{ $item->admin_note }}</small>
+                                        </div>
+                                    @else
+                                        <small class="text-muted">No admin note</small>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
 
             <div class="card">
                 <div class="card-footer">
@@ -253,15 +350,20 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Quick Actions</h3>
+                    <h3 class="card-title">Instructions</h3>
                 </div>
                 <div class="card-body">
                     <p class="mb-2"><strong>Per Item:</strong></p>
-                    <ul class="pl-3">
-                        <li><strong>All to GRN:</strong> Send entire quantity to approved</li>
-                        <li><strong>All to Scrap:</strong> Send entire quantity to rejected</li>
-                        <li><strong>Split 50/50:</strong> Divide equally between GRN and Scrap</li>
-                    </ul>
+                    <ol class="pl-3">
+                        <li>Click on an item header to expand/collapse it</li>
+                        <li>Review each item and its quantity</li>
+                        <li>Split quantity between GRN (approved) and Scrap (rejected)</li>
+                        <li>GRN Qty + Scrap Qty must equal Total Return Qty</li>
+                        <li>You can send all to GRN, all to Scrap, or split between both</li>
+                        <li>You can change the return type and location before processing</li>
+                        <li><strong>Add an optional admin note</strong> to document your decision</li>
+                        <li><strong>Check the checkbox</strong> when done reviewing an item - it will auto-fold</li>
+                    </ol>
                 </div>
             </div>
 
@@ -274,21 +376,107 @@
                     <hr>
                     <p><strong><i class="fas fa-times-circle text-danger"></i> Scrap:</strong> Rejected items sent to scrap</p>
                     <hr>
+                    <p><strong><i class="fas fa-comment-alt text-info"></i> Admin Note:</strong> Optional comment for approval/rejection reason</p>
+                    <hr>
                     <p><strong>Return Types:</strong></p>
                     <ul>
                         <li><strong>Used:</strong> Item has been used</li>
                         <li><strong>Same:</strong> Item is in same/new condition</li>
+                    </ul>
+                    <p><strong>Quick Buttons:</strong></p>   
+                    <ul>
+                        <li><strong>All to GRN:</strong> Send entire quantity to approved</li>
+                        <li><strong>All to Scrap:</strong> Send entire quantity to rejected</li>
+                        <li><strong>Split 50/50:</strong> Divide equally between GRN and Scrap</li>
                     </ul>
                 </div>
             </div>
         </div>
     </div>
 </form>
+
+<style>
+.item-header {
+    transition: background-color 0.2s;
+}
+.item-header:hover {
+    background-color: #e9ecef !important;
+}
+.toggle-icon {
+    transition: transform 0.3s;
+}
+.item-card .collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+.item-card.checked-item .card-header {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+}
+</style>
 @endsection
 
 @push('scripts')
 <script>
 $(document).ready(function() {
+    // Handle collapse icon rotation
+    $('.item-header [data-toggle="collapse"]').on('click', function() {
+        const target = $(this).data('target');
+        const icon = $(this).find('.toggle-icon');
+        
+        $(target).on('shown.bs.collapse', function() {
+            icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+        });
+        
+        $(target).on('hidden.bs.collapse', function() {
+            icon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+        });
+    });
+
+ // 1. When checkbox is clicked/toggled (manually or programmatically)
+    $('.item-checkbox').on('change', function() {
+        const checkbox = $(this);
+        const card = checkbox.closest('.item-card');
+        const index = card.data('item-index'); // make sure your card has: data-item-index="{{ $index }}"
+        const collapseTarget = $('#item-' + index);
+        const badge = checkbox.siblings('label').find('.badge-success');
+        const button = card.find('[id^="mark-as-read-"]');
+
+        if (checkbox.is(':checked')) {
+            card.addClass('checked-item');
+            badge.show();
+            collapseTarget.collapse('hide');
+
+            // Optional: update button state too
+            button.prop('disabled', true)
+                  .removeClass('btn-info')
+                  .addClass('btn-secondary')
+                  .text('Checked');
+        } else {
+            card.removeClass('checked-item');
+            badge.hide();
+            collapseTarget.collapse('show');
+
+            // Re-enable button if unchecked
+            button.prop('disabled', false)
+                  .removeClass('btn-secondary')
+                  .addClass('btn-info')
+                  .text('Mark as checked');
+        }
+    });
+
+    // 2. When "Mark as checked" button is clicked → check checkbox and trigger the same logic
+    $(document).on('click', '[id^="mark-as-read-"]', function (e) {
+        e.preventDefault();
+
+        const button = $(this);
+        const row = button.closest('.row'); // or .closest('.item-card') depending on your structure
+        const index = button.attr('id').split('-').pop();
+        const checkbox = $('#check-' + index);
+
+        // Programmatically check the checkbox → this will automatically trigger the .on('change') above
+        checkbox.prop('checked', true).trigger('change');
+    });
+
     // Filter locations based on return type
     $('.return-type-select').change(function() {
         const card = $(this).closest('.item-card');
@@ -378,6 +566,31 @@ $(document).ready(function() {
         }
         
         validateQuantities(card);
+    });
+
+    // Quick note buttons
+    $('.quick-note-btn').click(function() {
+        const note = $(this).data('note');
+        const card = $(this).closest('.item-card');
+        const noteInput = card.find('.admin-note');
+        
+        if (note === '') {
+            noteInput.val('');
+        } else {
+            // Append to existing note or replace
+            const currentNote = noteInput.val();
+            if (currentNote && currentNote.trim() !== '') {
+                noteInput.val(currentNote + ' ' + note);
+            } else {
+                noteInput.val(note);
+            }
+        }
+        
+        // Highlight the textarea briefly
+        noteInput.addClass('border-info');
+        setTimeout(() => {
+            noteInput.removeClass('border-info');
+        }, 500);
     });
 
     // Form validation

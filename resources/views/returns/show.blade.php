@@ -33,13 +33,6 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Return Information</h3>
-                <div class="card-tools">
-                    @if($return->status === 'pending' && $return->returned_by === Auth::id())
-                        <a href="{{ route('returns.edit', $return->id) }}" class="btn btn-warning btn-sm">
-                            <i class="fas fa-edit"></i> Edit
-                        </a>
-                    @endif
-                </div>
             </div>
             <div class="card-body">
                 <div class="row mb-3">
@@ -198,9 +191,6 @@
                 <i class="fas fa-arrow-left"></i> Back to List
             </a>
             @if($return->status === 'pending' && $return->returned_by === Auth::id())
-                <a href="{{ route('returns.edit', $return->id) }}" class="btn btn-warning">
-                    <i class="fas fa-edit"></i> Edit
-                </a>
                 <form action="{{ route('returns.destroy', $return->id) }}" method="POST" style="display: inline-block;">
                     @csrf
                     @method('DELETE')

@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\RequisitionApprovalController;
 use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\Admin\ReturnApprovalController;
+use App\Http\Controllers\Admin\ReportController;
 
 Route::get('/', function () {
     return redirect('/login');
@@ -61,5 +62,20 @@ Route::middleware(['auth'])->group(function () {
         Route::get('returns/{return}', [ReturnApprovalController::class, 'show'])->name('admin.returns.show');
         Route::get('returns/{return}/approve-items', [ReturnApprovalController::class, 'approveItemsForm'])->name('admin.returns.approve-items');
         Route::post('returns/{return}/approve-items', [ReturnApprovalController::class, 'approveItems'])->name('admin.returns.approve-items.store');
+    
+        // Reports Routes
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::get('/', [ReportController::class, 'index'])->name('index');
+            Route::get('/requisition-summary', [ReportController::class, 'requisitionSummary'])->name('requisition-summary');
+            Route::get('/item-requisition', [ReportController::class, 'itemRequisition'])->name('item-requisition');
+            Route::get('/issued-items', [ReportController::class, 'issuedItems'])->name('issued-items');
+            Route::get('/purchase-order', [ReportController::class, 'purchaseOrder'])->name('purchase-order');
+            Route::get('/returns-summary', [ReportController::class, 'returnsSummary'])->name('returns-summary');
+            Route::get('/grn', [ReportController::class, 'grn'])->name('grn');
+            Route::get('/scrap', [ReportController::class, 'scrap'])->name('scrap');
+            Route::get('/department-activity', [ReportController::class, 'departmentActivity'])->name('department-activity');
+            Route::get('/user-activity', [ReportController::class, 'userActivity'])->name('user-activity');
+            Route::get('/monthly-summary', [ReportController::class, 'monthlySummary'])->name('monthly-summary');
+        });
     });
 });

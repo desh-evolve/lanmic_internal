@@ -98,6 +98,7 @@
                             <th>Location</th>
                             <th>Quantity</th>
                             <th>Status</th>
+                            <th>Admin Notes</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -132,6 +133,13 @@
                                     <span class="badge badge-success">Approved → GRN</span>
                                 @else
                                     <span class="badge badge-danger">Rejected → Scrap</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($item->admin_note)
+                                    {{ $item->admin_note }}
+                                @else
+                                    -
                                 @endif
                             </td>
                         </tr>

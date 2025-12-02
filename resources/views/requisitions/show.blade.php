@@ -33,13 +33,6 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Requisition Information</h3>
-                <div class="card-tools">
-                    @if($requisition->approve_status === 'pending' && $requisition->user_id === Auth::id())
-                        <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning btn-sm">
-                            <i class="fas fa-edit"></i> Edit
-                        </a>
-                    @endif
-                </div>
             </div>
             <div class="card-body">
                 <div class="row mb-3">
