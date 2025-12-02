@@ -40,9 +40,6 @@
                     <button class="btn btn-success" onclick="exportToExcel()">
                         <i class="fas fa-file-excel"></i> Export Excel
                     </button>
-                    <button class="btn btn-danger" onclick="exportToPDF()">
-                        <i class="fas fa-file-pdf"></i> Export PDF
-                    </button>
                     <button class="btn btn-secondary" onclick="window.print()">
                         <i class="fas fa-print"></i> Print
                     </button>
@@ -235,16 +232,15 @@
         </div>
     </div>
 </div>
-@endsection
 
-@section('scripts')
 <script>
     function exportToExcel() {
-        window.location.href = "{{ route('reports.requisition-summary') }}?export=excel&" + new URLSearchParams(window.location.search).toString();
-    }
-    
-    function exportToPDF() {
-        window.location.href = "{{ route('reports.requisition-summary') }}?export=pdf&" + new URLSearchParams(window.location.search).toString();
+        // Get current URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('export', 'excel');
+        
+        // Redirect with export parameter
+        window.location.href = window.location.pathname + '?' + urlParams.toString();
     }
 </script>
 @endsection

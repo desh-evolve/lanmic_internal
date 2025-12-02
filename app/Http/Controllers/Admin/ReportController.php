@@ -16,6 +16,17 @@ use App\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\RequisitionSummaryExport;
+use App\Exports\ItemRequisitionExport;
+use App\Exports\IssuedItemsExport;
+use App\Exports\PurchaseOrderExport;
+use App\Exports\ReturnsSummaryExport;
+use App\Exports\GrnExport;
+use App\Exports\ScrapExport;
+use App\Exports\DepartmentActivityExport;
+use App\Exports\UserActivityExport;
+use App\Exports\MonthlySummaryExport;
 
 class ReportController extends Controller
 {
@@ -38,6 +49,12 @@ class ReportController extends Controller
      */
     public function requisitionSummary(Request $request)
     {
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'requisition_summary_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new RequisitionSummaryExport($request->all()), $filename);
+        }
+
         $query = Requisition::with(['user', 'department', 'items'])
             ->where('status', 'active');
 
@@ -87,6 +104,12 @@ class ReportController extends Controller
      */
     public function itemRequisition(Request $request)
     {
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'item_requisition_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new ItemRequisitionExport($request->all()), $filename);
+        }
+
         $query = RequisitionItem::with(['requisition.user', 'requisition.department'])
             ->where('status', '!=', 'delete');
 
@@ -136,6 +159,12 @@ class ReportController extends Controller
      */
     public function issuedItems(Request $request)
     {
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'issued_items_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new IssuedItemsExport($request->all()), $filename);
+        }
+
         $query = RequisitionIssuedItem::with(['requisition.user', 'requisitionItem'])
             ->where('status', '!=', 'delete');
 
@@ -169,6 +198,12 @@ class ReportController extends Controller
      */
     public function purchaseOrder(Request $request)
     {
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'purchase_order_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new PurchaseOrderExport($request->all()), $filename);
+        }
+
         $query = PurchaseOrderItem::with(['requisition.user', 'requisition.department'])
             ->whereHas('requisition', function($q) {
                 $q->where('status', 'active');
@@ -205,6 +240,12 @@ class ReportController extends Controller
      */
     public function returnsSummary(Request $request)
     {
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'returns_summary_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new ReturnsSummaryExport($request->all()), $filename);
+        }
+
         $query = ReturnModel::with(['returnedBy', 'items'])
             ->where('status', '!=', 'delete');
 
@@ -246,6 +287,12 @@ class ReportController extends Controller
      */
     public function grn(Request $request)
     {
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'grn_report_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new GrnExport($request->all()), $filename);
+        }
+
         $query = GrnItem::with(['return.returnedBy', 'returnItem'])
             ->where('status', '!=', 'delete');
 
@@ -293,6 +340,12 @@ class ReportController extends Controller
      */
     public function scrap(Request $request)
     {
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'scrap_report_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new ScrapExport($request->all()), $filename);
+        }
+
         $query = ScrapItem::with(['return.returnedBy', 'returnItem'])
             ->where('status', '!=', 'delete');
 
@@ -340,6 +393,12 @@ class ReportController extends Controller
      */
     public function departmentActivity(Request $request)
     {
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'department_activity_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new DepartmentActivityExport($request->all()), $filename);
+        }
+
         $departments = Department::active()->get();
 
         $reportData = [];
@@ -361,9 +420,9 @@ class ReportController extends Controller
             $reportData[] = [
                 'department' => $department,
                 'total_requisitions' => $requisitions->count(),
-                'pending_requisitions' => $requisitions->where('approve_status', 'pending')->count(),
-                'approved_requisitions' => $requisitions->where('approve_status', 'approved')->count(),
-                'rejected_requisitions' => $requisitions->where('approve_status', 'rejected')->count(),
+                'pending_requisitions' => Requisition::where('department_id', $department->id)->where('status', 'active')->where('approve_status', 'pending')->count(),
+                'approved_requisitions' => Requisition::where('department_id', $department->id)->where('status', 'active')->where('approve_status', 'approved')->count(),
+                'rejected_requisitions' => Requisition::where('department_id', $department->id)->where('status', 'active')->where('approve_status', 'rejected')->count(),
                 'total_items' => RequisitionItem::whereIn('requisition_id', $requisitionIds)->sum('quantity'),
                 'total_value' => RequisitionItem::whereIn('requisition_id', $requisitionIds)->sum('total_price'),
             ];
@@ -377,6 +436,12 @@ class ReportController extends Controller
      */
     public function userActivity(Request $request)
     {
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'user_activity_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new UserActivityExport($request->all()), $filename);
+        }
+
         $users = User::with('roles')->get();
 
         $reportData = [];
@@ -401,10 +466,10 @@ class ReportController extends Controller
             $reportData[] = [
                 'user' => $user,
                 'total_requisitions' => $requisitions->count(),
-                'pending_requisitions' => $requisitions->where('approve_status', 'pending')->count(),
-                'approved_requisitions' => $requisitions->where('approve_status', 'approved')->count(),
+                'pending_requisitions' => (clone $requisitions)->where('approve_status', 'pending')->count(),
+                'approved_requisitions' => (clone $requisitions)->where('approve_status', 'approved')->count(),
                 'total_returns' => $returns->count(),
-                'pending_returns' => $returns->where('status', 'pending')->count(),
+                'pending_returns' => (clone $returns)->where('status', 'pending')->count(),
             ];
         }
 
@@ -417,6 +482,13 @@ class ReportController extends Controller
     public function monthlySummary(Request $request)
     {
         $year = $request->input('year', date('Y'));
+
+        // Check if export is requested
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'monthly_summary_' . $year . '_' . date('Y-m-d_H-i-s') . '.xlsx';
+            return Excel::download(new MonthlySummaryExport($year), $filename);
+        }
+
         $months = [];
 
         for ($month = 1; $month <= 12; $month++) {
@@ -432,9 +504,9 @@ class ReportController extends Controller
             $months[] = [
                 'month' => $startDate->format('F'),
                 'requisitions_count' => $requisitions->count(),
-                'requisitions_approved' => $requisitions->where('approve_status', 'approved')->count(),
+                'requisitions_approved' => (clone $requisitions)->where('approve_status', 'approved')->count(),
                 'returns_count' => $returns->count(),
-                'returns_cleared' => $returns->where('status', 'cleared')->count(),
+                'returns_cleared' => (clone $returns)->where('status', 'cleared')->count(),
                 'issued_items' => RequisitionIssuedItem::whereBetween('issued_at', [$startDate, $endDate])
                     ->where('status', '!=', 'delete')->sum('issued_quantity'),
                 'grn_items' => GrnItem::whereBetween('created_at', [$startDate, $endDate])

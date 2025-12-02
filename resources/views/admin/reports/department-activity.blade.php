@@ -226,11 +226,16 @@
         </div>
     </div>
 </div>
-@endsection
 
-@section('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // You can add charts here if needed
+    function exportToExcel() {
+        // Get current URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('export', 'excel');
+        
+        // Redirect with export parameter
+        window.location.href = window.location.pathname + '?' + urlParams.toString();
+    }
 </script>
 @endsection

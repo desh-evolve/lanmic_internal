@@ -21,7 +21,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-file-alt fa-3x opacity-75"></i>
+                                            <i class="fas fa-file-alt fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">Requisition Summary</h5>
@@ -43,7 +43,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-boxes fa-3x opacity-75"></i>
+                                            <i class="fas fa-boxes fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">Item Requisition</h5>
@@ -65,7 +65,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-hand-holding fa-3x opacity-75"></i>
+                                            <i class="fas fa-hand-holding fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">Issued Items</h5>
@@ -87,7 +87,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-shopping-cart fa-3x opacity-75"></i>
+                                            <i class="fas fa-shopping-cart fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">Purchase Orders</h5>
@@ -109,7 +109,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-undo-alt fa-3x opacity-75"></i>
+                                            <i class="fas fa-undo-alt fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">Returns Summary</h5>
@@ -131,7 +131,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-clipboard-check fa-3x opacity-75"></i>
+                                            <i class="fas fa-clipboard-check fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">GRN Report</h5>
@@ -153,7 +153,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-trash-alt fa-3x opacity-75"></i>
+                                            <i class="fas fa-trash-alt fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">Scrap Report</h5>
@@ -175,7 +175,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-building fa-3x opacity-75"></i>
+                                            <i class="fas fa-building fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">Department Activity</h5>
@@ -197,7 +197,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-users fa-3x opacity-75"></i>
+                                            <i class="fas fa-users fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">User Activity</h5>
@@ -219,7 +219,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0">
-                                            <i class="fas fa-calendar-alt fa-3x opacity-75"></i>
+                                            <i class="fas fa-calendar-alt fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h5 class="card-title">Monthly Summary</h5>

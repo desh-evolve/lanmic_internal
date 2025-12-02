@@ -169,4 +169,15 @@
         </div>
     </div>
 </div>
+
+<script>
+    function exportToExcel() {
+        // Get current URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('export', 'excel');
+        
+        // Redirect with export parameter
+        window.location.href = window.location.pathname + '?' + urlParams.toString();
+    }
+</script>
 @endsection
