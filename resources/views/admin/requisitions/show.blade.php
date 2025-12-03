@@ -213,8 +213,8 @@
                             </td>
                             <td>{{ $item->item_category ?? '-' }}</td>
                             <td>{{ $item->quantity }} {{ $item->unit }}</td>
-                            <td>${{ number_format($item->unit_price, 2) }}</td>
-                            <td><strong>${{ number_format($item->total_price, 2) }}</strong></td>
+                            <td>Rs.{{ number_format($item->unit_price, 2) }}</td>
+                            <td><strong>Rs.{{ number_format($item->total_price, 2) }}</strong></td>
                             <td>
                                 @if($issuedQty > 0)
                                     <span class="badge badge-{{ $item->isFullyIssued() ? 'success' : 'info' }}">
@@ -228,7 +228,7 @@
                         @endforeach
                         <tr class="bg-light">
                             <td colspan="6" class="text-right"><strong>Grand Total:</strong></td>
-                            <td colspan="2"><strong class="text-primary">${{ number_format($grandTotal, 2) }}</strong></td>
+                            <td colspan="2"><strong class="text-primary">Rs.{{ number_format($grandTotal, 2) }}</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -346,7 +346,7 @@
                 <div class="info-box bg-light">
                     <div class="info-box-content">
                         <span class="info-box-text">Total Amount</span>
-                        <span class="info-box-number">${{ number_format($requisition->items->sum('total_price'), 2) }}</span>
+                        <span class="info-box-number">Rs.{{ number_format($requisition->items->sum('total_price'), 2) }}</span>
                     </div>
                 </div>
                 @if($requisition->approve_status === 'approved')
@@ -399,7 +399,7 @@
                 <div class="modal-body">
                     <p>Are you sure you want to approve this requisition?</p>
                     <p><strong>Requisition #:</strong> {{ $requisition->requisition_number }}</p>
-                    <p><strong>Total Amount:</strong> ${{ number_format($requisition->items->sum('total_price'), 2) }}</p>
+                    <p><strong>Total Amount:</strong> Rs.{{ number_format($requisition->items->sum('total_price'), 2) }}</p>
                     
                     @if($requisition->purchaseOrderItems->count() > 0)
                     <div class="alert alert-warning">

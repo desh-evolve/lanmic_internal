@@ -191,7 +191,7 @@
                                         <td>{{ $req->user->name }}</td>
                                         <td>{{ $req->department->name ?? '-' }}</td>
                                         <td><span class="badge badge-info">{{ $req->items->count() }}</span></td>
-                                        <td>${{ number_format($req->items->sum('total_price'), 2) }}</td>
+                                        <td>Rs.{{ number_format($req->items->sum('total_price'), 2) }}</td>
                                         <td>{{ $req->created_at->format('Y-m-d') }}</td>
                                         <td>
                                             <a href="{{ route('admin.requisitions.show', $req->id) }}"

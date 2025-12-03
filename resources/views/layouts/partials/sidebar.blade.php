@@ -82,10 +82,10 @@
 
                 <li class="nav-header">ADMINISTRATION</li>
 
-                <!-- ADMINISTRATION  -->
+                <!-- Requisition Approvals -->
                 <li class="nav-item">
                     <a href="{{ route('admin.requisitions.index') }}" class="nav-link {{ request()->is('admin/requisitions*') ? 'active' : '' }}">
-                        <i class="far fa-circle nav-icon"></i>
+                        <i class="fas fa-file-signature nav-icon"></i>
                         <p>
                             Requisition Approvals
                             @php
@@ -98,9 +98,10 @@
                     </a>
                 </li>
 
+                <!-- Return Approvals -->
                 <li class="nav-item">
                     <a href="{{ route('admin.returns.index') }}" class="nav-link {{ request()->is('admin/returns*') ? 'active' : '' }}">
-                        <i class="far fa-circle nav-icon"></i>
+                        <i class="fas fa-exchange-alt nav-icon"></i>
                         <p>
                             Return Approvals
                             @php
@@ -108,6 +109,22 @@
                             @endphp
                             @if($pendingReturns > 0)
                                 <span class="badge badge-warning right">{{ $pendingReturns }}</span>
+                            @endif
+                        </p>
+                    </a>
+                </li>
+
+                <!-- PURCHASE ORDERS Dropdown -->
+                <li class="nav-item {{ request()->is('admin/purchase-orders*') ? 'menu-open' : '' }}">
+                    <a href="{{ route('admin.purchase-orders.index', ['status' => 'pending']) }}" class="nav-link {{ request()->is('admin/purchase-orders*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-shopping-cart"></i>
+                        <p>
+                            Purchase Orders
+                            @php
+                                $pendingPOCount = \App\Models\PurchaseOrderItem::where('status', 'pending')->count();
+                            @endphp
+                            @if($pendingPOCount > 0)
+                                <span class="badge badge-warning right">{{ $pendingPOCount }}</span>
                             @endif
                         </p>
                     </a>

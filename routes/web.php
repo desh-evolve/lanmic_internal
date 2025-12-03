@@ -13,6 +13,7 @@ use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\Admin\ReturnApprovalController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\PurchaseOrderController;
 
 Route::get('/', function () {
     return redirect('/login');
@@ -63,6 +64,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('returns/{return}/approve-items', [ReturnApprovalController::class, 'approveItemsForm'])->name('admin.returns.approve-items');
         Route::post('returns/{return}/approve-items', [ReturnApprovalController::class, 'approveItems'])->name('admin.returns.approve-items.store');
     
+        // Purchase Order routes
+        Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('admin.purchase-orders.index');
+        Route::get('purchase-orders/clear-form', [PurchaseOrderController::class, 'clearForm'])->name('admin.purchase-orders.clear-form');
+        Route::post('purchase-orders/clear', [PurchaseOrderController::class, 'clear'])->name('admin.purchase-orders.clear');
+        Route::post('purchase-orders/bulk-clear', [PurchaseOrderController::class, 'bulkClear'])->name('admin.purchase-orders.bulk-clear');
+        Route::get('purchase-orders/{id}', [PurchaseOrderController::class, 'show'])->name('admin.purchase-orders.show');
+
         // Reports Routes
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');

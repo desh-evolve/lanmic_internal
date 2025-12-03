@@ -64,7 +64,7 @@
                             <td>
                                 <span class="badge badge-info">{{ $requisition->items->count() }} items</span>
                             </td>
-                            <td>${{ number_format($requisition->items->sum('total_price'), 2) }}</td>
+                            <td>Rs.{{ number_format($requisition->items->sum('total_price'), 2) }}</td>
                             <td>
                                 @if($requisition->approve_status === 'pending')
                                     <span class="badge badge-warning">Pending</span>
