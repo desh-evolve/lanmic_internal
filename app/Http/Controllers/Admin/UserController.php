@@ -8,6 +8,7 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -62,6 +63,8 @@ class UserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
         ]);
 
         $user->roles()->attach($request->roles);
@@ -114,7 +117,8 @@ class UserController extends Controller
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
         }
-        
+        $user->updated_by = Auth::id();
+
         $user->save();
 
         $user->roles()->sync($request->roles);

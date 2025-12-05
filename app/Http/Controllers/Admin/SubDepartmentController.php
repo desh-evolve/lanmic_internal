@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Division;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class SubDepartmentController extends Controller
 {
@@ -63,6 +64,8 @@ class SubDepartmentController extends Controller
             'short_code' => $request->short_code,
             'description' => $request->description,
             'status' => $request->status,
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
         ]);
 
         if ($request->has('departments')) {
@@ -125,6 +128,7 @@ class SubDepartmentController extends Controller
             'short_code' => $request->short_code,
             'description' => $request->description,
             'status' => $request->status,
+            'updated_by' => Auth::id(),
         ]);
 
         $subDepartment->departments()->sync($request->departments ?? []);

@@ -12,14 +12,14 @@ return new class extends Migration
             $table->id();
             $table->foreignId('return_id')->constrained('returns')->onDelete('cascade');
             $table->foreignId('return_item_id')->constrained('return_items')->onDelete('cascade');
-            $table->string('item_code');
-            $table->string('item_name');
-            $table->string('item_category')->nullable();
-            $table->string('unit')->nullable();
+            $table->string('item_code', 255);
+            $table->string('item_name', 255);
+            $table->string('item_category', 255)->nullable();
+            $table->string('unit', 255)->nullable();
             $table->decimal('unit_price', 10, 2)->nullable();
             $table->decimal('total_price', 10, 2)->nullable();
             $table->integer('grn_quantity');
-            $table->enum('status', ['active', 'delete'])->default('active');
+            $table->string('status', 50)->default('active'); // active, delete
             
             $table->timestamp('created_at')->useCurrent();
             $table->integer('created_by')->default(0)->nullable();

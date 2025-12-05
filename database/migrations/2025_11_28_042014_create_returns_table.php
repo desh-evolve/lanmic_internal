@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('returned_by')->constrained('users')->onDelete('cascade');
             $table->timestamp('returned_at');
-            $table->enum('status', ['pending', 'cleared', 'delete'])->default('pending');
+            $table->string('status', 50)->default('pending'); // pending, cleared, delete
             
             $table->timestamp('created_at')->useCurrent();
             $table->integer('created_by')->default(0)->nullable();
