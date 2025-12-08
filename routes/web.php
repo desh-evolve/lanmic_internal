@@ -15,6 +15,8 @@ use App\Http\Controllers\Admin\ReturnApprovalController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 
+use App\Http\Controllers\Sage300Controller;
+
 Route::get('/', function () {
     return redirect('/login');
 });
@@ -84,6 +86,20 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/department-activity', [ReportController::class, 'departmentActivity'])->name('department-activity');
             Route::get('/user-activity', [ReportController::class, 'userActivity'])->name('user-activity');
             Route::get('/monthly-summary', [ReportController::class, 'monthlySummary'])->name('monthly-summary');
+        });
+
+        // Sage 300 Routes
+        Route::prefix('sage300')->name('sage300.')->group(function () {
+            Route::get('/', [Sage300Controller::class, 'index'])->name('index');
+            
+            // API Routes
+            Route::get('/api/get', [Sage300Controller::class, 'getData'])->name('api.get');
+            Route::post('/api/post', [Sage300Controller::class, 'postData'])->name('api.post');
+            
+            // Item Routes
+            Route::get('/api/items', [Sage300Controller::class, 'getItems'])->name('api.items');
+            Route::get('/api/items/{code}', [Sage300Controller::class, 'getItemDetails'])->name('api.item.details');
+            Route::get('/api/locations', [Sage300Controller::class, 'getLocations'])->name('api.locations');
         });
     });
 });

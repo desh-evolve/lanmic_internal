@@ -275,6 +275,14 @@
                     </ul>
                 </li>
 
+                <!-- SAGE 300 -->
+                <li class="nav-item">
+                    <a href="{{ route('sage300.index') }}" class="nav-link {{ request()->is('sage300*') ? 'active' : '' }}">
+                        <i class="far fa-circle nav-icon"></i>
+                        <p>sage</p>
+                    </a>
+                </li>
+
                 @endif
             </ul>
         </nav>
