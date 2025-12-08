@@ -34,7 +34,7 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('api/departments/{department}/sub-departments', [RequisitionController::class, 'getSubDepartments']);
     Route::get('api/sub-departments/{subDepartment}/divisions', [RequisitionController::class, 'getDivisions']);
-    Route::get('api/requisitions/pending-items', [RequisitionController::class, 'getItemAvailability']);
+    Route::get('api/requisitions/pending-items', [RequisitionController::class, 'getPendingApprovalItems']);
 
     // Return routes (for all authenticated users)
     Route::resource('returns', ReturnController::class);

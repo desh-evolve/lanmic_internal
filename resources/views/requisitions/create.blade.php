@@ -102,7 +102,8 @@
                                 <input type="number" class="form-control" id="itemQuantity" min="1" value="1">
                                 <small class="text-muted">
                                     Available: <span id="availableQty" class="font-weight-bold">-</span>
-                                    <span id="pendingQty" class="text-warning"></span>
+                                    <br>
+                                    Pending Approval: <span id="pendingQty" class="font-weight-bold">-</span>
                                 </small>
                             </div>
                         </div>
@@ -453,7 +454,7 @@ function updateAvailabilityDisplay(item) {
 
     $('#availableQty').text(actualAvailable);
     if (pendingQty > 0) {
-        $('#pendingQty').text(`(${pendingQty} pending)`);
+        $('#pendingQty').text(`${pendingQty}`);
     } else {
         $('#pendingQty').text('');
     }

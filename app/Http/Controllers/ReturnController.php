@@ -119,7 +119,7 @@ class ReturnController extends Controller
     public function show(ReturnModel $return)
     {
         // Check if user owns this return or is admin
-        if ($return->returned_by !== Auth::id() && !Auth::user()->hasRole('admin')) {
+        if ((int)$return->returned_by !== Auth::id() && !Auth::user()->hasRole('admin')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -134,7 +134,7 @@ class ReturnController extends Controller
     public function edit(ReturnModel $return)
     {
         // Only allow editing if return is pending and user owns it
-        if ($return->returned_by !== Auth::id()) {
+        if ((int)$return->returned_by !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -155,7 +155,7 @@ class ReturnController extends Controller
     public function update(Request $request, ReturnModel $return)
     {
         // Only allow editing if return is pending and user owns it
-        if ($return->returned_by !== Auth::id()) {
+        if ((int)$return->returned_by !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -234,7 +234,7 @@ class ReturnController extends Controller
     public function destroy(ReturnModel $return)
     {
         // Only allow deletion if return is pending and user owns it
-        if ($return->returned_by !== Auth::id()) {
+        if ((int)$return->returned_by !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -46,7 +46,8 @@
                             <th>Department</th>
                             <th>Items</th>
                             <th>Total Amount</th>
-                            <th>Status</th>
+                            <th>Approve Status</th>
+                            <th>Clear Status</th>
                             <th>Date</th>
                             <th>Actions</th>
                         </tr>
@@ -72,6 +73,15 @@
                                     <span class="badge badge-success">Approved</span>
                                 @else
                                     <span class="badge badge-danger">Rejected</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($requisition->clear_status === 'pending')
+                                    <span class="badge badge-warning">Pending</span>
+                                @elseif($requisition->clear_status === 'cleared')
+                                    <span class="badge badge-success">Cleared</span>
+                                @else
+                                    <span class="badge badge-danger">Error</span>
                                 @endif
                             </td>
                             <td>{{ $requisition->created_at->format('Y-m-d') }}</td>

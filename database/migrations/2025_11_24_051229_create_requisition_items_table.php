@@ -20,7 +20,7 @@ return new class extends Migration
             $table->decimal('total_price', 10, 2)->nullable();
             $table->text('specifications')->nullable();
             
-            $table->string('status', 50)->default('pending'); // pending, active, delete
+            $table->string('status', 50)->default('pending'); // active, delete, rejected
             $table->timestamp('created_at')->useCurrent();
             $table->integer('created_by')->default(0)->nullable();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();

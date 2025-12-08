@@ -82,12 +82,17 @@
                 <h3 class="card-title">All Requisitions</h3>
                 <div class="card-tools">
                     <form method="GET" action="{{ route('admin.requisitions.index') }}" class="form-inline">
-                        <div class="input-group input-group-sm">
-                            <select name="status" class="form-control form-control-sm">
-                                <option value="">All Status</option>
+                        <div class="input-group input-group-sm" style="width: 350px;">
+                            <select name="approve_status" class="form-control form-control-sm">
+                                <option value="">All Approve Status</option>
                                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                                 <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
                                 <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
+                            </select>
+                            <select name="clear_status" class="form-control form-control-sm">
+                                <option value="">All Clear Status</option>
+                                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="cleared" {{ request('status') === 'cleared' ? 'selected' : '' }}>Cleared</option>
                             </select>
                             <div class="input-group-append">
                                 <button type="submit" class="btn btn-default">
@@ -107,7 +112,8 @@
                             <th>Department</th>
                             <th>Items</th>
                             <th>Total Amount</th>
-                            <th>Status</th>
+                            <th>Approve Status</th>
+                            <th>Clear Status</th>
                             <th>Date</th>
                             <th>Actions</th>
                         </tr>
@@ -134,6 +140,17 @@
                                     <span class="badge badge-success">Approved</span>
                                 @else
                                     <span class="badge badge-danger">Rejected</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($requisition->approve_status !== 'rejected')
+                                    @if($requisition->clear_status === 'pending')
+                                        <span class="badge badge-warning">Pending</span>
+                                    @elseif($requisition->clear_status === 'cleared')
+                                        <span class="badge badge-success">Cleared</span>
+                                    @else
+                                        <span class="badge badge-danger">Error</span>
+                                    @endif
                                 @endif
                             </td>
                             <td>{{ $requisition->created_at->format('Y-m-d') }}</td>
