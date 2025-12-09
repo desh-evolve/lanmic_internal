@@ -9,6 +9,8 @@ use App\Models\RequisitionIssuedItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\Sage300Service;
+use App\Services\ItemAvailabilityService;
 
 class RequisitionApprovalController extends Controller
 {
@@ -127,7 +129,21 @@ class RequisitionApprovalController extends Controller
     /**
      * Show issue items page.
      */
-    public function issueItemsForm(Requisition $requisition)
+    /*public function issueItemsForm(Requisition $requisition)
+    {
+        if ($requisition->approve_status !== 'approved') {
+            return redirect()->route('admin.requisitions.show', $requisition->id)
+                ->with('error', 'Only approved requisitions can have items issued.');
+        }
+
+
+
+        $requisition->load(['items.issuedItems', 'department', 'subDepartment', 'division', 'user']);
+        
+        return view('admin.requisitions.issue-items', compact('requisition'));
+    }*/
+
+    public function issueItemsForm(Requisition $requisition, Sage300Service $sage300, ItemAvailabilityService $availabilityService)
     {
         if ($requisition->approve_status !== 'approved') {
             return redirect()->route('admin.requisitions.show', $requisition->id)
@@ -136,6 +152,15 @@ class RequisitionApprovalController extends Controller
 
         $requisition->load(['items.issuedItems', 'department', 'subDepartment', 'division', 'user']);
         
+        // Add available quantities for each item
+        foreach ($requisition->items as $item) {
+            $stockQuantity = $sage300->getItemQuantity($item->item_code);
+            $pendingQuantity = $availabilityService->getPendingQuantity($item->item_code, $requisition->id);
+            
+            $item->available_quantity = max(0, $stockQuantity - $pendingQuantity);
+            $item->stock_quantity = $stockQuantity;
+            $item->pending_quantity = $pendingQuantity;
+        }
         return view('admin.requisitions.issue-items', compact('requisition'));
     }
 
