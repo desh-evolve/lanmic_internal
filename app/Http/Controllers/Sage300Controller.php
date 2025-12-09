@@ -75,7 +75,6 @@ class Sage300Controller extends Controller
     {
         $item = $this->sage300->getItem($code);
         $pricing = $this->sage300->getItemPricing($code);
-        $location = $this->sage300->getItemLocation($code);
         
         if (!$item) {
             return response()->json([
@@ -87,13 +86,13 @@ class Sage300Controller extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'code' => $item['ItemNumber'],
+                'code' => $item['UnformattedItemNumber'],
                 'name' => $item['Description'],
                 'category' => $item['Category'],
                 'unit' => $item['StockingUnitOfMeasure'],
                 'unit_price' => $pricing['BasePrice'] ?? 0,
-                'available_qty' => $location['QuantityAvailableToShip'] ?? 0,
-                'qty_on_hand' => $location['QuantityOnHand'] ?? 0,
+                'available_qty' => $item['QuantityAvailable'] ?? 0,
+                'qty_on_hand' => $item['QuantityOnHand'] ?? 0,
             ]
         ]);
     }

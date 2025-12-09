@@ -165,10 +165,16 @@ class Sage300Service
         return $result['success'] ? ($result['data']['value'][0] ?? null) : null;
     }
 
+    public function getItemQuantity(string $code): int
+    {
+        $item = $this->getItem($code);
+        return $item['QuantityAvailable'] ?? 0;
+    }
+
     public function getItemLocation(string $code, string $location = '1'): ?array
     {
         $result = $this->get('IC/ICLocationDetails', [
-            '$filter' => "ItemNumber eq '{$code}' and Location eq '{$location}'"
+            '$filter' => "UnformattedItemNumber eq '{$code}' and Location eq '{$location}'"
         ]);
         return $result['success'] ? ($result['data']['value'][0] ?? null) : null;
     }

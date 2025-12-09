@@ -411,7 +411,7 @@ function loadItems() {
             if (response.success && response.data) {
                 // Transform Sage300 data to your format
                 allItems = response.data.map(item => ({
-                    code: item.ItemNumber || item.UnformattedItemNumber,
+                    code: item.UnformattedItemNumber,
                     name: item.Description,
                     category: item.Category || 'N/A',
                     unit: item.StockingUnitOfMeasure,
