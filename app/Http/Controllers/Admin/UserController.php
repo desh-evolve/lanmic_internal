@@ -64,6 +64,7 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -85,6 +86,19 @@ class UserController extends Controller
         ]);
 
         $user->roles()->attach($request->roles);
+
+           // Get permissions through roles (assuming Role model has permissions relationship)
+    $permissionIds = [];
+    foreach ($request->roles as $roleId) {
+        $role = Role::find($roleId);
+        $rolePermissionIds = $role->permissions()->pluck('permission_id')->toArray();
+        $permissionIds = array_merge($permissionIds, $rolePermissionIds);
+    }
+   // Remove duplicates
+    $permissionIds = array_unique($permissionIds);
+    
+    // Attach permissions to user
+    $user->permissions()->attach($permissionIds);
 
         return redirect()->route('users.index')
             ->with('success', 'User created successfully.');
@@ -142,35 +156,6 @@ class UserController extends Controller
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');
     }
-
-    // public function userPermission(Request $request)
-    // {
-    //     $permission = Permission::all();
-    //     dd($permission);
-
-    //     return view('admin.users.edit', compact('permission'));
-    // }
-
-    // public function userPermission(Request $request , User $user)
-    // {
-    //     $permissions = Permission::all();  // Changed to plural
-
-    //     $userRoles = $user->roles->pluck('id')->toArray();
-    //     // dd($request);
-    //     return view('admin.users.user_permission', compact('permissions'));
-    // }
-
-    // public function userPermission(Request $request, User $user)
-    // {
-    //     $permissions = Permission::all(); // With pagination
-    //     $userPermissions = DB::table('permission_user')
-    //         ->where('user_id', $user->id)
-    //         ->where('status', 'active') // ← KEY FIX: Only get 'active' status
-    //         ->pluck('permission_id')
-    //         ->toArray();
-
-    //     return view('admin.users.user_permission', compact('permissions', 'user', 'userPermissions'));
-    // }
 
    public function userPermission(Request $request, User $user)
 {
