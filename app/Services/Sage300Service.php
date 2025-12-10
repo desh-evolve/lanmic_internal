@@ -279,8 +279,12 @@ class Sage300Service
      * @param string $locationCode - Location code
      * @return array
      */
-    public function getLocation(string $locationCode): array
+    public function getLocation(string $locationCode = null): array
     {
+        if(empty($locationCode)){
+            return [];
+        }
+
         // Use $filter to get all locations for this item
         $result = $this->get('IC/ICLocations', [
             '$filter' => "LocationKey eq '{$locationCode}'"

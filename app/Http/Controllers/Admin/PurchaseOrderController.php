@@ -8,13 +8,18 @@ use App\Models\Requisition;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\Sage300Service;
 
 class PurchaseOrderController extends Controller
 {
-    public function __construct()
+    protected Sage300Service $sage300;
+
+    public function __construct(Sage300Service $sage300)
     {
         $this->middleware('auth');
         $this->middleware('role:admin');
+
+        $this->sage300 = $sage300;
     }
 
     /**
@@ -23,7 +28,7 @@ class PurchaseOrderController extends Controller
     public function index(Request $request)
     {
         $status = $request->input('status', 'pending');
-        $groupBy = $request->input('group_by', 'requisition'); // requisition or item
+        $groupBy = $request->input('group_by', 'item'); // requisition or item
 
         $query = PurchaseOrderItem::with(['requisition.user', 'requisition.department'])
             ->where('status', $status);
@@ -54,15 +59,21 @@ class PurchaseOrderController extends Controller
                 ->get()
                 ->groupBy('item_code');
         }
+        
+        // Loop through each group and then each item within the group
+        foreach ($poItems as $groupKey => $items) {
+            foreach ($items as $item) {
+                $location = $this->sage300->getLocation($item['location_code']);
+                $item['location_name'] = $location['Name'] ?? '-';
+            }
+        }
 
         // Statistics
         $statistics = [
             'pending_count' => PurchaseOrderItem::where('status', 'pending')->count(),
             'pending_quantity' => PurchaseOrderItem::where('status', 'pending')->sum('quantity'),
-            'pending_value' => PurchaseOrderItem::where('status', 'pending')->sum('total_price'),
             'cleared_count' => PurchaseOrderItem::where('status', 'cleared')->count(),
             'cleared_quantity' => PurchaseOrderItem::where('status', 'cleared')->sum('quantity'),
-            'cleared_value' => PurchaseOrderItem::where('status', 'cleared')->sum('total_price'),
         ];
 
         return view('admin.purchase-orders.index', compact('poItems', 'statistics', 'status', 'groupBy'));

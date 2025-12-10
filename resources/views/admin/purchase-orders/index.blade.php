@@ -64,17 +64,6 @@
                     </div>
                 </div>
             </div>
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-primary">
-                    <div class="inner">
-                        <h3>Rs.{{ number_format($statistics['pending_value'], 2) }}</h3>
-                        <p>Pending Value</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-dollar-sign"></i>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div class="card">
@@ -105,8 +94,8 @@
                             <div class="form-group">
                                 <label>Group By</label>
                                 <select name="group_by" class="form-control" onchange="this.form.submit()">
-                                    <option value="requisition" {{ $groupBy === 'requisition' ? 'selected' : '' }}>Requisition</option>
                                     <option value="item" {{ $groupBy === 'item' ? 'selected' : '' }}>Item</option>
+                                    <option value="requisition" {{ $groupBy === 'requisition' ? 'selected' : '' }}>Requisition</option>
                                 </select>
                             </div>
                         </div>

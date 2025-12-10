@@ -64,14 +64,6 @@
                                 <th width="150">Quantity:</th>
                                 <td><strong>{{ $poItem->quantity }} {{ $poItem->unit }}</strong></td>
                             </tr>
-                            <tr>
-                                <th>Unit Price:</th>
-                                <td>Rs.{{ number_format($poItem->unit_price, 2) }}</td>
-                            </tr>
-                            <tr>
-                                <th>Total Price:</th>
-                                <td><strong class="text-success">Rs.{{ number_format($poItem->total_price, 2) }}</strong></td>
-                            </tr>
                         </table>
                     </div>
                 </div>

@@ -44,9 +44,8 @@
                         <th>Requested By</th>
                         <th>Department</th>
                         <th>Date</th>
+                        <th>Location</th>
                         <th>Quantity</th>
-                        <th>Unit Price</th>
-                        <th>Total</th>
                         @if($status === 'cleared')
                         <th>Cleared By</th>
                         <th>Cleared At</th>
@@ -70,9 +69,8 @@
                         <td>{{ $item->requisition->user->name }}</td>
                         <td>{{ $item->requisition->department->name ?? '-' }}</td>
                         <td>{{ $item->requisition->created_at->format('Y-m-d') }}</td>
+                        <td>{{ $item->location_name ?? '-' }}</td>
                         <td>{{ $item->quantity }} {{ $item->unit }}</td>
-                        <td>Rs.{{ number_format($item->unit_price, 2) }}</td>
-                        <td><strong>Rs.{{ number_format($item->total_price, 2) }}</strong></td>
                         @if($status === 'cleared')
                         <td>{{ $item->clearedBy->name ?? '-' }}</td>
                         <td>{{ $item->cleared_at ? $item->cleared_at->format('Y-m-d H:i') : '-' }}</td>
