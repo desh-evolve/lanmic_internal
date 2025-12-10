@@ -1,4 +1,4 @@
-// public/js/sage300.js - Add these methods
+// public/js/sage300.js
 
 const Sage300 = {
     baseUrl: '../admin/sage300/api',
@@ -27,7 +27,7 @@ const Sage300 = {
         });
     },
     
-    // Helper methods
+    // Helper methods for items
     getItems: function() {
         return $.get(this.baseUrl + '/items');
     },
@@ -36,10 +36,16 @@ const Sage300 = {
         return $.get(this.baseUrl + '/items/' + code);
     },
     
+    getItemLocations: function(itemCode) {
+        return $.get(this.baseUrl + '/items/' + itemCode + '/locations');
+    },
+    
+    // Helper methods for locations
     getLocations: function() {
         return $.get(this.baseUrl + '/locations');
     },
     
+    // Utility methods
     refreshItemPrice: function(code) {
         return this.getItemDetails(code);
     }

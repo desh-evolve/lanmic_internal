@@ -101,24 +101,24 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Location <span class="text-danger">*</span></label>
-                                <select class="form-control" id="locationSelect" disabled>
-                                    <option value="">Select item first</option>
-                                </select>
-                                <small class="text-muted">
-                                    Available: <span id="locationAvailableQty" class="font-weight-bold text-success">-</span>
-                                </small>
-                            </div>
-                        </div>
                         <div class="col-md-2">
                             <div class="form-group">
                                 <label>Quantity <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="itemQuantity" min="1" value="1" disabled>
+                                <input type="number" class="form-control" id="itemQuantity" min="1" value="1">
+                                <small class="text-muted">
+                                    Available: <span id="availableQty" class="font-weight-bold">-</span>
+                                    <br>
+                                    Pending Approval: <span id="pendingQty" class="font-weight-bold">-</span>
+                                </small>
                             </div>
                         </div>
-                        <div class="col-md-3 d-flex align-items-center pb-2">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Specifications</label>
+                                <input type="text" class="form-control" id="itemSpecifications" placeholder="Optional">
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center pb-2">
                             <button type="button" class="btn btn-success" id="addItemBtn">
                                 <i class="fas fa-plus"></i> Add Item
                             </button>
@@ -135,12 +135,12 @@
                                         <th width="10%">Code</th>
                                         <th width="20%">Name</th>
                                         <th width="10%">Category</th>
-                                        <th width="12%">Location</th>
                                         <th width="8%">Qty</th>
                                         <th width="8%">Unit</th>
-                                        <th width="10%">Available</th>
-                                        <th width="12%">Status</th>
-                                        <th width="10%">Actions</th>
+                                        <th width="10%">Price</th>
+                                        <th width="10%">Total</th>
+                                        <th width="12%">Availability</th>
+                                        <th width="12%">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="itemsTableBody">
@@ -174,29 +174,37 @@
                 <div class="card-header">
                     <h3 class="card-title">Summary</h3>
                 </div>
-                <div class="card-body">
-                    <div class="info-box bg-light">
-                        <div class="info-box-content">
-                            <span class="info-box-text">Total Items</span>
-                            <span class="info-box-number" id="totalItemsCount">0</span>
+                <div class="card-body row">
+                    <div class="col-md-6">
+                        <div class="info-box bg-success">
+                            <div class="info-box-content">
+                                <span class="info-box-text">Available Items</span>
+                                <span class="info-box-number" id="availableItemsCount">0</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="info-box bg-success">
-                        <div class="info-box-content">
-                            <span class="info-box-text">Available Items</span>
-                            <span class="info-box-number" id="availableItemsCount">0</span>
+                    <div class="col-md-6">
+                        <div class="info-box bg-warning">
+                            <div class="info-box-content">
+                                <span class="info-box-text">Purchase Order Items</span>
+                                <span class="info-box-number" id="poItemsCount">0</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="info-box bg-warning">
-                        <div class="info-box-content">
-                            <span class="info-box-text">PO Items</span>
-                            <span class="info-box-number" id="poItemsCount">0</span>
+                    <div class="col-md-6">
+                        <div class="info-box bg-light">
+                            <div class="info-box-content">
+                                <span class="info-box-text">Total Items</span>
+                                <span class="info-box-number" id="totalItemsCount">0</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="info-box bg-info">
-                        <div class="info-box-content">
-                            <span class="info-box-text">Total Quantity</span>
-                            <span class="info-box-number" id="totalQuantity">0</span>
+                    <div class="col-md-6">
+                        <div class="info-box bg-light">
+                            <div class="info-box-content">
+                                <span class="info-box-text">Total Amount</span>
+                                <span class="info-box-number" id="totalAmount">Rs. 0.00</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -216,13 +224,12 @@
                                 <tr>
                                     <th>Code</th>
                                     <th>Name</th>
-                                    <th>Location</th>
-                                    <th>PO Qty</th>
+                                    <th>Qty</th>
                                 </tr>
                             </thead>
                             <tbody id="poItemsTableBody">
                                 <tr id="poEmptyRow">
-                                    <td colspan="4" class="text-center text-muted">No PO items</td>
+                                    <td colspan="3" class="text-center text-muted">No PO items</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -253,17 +260,27 @@
                     <label>Item Name</label>
                     <input type="text" class="form-control" id="editItemName" readonly>
                 </div>
-                <div class="form-group">
-                    <label>Location</label>
-                    <input type="text" class="form-control" id="editLocation" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Available Quantity</label>
-                    <input type="text" class="form-control" id="editAvailableQty" readonly>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Stock Available</label>
+                            <input type="text" class="form-control" id="editStockAvailable" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Pending Approval</label>
+                            <input type="text" class="form-control" id="editPendingQty" readonly>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Quantity <span class="text-danger">*</span></label>
                     <input type="number" class="form-control" id="editQuantity" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Specifications</label>
+                    <textarea class="form-control" id="editSpecifications" rows="3"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -279,15 +296,16 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{{ asset('js/sage300.js') }}"></script>
 <script>
-let allRequestedItems = [];
+let allRequestedItems = []; // All items (both available and PO)
 let allItems = [];
-let itemLocations = {};
-let pendingApprovals = {}; // Track pending quantities per item-location combination
+let pendingApprovals = {}; // Track pending quantities per item code
 
 $(document).ready(function() {
+    // Load items and pending approvals
     loadItems();
     loadPendingApprovals();
 
+    // Department change event
     $('#department_id').change(function() {
         const departmentId = $(this).val();
         $('#sub_department_id').html('<option value="">Select Sub-Department</option>').prop('disabled', true);
@@ -308,6 +326,7 @@ $(document).ready(function() {
         }
     });
 
+    // Sub-department change event
     $('#sub_department_id').change(function() {
         const subDepartmentId = $(this).val();
         $('#division_id').html('<option value="">Select Division</option>').prop('disabled', true);
@@ -327,49 +346,25 @@ $(document).ready(function() {
         }
     });
 
+    // Item select change
     $('#itemSelect').on('select2:select', function(e) {
         const data = e.params.data;
         if (data && data.item) {
-            loadItemLocations(data.item.code);
+            updateAvailabilityDisplay(data.item);
         }
     });
 
-    $('#locationSelect').change(function() {
-        const selectedLocation = $(this).val();
-        const selectedItem = $('#itemSelect').select2('data')[0];
-        
-        if (selectedLocation && selectedItem) {
-            const locationData = JSON.parse($(this).find('option:selected').attr('data-location'));
-            const itemCode = selectedItem.item.code;
-            const locationCode = locationData.location_code;
-            
-            // Get pending quantity for this item-location combination
-            const pendingKey = `${itemCode}_${locationCode}`;
-            const pendingQty = pendingApprovals[pendingKey] || 0;
-            
-            // Calculate actual available quantity
-            const stockQty = locationData.quantity;
-            const actualAvailable = Math.max(0, stockQty - pendingQty);
-            
-            $('#locationAvailableQty').html(`
-                <span class="text-success">${actualAvailable}</span>
-                ${pendingQty > 0 ? `<br><small class="text-warning">(${pendingQty} pending approval)</small>` : ''}
-            `);
-            $('#itemQuantity').prop('disabled', false).val(1);
-        } else {
-            $('#locationAvailableQty').text('-');
-            $('#itemQuantity').prop('disabled', true).val(1);
-        }
-    });
-
+    // Add item button
     $('#addItemBtn').click(function() {
         addItemToTable();
     });
 
+    // Save edit button
     $('#saveEditBtn').click(function() {
         saveEdit();
     });
 
+    // Form submission
     $('#requisitionForm').submit(function(e) {
         if (allRequestedItems.length === 0) {
             e.preventDefault();
@@ -381,25 +376,47 @@ $(document).ready(function() {
     $('#refreshItemsBtn').click(function() {
         const $btn = $(this);
         $btn.prop('disabled', true).find('i').addClass('fa-spin');
+        $('#availableQty').text('0');
+        $('#pendingQty').text('0');
+        
         loadItems();
         loadPendingApprovals();
+        
         setTimeout(function() {
             $btn.prop('disabled', false).find('i').removeClass('fa-spin');
         }, 1000);
     });
 });
 
+/*
+function loadItems() {
+    $('#itemSelect').html('<option value="">Loading items...</option>');
+
+    $.get('/api/items', function(data) {
+        allItems = data;
+        initializeSelect2();
+    }).fail(function() {
+        allItems = @json($items ?? []);
+        initializeSelect2();
+    });
+}
+*/
+
 function loadItems() {
     $('#itemSelect').html('<option value="">Loading items from Sage300...</option>');
 
+    // Load items from Sage300 API
     Sage300.getItems()
         .done(function(response) {
             if (response.success && response.data) {
+                // Transform Sage300 data to your format
                 allItems = response.data.map(item => ({
                     code: item.UnformattedItemNumber,
                     name: item.Description,
                     category: item.Category || 'N/A',
-                    unit: item.StockingUnitOfMeasure
+                    unit: item.StockingUnitOfMeasure,
+                    unit_price: 0, // Will be fetched separately
+                    available_qty: item.QuantityAvailable || 0
                 }));
                 initializeSelect2();
             }
@@ -415,8 +432,11 @@ function loadPendingApprovals() {
     $.get('/api/requisitions/pending-items', function(data) {
         pendingApprovals = {};
         data.forEach(function(item) {
-            const key = `${item.item_code}_${item.location_code}`;
-            pendingApprovals[key] = parseInt(item.total_quantity) || 0;
+            const code = item.item_code;
+            if (!pendingApprovals[code]) {
+                pendingApprovals[code] = 0;
+            }
+            pendingApprovals[code] += parseInt(item.quantity) || 0;
         });
     }).fail(function() {
         console.log('Could not load pending approvals');
@@ -425,13 +445,17 @@ function loadPendingApprovals() {
 }
 
 function initializeSelect2() {
+    // Normalize items data structure
     const normalizedItems = allItems.map(item => {
-        return {
-            code: item.code || '',
-            name: item.name || '',
-            category: item.category || 'N/A',
-            unit: item.unit || 'pcs'
+        const normalizedItem = {
+            code: item.code || item['code'] || item.id || item['id'] || '',
+            name: item.name || item['name'] || '',
+            category: item.category || item['category'] || 'N/A',
+            unit: item.unit || item['unit'] || 'pcs',
+            unit_price: parseFloat(item.unit_price || item['unit_price'] || 0),
+            available_qty: parseInt(item.available_qty || item['available_qty'] || 0)
         };
+        return normalizedItem;
     }).filter(item => item.code && item.name);
 
     $('#itemSelect').select2({
@@ -470,40 +494,103 @@ function initializeSelect2() {
     });
 }
 
-function loadItemLocations(itemCode) {
-    $('#locationSelect').html('<option value="">Loading locations...</option>').prop('disabled', true);
-    $('#locationAvailableQty').text('-');
-    $('#itemQuantity').prop('disabled', true).val(1);
+/*
+function updateAvailabilityDisplay(item) {
+    const stockQty = item.available_qty || 0;
+    const pendingQty = pendingApprovals[item.code] || 0;
+    const actualAvailable = Math.max(0, stockQty - pendingQty);
 
-    Sage300.getItemLocations(itemCode)
+    $('#availableQty').text(actualAvailable);
+    if (pendingQty > 0) {
+        $('#pendingQty').text(`${pendingQty}`);
+    } else {
+        $('#pendingQty').text('');
+    }
+}
+*/
+
+function updateAvailabilityDisplay(item) {
+    // Show loading state
+    $('#availableQty').html('<i class="fas fa-spinner fa-spin"></i>');
+    $('#pendingQty').text(pendingApprovals[item.code] || 0);
+
+    // Fetch fresh quantity and price from Sage300
+    Sage300.getItemDetails(item.code)
         .done(function(response) {
-            if (response.success && response.data && response.data.length > 0) {
-                itemLocations[itemCode] = response.data;
+            if (response.success && response.data) {
+                const data = response.data;
+                const stockQty = data.available_qty || 0;
+                const pendingQty = pendingApprovals[item.code] || 0;
+                const actualAvailable = Math.max(0, stockQty - pendingQty);
+
+                // Update display
+                $('#availableQty').text(actualAvailable);
                 
-                $('#locationSelect').html('<option value="">Select Location</option>').prop('disabled', false);
-                
-                response.data.forEach(function(location) {
-                    // Calculate actual available considering pending approvals
-                    const pendingKey = `${itemCode}_${location.location_code}`;
-                    const pendingQty = pendingApprovals[pendingKey] || 0;
-                    const actualAvailable = Math.max(0, location.quantity - pendingQty);
-                    
-                    const locationText = `${location.location_code} - ${location.location_name} (Available: ${actualAvailable}${pendingQty > 0 ? `, Pending: ${pendingQty}` : ''})`;
-                    $('#locationSelect').append(
-                        `<option value="${location.location_code}" data-location='${JSON.stringify(location)}'>${locationText}</option>`
-                    );
-                });
-            } else {
-                $('#locationSelect').html('<option value="">No locations available</option>');
-                alert('No locations found for this item');
+                // Update item data with fresh info
+                item.available_qty = stockQty;
+                item.unit_price = data.unit_price || 0;
             }
         })
-        .fail(function(xhr, status, error) {
-            console.error('Failed to load item locations:', error);
-            $('#locationSelect').html('<option value="">Error loading locations</option>');
-            alert('Failed to load locations. Please try again.');
+        .fail(function() {
+            $('#availableQty').text(item.available_qty || 0);
+            console.error('Failed to fetch item details');
         });
 }
+
+/*
+function addItemToTable() {
+    const selectedOption = $('#itemSelect').select2('data')[0];
+    if (!selectedOption || !selectedOption.item) {
+        alert('Please select an item');
+        return;
+    }
+
+    const item = selectedOption.item;
+    const requestedQty = parseInt($('#itemQuantity').val()) || 1;
+    const specifications = $('#itemSpecifications').val();
+    
+    // Calculate availability considering pending approvals
+    const stockQty = item.available_qty || 0;
+    const pendingQty = pendingApprovals[item.code] || 0;
+    const actualAvailable = Math.max(0, stockQty - pendingQty);
+
+    // Check if item already exists
+    const existsIndex = allRequestedItems.findIndex(i => i.code === item.code);
+    if (existsIndex !== -1) {
+        alert('This item is already added. You can edit it from the table.');
+        return;
+    }
+
+    const unitPrice = item.unit_price || 0;
+    const total = requestedQty * unitPrice;
+
+    // Determine if item needs PO
+    const needsPO = requestedQty > actualAvailable;
+    const availableForRequisition = Math.min(requestedQty, actualAvailable);
+    const needsForPO = Math.max(0, requestedQty - actualAvailable);
+
+    const itemData = {
+        code: item.code,
+        name: item.name,
+        category: item.category || 'N/A',
+        unit: item.unit || 'pcs',
+        quantity: requestedQty,
+        unitPrice: unitPrice,
+        total: total,
+        specifications: specifications,
+        stockAvailable: actualAvailable,
+        pendingQty: pendingQty,
+        needsPO: needsPO,
+        availableQty: availableForRequisition,
+        poQty: needsForPO
+    };
+
+    allRequestedItems.push(itemData);
+    renderTables();
+    clearForm();
+    updateSummary();
+}
+*/
 
 function addItemToTable() {
     const selectedOption = $('#itemSelect').select2('data')[0];
@@ -512,66 +599,73 @@ function addItemToTable() {
         return;
     }
 
-    const locationSelect = $('#locationSelect');
-    const selectedLocation = locationSelect.val();
-    if (!selectedLocation) {
-        alert('Please select a location');
-        return;
-    }
-
     const item = selectedOption.item;
-    const locationData = JSON.parse(locationSelect.find('option:selected').attr('data-location'));
     const requestedQty = parseInt($('#itemQuantity').val()) || 1;
+    const specifications = $('#itemSpecifications').val();
 
-    if (requestedQty < 1) {
-        alert('Quantity must be at least 1');
-        return;
-    }
+    // Show loading state
+    const $addBtn = $('#addItemBtn');
+    $addBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Adding...');
 
-    // Check if same item-location combination already exists
-    const existingIndex = allRequestedItems.findIndex(i => 
-        i.code === item.code && i.location_code === locationData.location_code
-    );
-    
-    if (existingIndex !== -1) {
-        alert(`This item from location "${locationData.location_name}" is already added. Please edit the existing entry.`);
-        return;
-    }
+    // Fetch latest price and quantity from Sage300
+    Sage300.getItemDetails(item.code)
+        .done(function(response) {
+            if (response.success && response.data) {
+                const freshData = response.data;
+                
+                // Calculate availability
+                const stockQty = freshData.available_qty || 0;
+                const pendingQty = pendingApprovals[item.code] || 0;
+                const actualAvailable = Math.max(0, stockQty - pendingQty);
 
-    // Calculate available quantity considering pending approvals
-    const pendingKey = `${item.code}_${locationData.location_code}`;
-    const pendingQty = pendingApprovals[pendingKey] || 0;
-    const stockQty = locationData.quantity;
-    const actualAvailable = Math.max(0, stockQty - pendingQty);
-    
-    // Calculate requisition and PO quantities
-    const needsPO = requestedQty > actualAvailable;
-    const requisitionQty = requestedQty;
-    const poQty = Math.max(0, requestedQty - actualAvailable);
+                // Check if already exists
+                const existsIndex = allRequestedItems.findIndex(i => i.code === item.code);
+                if (existsIndex !== -1) {
+                    alert('This item is already added. You can edit it from the table.');
+                    $addBtn.prop('disabled', false).html('<i class="fas fa-plus"></i> Add Item');
+                    return;
+                }
 
-    const itemData = {
-        code: item.code,
-        name: item.name,
-        category: item.category || 'N/A',
-        unit: item.unit || 'pcs',
-        location_code: locationData.location_code,
-        location_name: locationData.location_name,
-        quantity: requestedQty,
-        stock_qty: stockQty,
-        pending_qty: pendingQty,
-        available_qty: actualAvailable,
-        needsPO: needsPO,
-        requisition_qty: requisitionQty,
-        po_qty: poQty
-    };
+                const unitPrice = freshData.unit_price || 0;
+                const total = requestedQty * unitPrice;
 
-    allRequestedItems.push(itemData);
-    renderTable();
-    clearForm();
-    updateSummary();
+                // Determine PO needs
+                const needsPO = requestedQty > actualAvailable;
+                const availableForRequisition = Math.min(requestedQty, actualAvailable);
+                const needsForPO = Math.max(0, requestedQty - actualAvailable);
+
+                const itemData = {
+                    code: item.code,
+                    name: freshData.name || item.name,
+                    category: freshData.category || item.category || 'N/A',
+                    unit: freshData.unit || item.unit || 'pcs',
+                    quantity: requestedQty,
+                    unitPrice: unitPrice,
+                    total: total,
+                    specifications: specifications,
+                    stockAvailable: actualAvailable,
+                    pendingQty: pendingQty,
+                    needsPO: needsPO,
+                    availableQty: availableForRequisition,
+                    poQty: needsForPO
+                };
+
+                allRequestedItems.push(itemData);
+                renderTables();
+                clearForm();
+                updateSummary();
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('Failed to fetch item details:', error);
+            alert('Failed to fetch item details. Please try again.');
+        })
+        .always(function() {
+            $addBtn.prop('disabled', false).html('<i class="fas fa-plus"></i> Add Item');
+        });
 }
 
-function renderTable() {
+function renderTables() {
     const tbody = $('#itemsTableBody');
     tbody.empty();
 
@@ -582,24 +676,14 @@ function renderTable() {
     }
 
     allRequestedItems.forEach((item, index) => {
-        let statusBadge = '';
-        let availableDisplay = '';
-        
+        let availabilityBadge = '';
         if (item.needsPO) {
-            statusBadge = `
-                <span class="badge badge-success">${item.requisition_qty} Available</span><br>
-                <span class="badge badge-warning">${item.po_qty} PO Required</span>
-            `;
-            availableDisplay = `
-                <span class="badge badge-success">${item.available_qty}</span>
-                ${item.pending_qty > 0 ? `<br><small class="text-warning">${item.pending_qty} pending</small>` : ''}
+            availabilityBadge = `
+                <span class="badge badge-success">${item.availableQty}</span>
+                <span class="badge badge-warning">${item.poQty} PO</span>
             `;
         } else {
-            statusBadge = `<span class="badge badge-success">Fully Available</span>`;
-            availableDisplay = `
-                <span class="badge badge-success">${item.available_qty}</span>
-                ${item.pending_qty > 0 ? `<br><small class="text-warning">${item.pending_qty} pending</small>` : ''}
-            `;
+            availabilityBadge = `<span class="badge badge-success">Available</span>`;
         }
 
         const row = `
@@ -607,34 +691,33 @@ function renderTable() {
                 <td>${item.code}</td>
                 <td>
                     ${item.name}
-                    <!-- Requisition Items -->
+                    ${item.specifications ? `<br><small class="text-muted">${item.specifications}</small>` : ''}
+                    <!-- Requisition Items Hidden Inputs -->
                     <input type="hidden" name="requisition_items[${index}][item_code]" value="${item.code}">
                     <input type="hidden" name="requisition_items[${index}][item_name]" value="${item.name}">
                     <input type="hidden" name="requisition_items[${index}][item_category]" value="${item.category}">
                     <input type="hidden" name="requisition_items[${index}][unit]" value="${item.unit}">
-                    <input type="hidden" name="requisition_items[${index}][location_code]" value="${item.location_code}">
-                    <input type="hidden" name="requisition_items[${index}][location_name]" value="${item.location_name}">
-                    <input type="hidden" name="requisition_items[${index}][quantity]" value="${item.requisition_qty}">
+                    <input type="hidden" name="requisition_items[${index}][quantity]" value="${item.quantity}">
+                    <input type="hidden" name="requisition_items[${index}][unit_price]" value="${item.unitPrice}">
+                    <input type="hidden" name="requisition_items[${index}][total_price]" value="${item.total}">
+                    <input type="hidden" name="requisition_items[${index}][specifications]" value="${item.specifications}">
                     ${item.needsPO ? `
-                    <!-- Purchase Order Items -->
+                    <!-- Purchase Order Items Hidden Inputs -->
                     <input type="hidden" name="purchase_order_items[${index}][item_code]" value="${item.code}">
                     <input type="hidden" name="purchase_order_items[${index}][item_name]" value="${item.name}">
                     <input type="hidden" name="purchase_order_items[${index}][item_category]" value="${item.category}">
                     <input type="hidden" name="purchase_order_items[${index}][unit]" value="${item.unit}">
-                    <input type="hidden" name="purchase_order_items[${index}][location_code]" value="${item.location_code}">
-                    <input type="hidden" name="purchase_order_items[${index}][location_name]" value="${item.location_name}">
-                    <input type="hidden" name="purchase_order_items[${index}][quantity]" value="${item.po_qty}">
+                    <input type="hidden" name="purchase_order_items[${index}][quantity]" value="${item.poQty}">
+                    <input type="hidden" name="purchase_order_items[${index}][unit_price]" value="${item.unitPrice}">
+                    <input type="hidden" name="purchase_order_items[${index}][total_price]" value="${item.poQty * item.unitPrice}">
                     ` : ''}
                 </td>
                 <td>${item.category}</td>
-                <td>
-                    <span class="badge badge-info">${item.location_code}</span>
-                    <br><small>${item.location_name}</small>
-                </td>
                 <td><span class="badge badge-primary">${item.quantity}</span></td>
-                <td><span class="badge badge-secondary">${item.unit}</span></td>
-                <td>${availableDisplay}</td>
-                <td>${statusBadge}</td>
+                <td><span class="badge badge-info">${item.unit}</span></td>
+                <td>Rs. ${item.unitPrice.toFixed(2)}</td>
+                <td><strong>Rs. ${item.total.toFixed(2)}</strong></td>
+                <td>${availabilityBadge}</td>
                 <td>
                     <button type="button" class="btn btn-sm btn-primary" onclick="editItem(${index})">
                         <i class="fas fa-edit"></i>
@@ -658,7 +741,7 @@ function renderPOSummary() {
     const poItems = allRequestedItems.filter(item => item.needsPO);
 
     if (poItems.length === 0) {
-        tbody.append('<tr id="poEmptyRow"><td colspan="4" class="text-center text-muted">No PO items</td></tr>');
+        tbody.append('<tr id="poEmptyRow"><td colspan="3" class="text-center text-muted">No PO items</td></tr>');
         $('#poItemsBadge').text('0');
         return;
     }
@@ -670,8 +753,7 @@ function renderPOSummary() {
             <tr>
                 <td><small>${item.code}</small></td>
                 <td><small>${item.name}</small></td>
-                <td><small>${item.location_code}</small></td>
-                <td><span class="badge badge-warning">${item.po_qty}</span></td>
+                <td><span class="badge badge-warning">${item.poQty}</span></td>
             </tr>
         `;
         tbody.append(row);
@@ -683,15 +765,17 @@ function editItem(index) {
     $('#editIndex').val(index);
     $('#editItemCode').val(item.code);
     $('#editItemName').val(item.name);
-    $('#editLocation').val(`${item.location_code} - ${item.location_name}`);
-    $('#editAvailableQty').val(`${item.available_qty}${item.pending_qty > 0 ? ` (${item.pending_qty} pending)` : ''}`);
+    $('#editStockAvailable').val(item.stockAvailable);
+    $('#editPendingQty').val(item.pendingQty);
     $('#editQuantity').val(item.quantity);
+    $('#editSpecifications').val(item.specifications);
     $('#editModal').modal('show');
 }
 
 function saveEdit() {
     const index = parseInt($('#editIndex').val());
     const quantity = parseInt($('#editQuantity').val());
+    const specifications = $('#editSpecifications').val();
 
     if (quantity < 1) {
         alert('Quantity must be at least 1');
@@ -699,48 +783,51 @@ function saveEdit() {
     }
 
     const item = allRequestedItems[index];
-    
-    // Recalculate PO needs with actual available (considering pending)
-    const actualAvailable = item.available_qty;
-    const needsPO = quantity > actualAvailable;
-    const requisitionQty = Math.min(quantity, actualAvailable);
-    const poQty = Math.max(0, quantity - actualAvailable);
-
     item.quantity = quantity;
-    item.needsPO = needsPO;
-    item.requisition_qty = requisitionQty;
-    item.po_qty = poQty;
+    item.specifications = specifications;
+    item.total = quantity * item.unitPrice;
+
+    // Recalculate PO needs
+    const actualAvailable = item.stockAvailable;
+    item.needsPO = quantity > actualAvailable;
+    item.availableQty = Math.min(quantity, actualAvailable);
+    item.poQty = Math.max(0, quantity - actualAvailable);
 
     $('#editModal').modal('hide');
-    renderTable();
+    renderTables();
     updateSummary();
 }
 
 function deleteItem(index) {
     if (confirm('Are you sure you want to remove this item?')) {
         allRequestedItems.splice(index, 1);
-        renderTable();
+        renderTables();
         updateSummary();
     }
 }
 
 function clearForm() {
     $('#itemSelect').val(null).trigger('change');
-    $('#locationSelect').html('<option value="">Select item first</option>').prop('disabled', true);
-    $('#itemQuantity').val(1).prop('disabled', true);
-    $('#locationAvailableQty').text('-');
+    $('#itemQuantity').val(1);
+    $('#itemSpecifications').val('');
+    $('#availableQty').text('-');
+    $('#pendingQty').text('');
 }
 
 function updateSummary() {
     const totalItems = allRequestedItems.length;
-    const totalQty = allRequestedItems.reduce((sum, item) => sum + item.quantity, 0);
     const availableItems = allRequestedItems.filter(item => !item.needsPO).length;
     const poItems = allRequestedItems.filter(item => item.needsPO).length;
+    
+    let totalAmount = 0;
+    allRequestedItems.forEach(item => {
+        totalAmount += item.total;
+    });
 
     $('#totalItemsCount').text(totalItems);
-    $('#totalQuantity').text(totalQty);
     $('#availableItemsCount').text(availableItems);
     $('#poItemsCount').text(poItems);
+    $('#totalAmount').text('Rs. ' + totalAmount.toFixed(2));
 }
 </script>
 @endpush

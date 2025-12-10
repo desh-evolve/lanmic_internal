@@ -153,7 +153,7 @@ class ItemAvailabilityService
      * Determine how much of the requested quantity is available and how much needs PO.
      * Uses Sage300 stock quantity.
      */
-    public function splitAvailableAndPO($itemCode, $requestedQuantity, $requisitionId = null)
+    public function splitAvailableAndPO($itemCode, $locationCode, $requestedQuantity, $requisitionId = null)
     {
         $availableQuantity = $this->getAvailableQuantity($itemCode, $requisitionId);
         

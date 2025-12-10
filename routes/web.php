@@ -99,6 +99,9 @@ Route::middleware(['auth'])->group(function () {
             // Item Routes
             Route::get('/api/items', [Sage300Controller::class, 'getItems'])->name('api.items');
             Route::get('/api/items/{code}', [Sage300Controller::class, 'getItemDetails'])->name('api.item.details');
+            Route::get('/api/items/{itemCode}/locations', [Sage300Controller::class, 'getItemLocations'])->name('api.item.locations');
+            
+            // Location Routes
             Route::get('/api/locations', [Sage300Controller::class, 'getLocations'])->name('api.locations');
         });
     });

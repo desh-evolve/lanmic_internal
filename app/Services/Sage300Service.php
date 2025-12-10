@@ -134,29 +134,45 @@ class Sage300Service
     public function postEndpoints(): array
     {
         return [
-            'IC/ICInternalUsages' => 'Items',
-            'IC/ICInternalUsages/{usageNumber}/Details' => 'Items',
-            'IC/ICInternalUsages/{usageNumber}/Post' => 'Items',
-            'IC/ICReceipts' => 'Items',
-            'IC/ICReceipts/{receiptNumber}/Details' => 'Items',
-            'IC/ICReceipts/{receiptNumber}/Post' => 'Items',
-            'IC/ICDayEndProcessing' => 'Items',
+            'IC/ICInternalUsages' => 'Internal Usages',
+            'IC/ICInternalUsages/{usageNumber}/Details' => 'Internal Usage Details',
+            'IC/ICInternalUsages/{usageNumber}/Post' => 'Post Internal Usage',
+            'IC/ICReceipts' => 'Receipts',
+            'IC/ICReceipts/{receiptNumber}/Details' => 'Receipt Details',
+            'IC/ICReceipts/{receiptNumber}/Post' => 'Post Receipt',
+            'IC/ICDayEndProcessing' => 'Day End Processing',
         ];
     }
 
-    //get data for the system
+    /**
+     * Get all items
+     *
+     * @return array
+     */
     public function getItems(): array
     {
         $result = $this->get('IC/ICItems');
         return $result['success'] ? ($result['data']['value'] ?? []) : [];
     }
 
+    /**
+     * Get single item by code
+     *
+     * @param string $code
+     * @return array|null
+     */
     public function getItem(string $code): ?array
     {
         $result = $this->get("IC/ICItems('{$code}')");
         return $result['success'] ? $result['data'] : null;
     }
 
+    /**
+     * Get item pricing
+     *
+     * @param string $code
+     * @return array|null
+     */
     public function getItemPricing(string $code): ?array
     {
         $result = $this->get('IC/ICItemPricing', [
@@ -165,23 +181,120 @@ class Sage300Service
         return $result['success'] ? ($result['data']['value'][0] ?? null) : null;
     }
 
+    /**
+     * Get item available quantity
+     *
+     * @param string $code
+     * @return int
+     */
     public function getItemQuantity(string $code): int
     {
         $item = $this->getItem($code);
         return $item['QuantityAvailable'] ?? 0;
     }
 
-    public function getItemLocation(string $code, string $location = '1'): ?array
+    public function getItemLocationQuantity(string $code, string $location): ?int
     {
-        $result = $this->get('IC/ICLocationDetails', [
-            '$filter' => "UnformattedItemNumber eq '{$code}' and Location eq '{$location}'"
-        ]);
-        return $result['success'] ? ($result['data']['value'][0] ?? null) : null;
+        $result = $this->get("IC/ICLocationDetails(ItemNumber='{$code}',Location='{$location}')");
+        
+        if (!$result['success'] || !isset($result['data'])) {
+            return null;
+        }
+        
+        return (int)($result['data']['QuantityOnHand'] ?? 0);
     }
 
+    /**
+     * Get all locations with quantities for a specific item
+     *
+     * @param string $code - Item code
+     * @return array
+     */
+    public function getItemLocations(string $code): array
+    {
+        // Use $filter to get all locations for this item
+        $result = $this->get('IC/ICLocationDetails', [
+            '$filter' => "ItemNumber eq '{$code}'"
+        ]);
+        
+        if (!$result['success']) {
+            Log::error("Failed to get item locations for {$code}", [
+                'error' => $result['message'] ?? 'Unknown error'
+            ]);
+            return [];
+        }
+        
+        $locations = $result['data']['value'] ?? [];
+        
+        // Filter and format locations with available quantity
+        $itemLocations = [];
+        
+        foreach ($locations as $location) {
+            $quantityAvailable = (int)($location['QuantityOnHand'] ?? 0);
+            
+            // Only include locations with available quantity
+            if ($quantityAvailable > 0) {
+                $itemLocations[] = [
+                    'location_code' => $location['Location'] ?? '',
+                    'location_name' => $location['Name'] ?? $location['Location'] ?? '',
+                    'quantity' => (int)($location['QuantityOnHand'] ?? 0),
+                    //'average_cost' => (float)($location['AverageCost'] ?? 0),
+                    //'in_use' => (bool)($location['InUse'] ?? false),
+                    //'allowed' => (bool)($location['Allowed'] ?? false),
+                ];
+            }
+        }
+        
+        return $itemLocations;
+    }
+
+    /**
+     * Get single item location details
+     *
+     * @param string $code - Item code
+     * @param string $location - Location code (default '1')
+     * @return array|null
+     */
+    public function getItemLocation(string $code, string $location): ?array
+    {
+        // Use the direct endpoint format: ICLocationDetails(ItemNumber='code',Location='loc')
+        $result = $this->get("IC/ICLocationDetails(ItemNumber='{$code}',Location='{$location}')");
+        return $result['success'] ? $result['data'] : null;
+    }
+
+    /**
+     * Get all locations
+     *
+     * @return array
+     */
     public function getLocations(): array
     {
         $result = $this->get('IC/ICLocations');
         return $result['success'] ? ($result['data']['value'] ?? []) : [];
+    }
+
+    /**
+     * Get one location 
+     *
+     * @param string $locationCode - Location code
+     * @return array
+     */
+    public function getLocation(string $locationCode): array
+    {
+        // Use $filter to get all locations for this item
+        $result = $this->get('IC/ICLocations', [
+            '$filter' => "LocationKey eq '{$locationCode}'"
+        ]);
+        
+        if (!$result['success']) {
+            Log::error("Failed to get location for {$locationCode}", [
+                'error' => $result['message'] ?? 'Unknown error'
+            ]);
+            return [];
+        }
+        
+        $locationData = $result['data']['value'][0] ?? [];
+
+        return $locationData;
     }
 }

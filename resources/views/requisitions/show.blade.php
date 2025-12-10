@@ -141,16 +141,13 @@
                         <tr>
                             <th>Item Code</th>
                             <th>Item Name</th>
+                            <th>Location</th>
                             <th>Category</th>
                             <th>Quantity</th>
-                            <th>Unit Price</th>
-                            <th>Total</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @php $grandTotal = 0; @endphp
                         @foreach($requisition->items as $item)
-                        @php $grandTotal += $item->total_price; @endphp
                         <tr>
                             <td><strong>{{ $item->item_code }}</strong></td>
                             <td>
@@ -159,16 +156,11 @@
                                     <br><small class="text-muted">{{ $item->specifications }}</small>
                                 @endif
                             </td>
+                            <td>{{ $item->location_name ?? '-' }}</td>
                             <td>{{ $item->item_category ?? '-' }}</td>
                             <td>{{ $item->quantity }} {{ $item->unit }}</td>
-                            <td>Rs. {{ number_format($item->unit_price, 2) }}</td>
-                            <td><strong>Rs. {{ number_format($item->total_price, 2) }}</strong></td>
                         </tr>
                         @endforeach
-                        <tr class="bg-light">
-                            <td colspan="5" class="text-right"><strong>Grand Total:</strong></td>
-                            <td><strong>Rs. {{ number_format($grandTotal, 2) }}</strong></td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -197,12 +189,6 @@
                     <div class="info-box-content">
                         <span class="info-box-text">Total Quantity</span>
                         <span class="info-box-number">{{ $requisition->items->sum('quantity') }}</span>
-                    </div>
-                </div>
-                <div class="info-box bg-light">
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Amount</span>
-                        <span class="info-box-number">Rs. {{ number_format($requisition->items->sum('total_price'), 2) }}</span>
                     </div>
                 </div>
             </div>

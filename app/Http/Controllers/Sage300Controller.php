@@ -58,9 +58,9 @@ class Sage300Controller extends Controller
         return response()->json($result, $result['status'] ?? 200);
     }
 
-    
-    
-    //get data for the system
+    /**
+     * Get all items from Sage 300
+     */
     public function getItems(Request $request): JsonResponse
     {
         $items = $this->sage300->getItems();
@@ -71,6 +71,9 @@ class Sage300Controller extends Controller
         ]);
     }
 
+    /**
+     * Get detailed information for a specific item
+     */
     public function getItemDetails(Request $request, string $code): JsonResponse
     {
         $item = $this->sage300->getItem($code);
@@ -91,12 +94,55 @@ class Sage300Controller extends Controller
                 'category' => $item['Category'],
                 'unit' => $item['StockingUnitOfMeasure'],
                 'unit_price' => $pricing['BasePrice'] ?? 0,
-                'available_qty' => $item['QuantityAvailable'] ?? 0,
+                'available_qty' => $item['QuantityOnHand'] ?? 0,
                 'qty_on_hand' => $item['QuantityOnHand'] ?? 0,
             ]
         ]);
     }
 
+    /**
+     * Get all locations with their quantities for a specific item
+     */
+    public function getItemLocations(Request $request, string $itemCode): JsonResponse
+    {
+        try {
+            $locations = $this->sage300->getItemLocations($itemCode);
+            
+            if (empty($locations)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'message' => 'No locations found for this item'
+                ]);
+            }
+            
+            // Transform the data to a consistent format
+            $formattedLocations = $locations;
+            
+            // Filter out locations with zero quantity
+            $formattedLocations = array_filter($formattedLocations, function($loc) {
+                return $loc['quantity'] > 0;
+            });
+            
+            // Re-index array
+            $formattedLocations = array_values($formattedLocations);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $formattedLocations
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch item locations: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all locations from Sage 300
+     */
     public function getLocations(): JsonResponse
     {
         $locations = $this->sage300->getLocations();
@@ -107,5 +153,13 @@ class Sage300Controller extends Controller
         ]);
     }
 
-
+    /*
+    public function getLocation(): JsonResponse
+    {
+        
+        return response()->json([
+            'success' => true,
+            'data' => $locations
+        ]);
+    }*/
 }
