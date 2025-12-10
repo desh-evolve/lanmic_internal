@@ -70,7 +70,7 @@
                                 <th>Item</th>
                                 <th>Requested Qty</th>
                                 <th>Already Issued</th>
-                                <th>Remaining</th>
+                                <th>Remaining Issues</th>
                                 <th>Issue Now</th>
                             </tr>
                         </thead>
@@ -102,20 +102,43 @@
                                 </td>
                                 <td>
                                     @if($remaining > 0)
-                                        <input type="hidden" name="items[{{ $loop->index }}][requisition_item_id]" value="{{ $item->id }}">
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" 
-                                                   class="form-control issue-quantity" 
-                                                   name="items[{{ $loop->index }}][issued_quantity]" 
-                                                   min="1" 
-                                                   max="{{ $remaining }}" 
-                                                   value="{{ $remaining }}"
-                                                   data-remaining="{{ $remaining }}">
-                                            <div class="input-group-append">
-                                                <span class="input-group-text">{{ $item->unit }}</span>
+                                        @php 
+                                            $available = $item->available_quantity ?? 0;
+                                            $stockQty = $item->stock_quantity ?? 0;
+                                        @endphp
+                                        
+                                        @if ($stockQty > 0)
+                                            <input type="hidden" name="items[{{ $loop->index }}][requisition_item_id]" value="{{ $item->id }}">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" 
+                                                    class="form-control issue-quantity" 
+                                                    name="items[{{ $loop->index }}][issued_quantity]" 
+                                                    min="1" 
+                                                    max="{{ min($remaining, $available) }}" 
+                                                    value="{{ min($remaining, $available) }}"
+                                                    data-remaining="{{ $remaining }}"
+                                                    data-available="{{ $available }}">
+                                                <div class="input-group-append">
+                                                    <span class="input-group-text">{{ $item->unit }}</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <small class="text-muted">Max: {{ $remaining }}</small>
+                                            <small class="text-muted">
+                                                Max: {{ $remaining }} | 
+                                                <strong class="text-info">Stock: {{ $stockQty }}</strong>
+                                                @if(isset($item->pending_quantity) && $item->pending_quantity > 0)
+                                                    | Pending: {{ $item->pending_quantity }}
+                                                @endif
+                                            </small>
+                                            @if($available < $remaining)
+                                                <small class="text-danger d-block">
+                                                    <i class="fas fa-exclamation-triangle"></i> Only {{ $available }} available to issue
+                                                </small>
+                                            @endif
+                                        @else
+                                            <span class="text-danger">
+                                                <i class="fas fa-exclamation-circle"></i> No stock available to issue. Go to SAGE GRN to add items.
+                                            </span>
+                                        @endif
                                     @else
                                         <span class="text-success"><i class="fas fa-check-circle"></i> Complete</span>
                                     @endif

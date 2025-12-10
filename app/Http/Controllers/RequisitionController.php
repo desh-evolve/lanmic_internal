@@ -108,7 +108,7 @@ class RequisitionController extends Controller
                     'unit_price' => $unitPrice,
                     'total_price' => $totalPrice,
                     'specifications' => $item['specifications'] ?? null,
-                    'status' => 'pending',
+                    'status' => 'active',
                     'created_by' => Auth::id(),
                     'updated_by' => Auth::id(),
                 ]);
@@ -154,7 +154,7 @@ class RequisitionController extends Controller
     public function show(Requisition $requisition)
     {
         // Check if user owns this requisition or is admin
-        if ($requisition->user_id !== Auth::id() && !Auth::user()->hasRole('admin')) {
+        if ((int)$requisition->user_id !== Auth::id() && !Auth::user()->hasRole('admin')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -169,7 +169,7 @@ class RequisitionController extends Controller
     public function edit(Requisition $requisition)
     {
         // Only allow editing if requisition is pending and user owns it
-        if ($requisition->user_id !== Auth::id()) {
+        if ((int)$requisition->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -192,7 +192,7 @@ class RequisitionController extends Controller
     public function update(Request $request, Requisition $requisition)
     {
         // Only allow editing if requisition is pending and user owns it
-        if ($requisition->user_id !== Auth::id()) {
+        if ((int)$requisition->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -297,7 +297,7 @@ class RequisitionController extends Controller
     public function destroy(Requisition $requisition)
     {
         // Only allow deletion if requisition is pending and user owns it
-        if ($requisition->user_id !== Auth::id()) {
+        if ((int)$requisition->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -306,10 +306,33 @@ class RequisitionController extends Controller
                 ->with('error', 'Cannot delete a requisition that has been ' . $requisition->approve_status);
         }
 
-        $requisition->update(['status' => 'delete', 'updated_by' => Auth::id()]);
+        // Use database transaction to ensure data consistency
+        DB::beginTransaction();
+        
+        try {
+            // Update requisition status to 'delete'
+            $requisition->update([
+                'status' => 'delete',
+                'updated_by' => Auth::id()
+            ]);
 
-        return redirect()->route('requisitions.index')
-            ->with('success', 'Requisition deleted successfully.');
+            // Update all related requisition items status to 'deleted'
+            $requisition->allItems()->update([
+                'status' => 'delete',
+                'updated_by' => Auth::id(),
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('requisitions.index')
+                ->with('success', 'Requisition deleted successfully.');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return redirect()->back()
+                ->with('error', 'Failed to delete requisition. Please try again.');
+        }
     }
 
     /**
@@ -360,5 +383,21 @@ class RequisitionController extends Controller
             'pending_quantity' => $pendingQuantity,
             'is_available' => $availableQuantity > 0
         ]);
+    }
+
+    /**
+     * Get pending approval items.
+     */
+    public function getPendingApprovalItems()
+    {
+        try {
+            $pendingQuantity = $this->itemAvailabilityService->getAllPendingQuantity();
+            
+            return response()->json($pendingQuantity);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to load pending approvals'
+            ], 500);
+        }
     }
 }

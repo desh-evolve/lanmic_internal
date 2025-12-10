@@ -84,6 +84,11 @@
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Add Items</h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-sm btn-info" id="refreshItemsBtn">
+                            <i class="fas fa-sync"></i> Refresh Items
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <!-- Item Entry Form -->
@@ -102,7 +107,8 @@
                                 <input type="number" class="form-control" id="itemQuantity" min="1" value="1">
                                 <small class="text-muted">
                                     Available: <span id="availableQty" class="font-weight-bold">-</span>
-                                    <span id="pendingQty" class="text-warning"></span>
+                                    <br>
+                                    Pending Approval: <span id="pendingQty" class="font-weight-bold">-</span>
                                 </small>
                             </div>
                         </div>
@@ -288,6 +294,7 @@
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{{ asset('js/sage300.js') }}"></script>
 <script>
 let allRequestedItems = []; // All items (both available and PO)
 let allItems = [];
@@ -365,8 +372,23 @@ $(document).ready(function() {
             return false;
         }
     });
+
+    $('#refreshItemsBtn').click(function() {
+        const $btn = $(this);
+        $btn.prop('disabled', true).find('i').addClass('fa-spin');
+        $('#availableQty').text('0');
+        $('#pendingQty').text('0');
+        
+        loadItems();
+        loadPendingApprovals();
+        
+        setTimeout(function() {
+            $btn.prop('disabled', false).find('i').removeClass('fa-spin');
+        }, 1000);
+    });
 });
 
+/*
 function loadItems() {
     $('#itemSelect').html('<option value="">Loading items...</option>');
 
@@ -377,6 +399,32 @@ function loadItems() {
         allItems = @json($items ?? []);
         initializeSelect2();
     });
+}
+*/
+
+function loadItems() {
+    $('#itemSelect').html('<option value="">Loading items from Sage300...</option>');
+
+    // Load items from Sage300 API
+    Sage300.getItems()
+        .done(function(response) {
+            if (response.success && response.data) {
+                // Transform Sage300 data to your format
+                allItems = response.data.map(item => ({
+                    code: item.UnformattedItemNumber,
+                    name: item.Description,
+                    category: item.Category || 'N/A',
+                    unit: item.StockingUnitOfMeasure,
+                    unit_price: 0, // Will be fetched separately
+                    available_qty: item.QuantityAvailable || 0
+                }));
+                initializeSelect2();
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('Failed to load items from Sage300:', error);
+            alert('Failed to load items. Please refresh the page.');
+        });
 }
 
 function loadPendingApprovals() {
@@ -446,6 +494,7 @@ function initializeSelect2() {
     });
 }
 
+/*
 function updateAvailabilityDisplay(item) {
     const stockQty = item.available_qty || 0;
     const pendingQty = pendingApprovals[item.code] || 0;
@@ -453,12 +502,42 @@ function updateAvailabilityDisplay(item) {
 
     $('#availableQty').text(actualAvailable);
     if (pendingQty > 0) {
-        $('#pendingQty').text(`(${pendingQty} pending)`);
+        $('#pendingQty').text(`${pendingQty}`);
     } else {
         $('#pendingQty').text('');
     }
 }
+*/
 
+function updateAvailabilityDisplay(item) {
+    // Show loading state
+    $('#availableQty').html('<i class="fas fa-spinner fa-spin"></i>');
+    $('#pendingQty').text(pendingApprovals[item.code] || 0);
+
+    // Fetch fresh quantity and price from Sage300
+    Sage300.getItemDetails(item.code)
+        .done(function(response) {
+            if (response.success && response.data) {
+                const data = response.data;
+                const stockQty = data.available_qty || 0;
+                const pendingQty = pendingApprovals[item.code] || 0;
+                const actualAvailable = Math.max(0, stockQty - pendingQty);
+
+                // Update display
+                $('#availableQty').text(actualAvailable);
+                
+                // Update item data with fresh info
+                item.available_qty = stockQty;
+                item.unit_price = data.unit_price || 0;
+            }
+        })
+        .fail(function() {
+            $('#availableQty').text(item.available_qty || 0);
+            console.error('Failed to fetch item details');
+        });
+}
+
+/*
 function addItemToTable() {
     const selectedOption = $('#itemSelect').select2('data')[0];
     if (!selectedOption || !selectedOption.item) {
@@ -510,6 +589,80 @@ function addItemToTable() {
     renderTables();
     clearForm();
     updateSummary();
+}
+*/
+
+function addItemToTable() {
+    const selectedOption = $('#itemSelect').select2('data')[0];
+    if (!selectedOption || !selectedOption.item) {
+        alert('Please select an item');
+        return;
+    }
+
+    const item = selectedOption.item;
+    const requestedQty = parseInt($('#itemQuantity').val()) || 1;
+    const specifications = $('#itemSpecifications').val();
+
+    // Show loading state
+    const $addBtn = $('#addItemBtn');
+    $addBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Adding...');
+
+    // Fetch latest price and quantity from Sage300
+    Sage300.getItemDetails(item.code)
+        .done(function(response) {
+            if (response.success && response.data) {
+                const freshData = response.data;
+                
+                // Calculate availability
+                const stockQty = freshData.available_qty || 0;
+                const pendingQty = pendingApprovals[item.code] || 0;
+                const actualAvailable = Math.max(0, stockQty - pendingQty);
+
+                // Check if already exists
+                const existsIndex = allRequestedItems.findIndex(i => i.code === item.code);
+                if (existsIndex !== -1) {
+                    alert('This item is already added. You can edit it from the table.');
+                    $addBtn.prop('disabled', false).html('<i class="fas fa-plus"></i> Add Item');
+                    return;
+                }
+
+                const unitPrice = freshData.unit_price || 0;
+                const total = requestedQty * unitPrice;
+
+                // Determine PO needs
+                const needsPO = requestedQty > actualAvailable;
+                const availableForRequisition = Math.min(requestedQty, actualAvailable);
+                const needsForPO = Math.max(0, requestedQty - actualAvailable);
+
+                const itemData = {
+                    code: item.code,
+                    name: freshData.name || item.name,
+                    category: freshData.category || item.category || 'N/A',
+                    unit: freshData.unit || item.unit || 'pcs',
+                    quantity: requestedQty,
+                    unitPrice: unitPrice,
+                    total: total,
+                    specifications: specifications,
+                    stockAvailable: actualAvailable,
+                    pendingQty: pendingQty,
+                    needsPO: needsPO,
+                    availableQty: availableForRequisition,
+                    poQty: needsForPO
+                };
+
+                allRequestedItems.push(itemData);
+                renderTables();
+                clearForm();
+                updateSummary();
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('Failed to fetch item details:', error);
+            alert('Failed to fetch item details. Please try again.');
+        })
+        .always(function() {
+            $addBtn.prop('disabled', false).html('<i class="fas fa-plus"></i> Add Item');
+        });
 }
 
 function renderTables() {

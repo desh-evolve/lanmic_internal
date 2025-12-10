@@ -9,6 +9,8 @@ use App\Models\RequisitionIssuedItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\Sage300Service;
+use App\Services\ItemAvailabilityService;
 
 class RequisitionApprovalController extends Controller
 {
@@ -27,8 +29,11 @@ class RequisitionApprovalController extends Controller
             ->where('status', 'active');
 
         // Filter by approve_status
-        if ($request->has('status') && $request->status != '') {
-            $query->where('approve_status', $request->status);
+        if ($request->has('approve_status') && $request->approve_status != '') {
+            $query->where('approve_status', $request->approve_status);
+        }
+        if ($request->has('clear_status') && $request->clear_status != '') {
+            $query->where('clear_status', $request->clear_status);
         }
 
         $requisitions = $query->orderBy('created_at', 'desc')->paginate(15);
@@ -89,22 +94,56 @@ class RequisitionApprovalController extends Controller
                 ->with('error', 'Only pending requisitions can be rejected.');
         }
 
-        $requisition->update([
-            'approve_status' => 'rejected',
-            'approved_by' => Auth::id(),
-            'approved_at' => now(),
-            'rejection_reason' => $request->rejection_reason,
-            'updated_by' => Auth::id(),
-        ]);
+        // Use database transaction to ensure data consistency
+        DB::beginTransaction();
+        
+        try {
+            // Update requisition status
+            $requisition->update([
+                'approve_status' => 'rejected',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+                'rejection_reason' => $request->rejection_reason,
+                'updated_by' => Auth::id(),
+            ]);
 
-        return redirect()->route('admin.requisitions.show', $requisition->id)
-            ->with('success', 'Requisition rejected.');
+            // Update all related requisition items status to 'rejected'
+            $requisition->allItems()->update([
+                'status' => 'rejected',
+                'updated_by' => Auth::id(),
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('admin.requisitions.show', $requisition->id)
+                ->with('success', 'Requisition rejected.');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return redirect()->back()
+                ->with('error', 'Failed to reject requisition. Please try again.');
+        }
     }
 
     /**
      * Show issue items page.
      */
-    public function issueItemsForm(Requisition $requisition)
+    /*public function issueItemsForm(Requisition $requisition)
+    {
+        if ($requisition->approve_status !== 'approved') {
+            return redirect()->route('admin.requisitions.show', $requisition->id)
+                ->with('error', 'Only approved requisitions can have items issued.');
+        }
+
+
+
+        $requisition->load(['items.issuedItems', 'department', 'subDepartment', 'division', 'user']);
+        
+        return view('admin.requisitions.issue-items', compact('requisition'));
+    }*/
+
+    public function issueItemsForm(Requisition $requisition, Sage300Service $sage300, ItemAvailabilityService $availabilityService)
     {
         if ($requisition->approve_status !== 'approved') {
             return redirect()->route('admin.requisitions.show', $requisition->id)
@@ -113,6 +152,15 @@ class RequisitionApprovalController extends Controller
 
         $requisition->load(['items.issuedItems', 'department', 'subDepartment', 'division', 'user']);
         
+        // Add available quantities for each item
+        foreach ($requisition->items as $item) {
+            $stockQuantity = $sage300->getItemQuantity($item->item_code);
+            $pendingQuantity = $availabilityService->getPendingQuantity($item->item_code, $requisition->id);
+            
+            $item->available_quantity = max(0, $stockQuantity - $pendingQuantity);
+            $item->stock_quantity = $stockQuantity;
+            $item->pending_quantity = $pendingQuantity;
+        }
         return view('admin.requisitions.issue-items', compact('requisition'));
     }
 

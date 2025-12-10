@@ -11,14 +11,14 @@ return new class extends Migration
         Schema::create('purchase_order_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('requisition_id')->constrained()->onDelete('cascade');
-            $table->string('item_code');
-            $table->string('item_name');
-            $table->string('item_category')->nullable();
-            $table->string('unit')->nullable();
+            $table->string('item_code', 255);
+            $table->string('item_name', 255);
+            $table->string('item_category', 255)->nullable();
+            $table->string('unit', 255)->nullable();
             $table->decimal('unit_price', 10, 2)->nullable();
             $table->decimal('total_price', 10, 2)->nullable();
             $table->integer('quantity');
-            $table->enum('status', ['pending', 'cleared'])->default('pending');
+            $table->string('status', 50)->default('pending'); // pending, cleared
             $table->foreignId('cleared_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('cleared_at')->nullable();
             
