@@ -301,4 +301,146 @@ class Sage300Service
 
         return $locationData;
     }
+
+    /**
+     * Get quantity for a specific item at a specific location
+     * 
+     * @param string $itemCode
+     * @param string $locationCode
+     * @return float
+     */
+    public function getLocationQuantity(string $itemCode, string $locationCode): float
+    {
+        try {
+            $locations = $this->getItemLocations($itemCode);
+            $location = collect($locations)->firstWhere('location_code', $locationCode);
+            
+            return $location ? (float) $location['quantity'] : 0;
+        } catch (\Exception $e) {
+            \Log::error("Failed to get location quantity for {$itemCode} at {$locationCode}: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Post issue transaction to SAGE300
+     * 
+     * @param array $data
+     * @return array Response from SAGE300 with unit_price, reference_numbers, etc.
+     */
+    public function postIssue(array $data): array
+    {
+        try {
+            // Example API call structure - adjust based on your actual SAGE300 API
+            $response = $this->client->post('/api/inventory/issue', [
+                'json' => [
+                    'item_code' => $data['item_code'],
+                    'location_code' => $data['location_code'],
+                    'quantity' => $data['quantity'],
+                    'requisition_number' => $data['requisition_number'],
+                    'transaction_date' => now()->format('Y-m-d'),
+                ]
+            ]);
+            
+            $result = json_decode($response->getBody()->getContents(), true);
+            
+            // Return the data structure expected by the controller
+            return [
+                'unit_price' => $result['unit_price'] ?? 0,
+                'reference_number_1' => $result['reference_number_1'] ?? $result['document_number'] ?? null,
+                'reference_number_2' => $result['reference_number_2'] ?? $result['batch_number'] ?? null,
+                'success' => true
+            ];
+            
+        } catch (\Exception $e) {
+            \Log::error("Failed to post issue to SAGE300: " . $e->getMessage());
+            
+            // Return default values on error
+            return [
+                'unit_price' => 0,
+                'reference_number_1' => null,
+                'reference_number_2' => null,
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Post adjustment/issue transaction to SAGE300
+     * 
+     * @param array $adjustmentData
+     * @return array Response with unit_price, reference_numbers, etc.
+     */
+    public function postAdjustment(array $adjustmentData): array
+    {
+        try {
+            $payload = [
+                'Description' => $adjustmentData['description'] ?? 'Requisition Issue',
+                'AdjustmentDate' => now()->format('Y-m-d\TH:i:s.v\Z'),
+                'Reference' => $adjustmentData['requisition_number'] ?? '',
+                'AdjustmentDetails' => [
+                    [
+                        'ItemNumber' => $adjustmentData['item_code'],
+                        'Location' => $adjustmentData['location_code'],
+                        'TransactionType' => 'BothDecrease',
+                        'Quantity' => (int) $adjustmentData['quantity'],
+                        'Comments' => $adjustmentData['notes'] ?? '',
+                    ]
+                ]
+            ];
+            //dd($payload);
+            // Use the existing post() method from this service
+            $result = $this->post('IC/ICAdjustments', $payload);
+            //dd($result);
+            // Check if the request was successful
+            if (!$result['success']) {
+                Log::error("SAGE300 Adjustment API failed", [
+                    'payload' => $payload,
+                    'response' => $result
+                ]);
+                
+                return [
+                    'success' => false,
+                    'unit_price' => 0,
+                    'reference_number_1' => null,
+                    'reference_number_2' => null,
+                    'error' => $result['error'] ?? $result['message'] ?? 'Unknown error'
+                ];
+            }
+            
+            $data = $result['data'];
+            
+            // Extract unit price from response (AverageCost from AdjustmentDetails)
+            $unitPrice = 0;
+            if (isset($data['AdjustmentDetails'][0]['AverageCost'])) {
+                $unitPrice = $data['AdjustmentDetails'][0]['AverageCost'];
+            }
+            
+            return [
+                'success' => true,
+                'unit_price' => $unitPrice,
+                'reference_number_1' => $data['AdjustmentNumber'] ?? null,
+                'reference_number_2' => $data['TransactionNumber'] ?? null,
+                'sequence_number' => $data['SequenceNumber'] ?? null,
+                'cost_adjustment' => $data['AdjustmentDetails'][0]['CostAdjustment'] ?? 0,
+                'record_status' => $data['RecordStatus'] ?? null,
+            ];
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to post adjustment to SAGE300: " . $e->getMessage(), [
+                'item_code' => $adjustmentData['item_code'] ?? null,
+                'location' => $adjustmentData['location_code'] ?? null,
+                'exception' => $e->getMessage()
+            ]);
+            
+            return [
+                'success' => false,
+                'unit_price' => 0,
+                'reference_number_1' => null,
+                'reference_number_2' => null,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
 }

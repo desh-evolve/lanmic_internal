@@ -1,0 +1,14 @@
+{
+  "Description": "Issue for Test Item",
+  "AdjustmentDate": "2025-12-16T10:30:00.000Z",
+  "Reference": "REQ-202412-0001",
+  "AdjustmentDetails": [
+    {
+      "ItemNumber": "A11050",
+      "Location": "1",
+      "TransactionType": "BothDecrease",
+      "Quantity": 5,
+      "Comments": "Test requisition issue"
+    }
+  ]
+}

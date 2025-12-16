@@ -190,16 +190,12 @@
                             <th>Item Name</th>
                             <th>Category</th>
                             <th>Quantity</th>
-                            <th>Unit Price</th>
-                            <th>Total</th>
                             <th>Issued</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @php $grandTotal = 0; @endphp
                         @foreach($requisition->items as $index => $item)
                         @php 
-                            $grandTotal += $item->total_price; 
                             $issuedQty = $item->issuedItems->sum('issued_quantity');
                         @endphp
                         <tr>
@@ -213,8 +209,6 @@
                             </td>
                             <td>{{ $item->item_category ?? '-' }}</td>
                             <td>{{ $item->quantity }} {{ $item->unit }}</td>
-                            <td>Rs.{{ number_format($item->unit_price, 2) }}</td>
-                            <td><strong>Rs.{{ number_format($item->total_price, 2) }}</strong></td>
                             <td>
                                 @if($issuedQty > 0)
                                     <span class="badge badge-{{ $item->isFullyIssued() ? 'success' : 'info' }}">
@@ -226,10 +220,6 @@
                             </td>
                         </tr>
                         @endforeach
-                        <tr class="bg-light">
-                            <td colspan="6" class="text-right"><strong>Grand Total:</strong></td>
-                            <td colspan="2"><strong class="text-primary">Rs.{{ number_format($grandTotal, 2) }}</strong></td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -343,12 +333,6 @@
                         <span class="info-box-number">{{ $requisition->items->sum('quantity') }}</span>
                     </div>
                 </div>
-                <div class="info-box bg-light">
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Amount</span>
-                        <span class="info-box-number">Rs.{{ number_format($requisition->items->sum('total_price'), 2) }}</span>
-                    </div>
-                </div>
                 @if($requisition->approve_status === 'approved')
                 <div class="info-box bg-light">
                     <div class="info-box-content">
@@ -402,20 +386,20 @@
                     <p><strong>Total Amount:</strong> Rs.{{ number_format($requisition->items->sum('total_price'), 2) }}</p>
                     
                     @if($requisition->purchaseOrderItems->count() > 0)
-                    <div class="alert alert-warning">
-<strong>Note:</strong> This requisition has {{ $requisition->purchaseOrderItems->count() }} item(s) that require purchase orders.
-</div>
-@endif
-</div>
-<div class="modal-footer">
-<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-<button type="submit" class="btn btn-success">
-<i class="fas fa-check"></i> Approve
-</button>
-</div>
-</form>
-</div>
-</div>
+                        <div class="alert alert-warning">
+                            <strong>Note:</strong> This requisition has {{ $requisition->purchaseOrderItems->count() }} item(s) that require purchase orders.
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 <!-- Reject Modal -->
 <div class="modal fade" id="rejectModal" tabindex="-1" role="dialog" aria-labelledby="rejectModalLabel" aria-hidden="true">

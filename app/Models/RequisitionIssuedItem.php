@@ -23,7 +23,11 @@ class RequisitionIssuedItem extends Model
         'issued_at',
         'status',
         'created_by',
-        'updated_by'
+        'updated_by',
+        'location_code',
+        'reference_number_1',
+        'reference_number_2',
+        'notes'
     ];
 
     protected $casts = [
