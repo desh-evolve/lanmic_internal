@@ -60,4 +60,12 @@ class RequisitionIssuedItem extends Model
     {
         return $this->belongsTo(User::class, 'issued_by');
     }
+
+    /**
+     * Get return items for this issued item
+     */
+    public function returnItems()
+    {
+        return $this->hasMany(ReturnItem::class, 'requisition_issued_item_id');
+    }
 }

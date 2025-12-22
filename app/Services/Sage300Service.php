@@ -443,4 +443,83 @@ class Sage300Service
             ];
         }
     }
+
+    /**
+     * Post GRN adjustment (Both Increase) to SAGE300
+     * 
+     * @param array $grnData
+     * @return array Response with unit_price, reference_numbers, etc.
+     */
+    public function postGrnAdjustment(array $grnData): array
+    {
+        try {
+            $payload = [
+                'Description' => $grnData['description'] ?? 'GRN Return',
+                'AdjustmentDate' => now()->format('Y-m-d\TH:i:s.v\Z'),
+                'Reference' => $grnData['reference'] ?? '',
+                'AdjustmentDetails' => [
+                    [
+                        'ItemNumber' => $grnData['item_code'],
+                        'Location' => $grnData['location_code'],
+                        'TransactionType' => 'BothIncrease', // For GRN returns - increase both qty and cost
+                        'Quantity' => (int) $grnData['quantity'],
+                        'UnitCost' => (float) $grnData['unit_price'],
+                        'Comments' => $grnData['notes'] ?? '',
+                    ]
+                ]
+            ];
+            
+            // Use the existing post() method from this service
+            $result = $this->post('IC/ICAdjustments', $payload);
+            
+            // Check if the request was successful
+            if (!$result['success']) {
+                Log::error("SAGE300 GRN Adjustment API failed", [
+                    'payload' => $payload,
+                    'response' => $result
+                ]);
+                
+                return [
+                    'success' => false,
+                    'unit_price' => $grnData['unit_price'] ?? 0,
+                    'reference_number_1' => null,
+                    'reference_number_2' => null,
+                    'error' => $result['error'] ?? $result['message'] ?? 'Unknown error'
+                ];
+            }
+            
+            $data = $result['data'];
+            
+            // Extract unit price from response (AverageCost from AdjustmentDetails)
+            $unitPrice = $grnData['unit_price'] ?? 0;
+            if (isset($data['AdjustmentDetails'][0]['AverageCost'])) {
+                $unitPrice = $data['AdjustmentDetails'][0]['AverageCost'];
+            }
+            
+            return [
+                'success' => true,
+                'unit_price' => $unitPrice,
+                'reference_number_1' => $data['AdjustmentNumber'] ?? null,
+                'reference_number_2' => $data['TransactionNumber'] ?? null,
+                'sequence_number' => $data['SequenceNumber'] ?? null,
+                'cost_adjustment' => $data['AdjustmentDetails'][0]['CostAdjustment'] ?? 0,
+                'record_status' => $data['RecordStatus'] ?? null,
+            ];
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to post GRN adjustment to SAGE300: " . $e->getMessage(), [
+                'item_code' => $grnData['item_code'] ?? null,
+                'location' => $grnData['location_code'] ?? null,
+                'exception' => $e->getMessage()
+            ]);
+            
+            return [
+                'success' => false,
+                'unit_price' => $grnData['unit_price'] ?? 0,
+                'reference_number_1' => null,
+                'reference_number_2' => null,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
 }

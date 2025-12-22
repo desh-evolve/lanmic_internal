@@ -12,11 +12,14 @@ class ReturnModel extends Model
     protected $table = 'returns';
 
     protected $fillable = [
+        'requisition_id',
         'returned_by',
         'returned_at',
         'status',
+        'created_at',
         'created_by',
-        'updated_by'
+        'updated_at',
+        'updated_by',
     ];
 
     protected $casts = [
@@ -24,7 +27,15 @@ class ReturnModel extends Model
     ];
 
     /**
-     * Get the user who returned.
+     * Get the requisition that this return belongs to
+     */
+    public function requisition()
+    {
+        return $this->belongsTo(Requisition::class);
+    }
+
+    /**
+     * Get the user who created the return
      */
     public function returnedBy()
     {
@@ -32,23 +43,15 @@ class ReturnModel extends Model
     }
 
     /**
-     * Get the user who created.
-     */
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * Get return items.
+     * Get all return items (active only)
      */
     public function items()
     {
-        return $this->hasMany(ReturnItem::class, 'return_id')->where('status', '!=', 'delete');
+        return $this->hasMany(ReturnItem::class, 'return_id')->where('status', 'active');
     }
 
     /**
-     * Get all items including deleted.
+     * Get all return items including deleted
      */
     public function allItems()
     {
@@ -56,19 +59,67 @@ class ReturnModel extends Model
     }
 
     /**
-     * Get GRN items.
+     * Get GRN items
      */
     public function grnItems()
     {
-        return $this->hasMany(GrnItem::class, 'return_id')->where('status', '!=', 'delete');
+        return $this->hasMany(GrnItem::class, 'return_id')->where('status', 'active');
     }
 
     /**
-     * Get scrap items.
+     * Get scrap items
      */
     public function scrapItems()
     {
-        return $this->hasMany(ScrapItem::class, 'return_id')->where('status', '!=', 'delete');
+        return $this->hasMany(ScrapItem::class, 'return_id')->where('status', 'active');
+    }
+
+    /**
+     * Check if return is pending
+     */
+    public function isPending()
+    {
+        return $this->status === 'pending';
+    }
+
+    /**
+     * Check if all items are approved
+     */
+    public function allItemsApproved()
+    {
+        return $this->items()->where('approve_status', '!=', 'approved')->count() === 0;
+    }
+
+    /**
+     * Get total items count
+     */
+    public function getTotalItemsAttribute()
+    {
+        return $this->items()->count();
+    }
+
+    /**
+     * Get total quantity
+     */
+    public function getTotalQuantityAttribute()
+    {
+        return $this->items()->sum('quantity');
+    }
+
+    /**
+     * Get used items count
+     */
+    public function getUsedItemsCountAttribute()
+    {
+        return $this->items()->where('return_type', 'used')->count();
+    }
+
+    /**
+     * Get same condition items count
+     */
+    public function getSameItemsCountAttribute()
+    {
+        return $this->items()->where('return_type', 'same')->count();
     }
 
     /**

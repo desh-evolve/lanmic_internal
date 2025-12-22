@@ -175,4 +175,13 @@ class Requisition extends Model
     {
         return $query->where('status', 'active');
     }
+
+    /**
+     * Get returns for this requisition
+     */
+    public function returns()
+    {
+        return $this->hasMany(ReturnModel::class);
+    }
+
 }

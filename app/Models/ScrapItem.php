@@ -16,22 +16,23 @@ class ScrapItem extends Model
         'item_name',
         'item_category',
         'unit',
+        'location_code',
         'unit_price',
         'total_price',
         'scrap_quantity',
+        'processed_by',
+        'processed_at',
         'status',
         'created_by',
-        'updated_by'
+        'updated_by',
     ];
 
     protected $casts = [
-        'scrap_quantity' => 'integer',
-        'unit_price' => 'decimal:2',
-        'total_price' => 'decimal:2',
+        'processed_at' => 'datetime',
     ];
 
     /**
-     * Get the return.
+     * Get the return that this scrap item belongs to
      */
     public function return()
     {
@@ -39,10 +40,18 @@ class ScrapItem extends Model
     }
 
     /**
-     * Get the return item.
+     * Get the return item
      */
     public function returnItem()
     {
         return $this->belongsTo(ReturnItem::class, 'return_item_id');
+    }
+
+    /**
+     * Get the user who processed this scrap
+     */
+    public function processedBy()
+    {
+        return $this->belongsTo(User::class, 'processed_by');
     }
 }

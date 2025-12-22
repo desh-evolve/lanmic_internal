@@ -38,9 +38,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('api/sub-departments/{subDepartment}/divisions', [RequisitionController::class, 'getDivisions']);
     Route::get('api/requisitions/pending-items', [RequisitionController::class, 'getPendingApprovalItems']);
 
+    
     // Return routes (for all authenticated users)
     Route::resource('returns', ReturnController::class);
     Route::get('api/returns/items-by-type/{type}', [ReturnController::class, 'getItemsByType']);
+    Route::get('api/requisitions/{requisition}/issued-items', [ReturnController::class, 'getIssuedItems']);
     
     
     // Admin routes
