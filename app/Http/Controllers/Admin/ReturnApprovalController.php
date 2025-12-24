@@ -76,25 +76,14 @@ class ReturnApprovalController extends Controller
 
         $return->load(['items.issuedItem', 'returnedBy', 'requisition']);
         
-        // Get all locations from SAGE300
-        $locations = $this->sage300->getLocations();
-        
-        // For each item, get available locations and current item details
+        // For each item, get current location name
         foreach ($return->items as $item) {
-            // Get item locations
-            $itemLocations = $this->sage300->getItemLocations($item->item_code);
-            $item->available_locations = $itemLocations;
-            
             // Get current location details
             $currentLocation = $this->sage300->getLocation($item->location_code);
             $item->location_name = $currentLocation['Name'] ?? $item->location_code;
-            
-            // Get current item details from SAGE
-            $itemDetails = $this->sage300->getItem($item->item_code);
-            $item->current_sage_price = $itemDetails['UnitCost'] ?? 0;
         }
         
-        return view('admin.returns.approve-items', compact('return', 'locations'));
+        return view('admin.returns.approve-items', compact('return'));
     }
 
     /**

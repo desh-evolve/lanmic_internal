@@ -238,7 +238,7 @@ class Sage300Service
                     'location_code' => $location['Location'] ?? '',
                     'location_name' => $location['Name'] ?? $location['Location'] ?? '',
                     'quantity' => (int)($location['QuantityOnHand'] ?? 0),
-                    //'average_cost' => (float)($location['AverageCost'] ?? 0),
+                    'average_cost' => (float)($location['AverageCost'] ?? 0),
                     //'in_use' => (bool)($location['InUse'] ?? false),
                     //'allowed' => (bool)($location['Allowed'] ?? false),
                 ];

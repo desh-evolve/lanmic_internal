@@ -165,12 +165,14 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Item Code <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control item-code-input" 
-                                           name="items[{{ $index }}][item_code]" 
-                                           value="{{ $item->item_code }}" 
-                                           required
-                                           data-index="{{ $index }}">
+                                    <label>Select Item <span class="text-danger">*</span></label>
+                                    <select class="form-control item-select select2" 
+                                            name="items[{{ $index }}][item_code]" 
+                                            data-index="{{ $index }}"
+                                            data-original-code="{{ $item->item_code }}"
+                                            required>
+                                        <option value="">Loading items...</option>
+                                    </select>
                                     <small class="text-muted">You can change the item if needed</small>
                                 </div>
                             </div>
@@ -180,13 +182,9 @@
                                     <select class="form-control location-select select2" 
                                             name="items[{{ $index }}][location_code]" 
                                             data-index="{{ $index }}"
+                                            data-original-location="{{ $item->location_code }}"
                                             required>
-                                        @foreach($item->available_locations as $loc)
-                                            <option value="{{ $loc['location_code'] }}" 
-                                                    {{ $item->location_code == $loc['location_code'] ? 'selected' : '' }}>
-                                                {{ $loc['location_name'] }} ({{ $loc['location_code'] }}) - Qty: {{ $loc['quantity'] }}
-                                            </option>
-                                        @endforeach
+                                        <option value="">Loading locations...</option>
                                     </select>
                                 </div>
                             </div>
@@ -198,10 +196,11 @@
                                     <label>Unit Price <span class="text-danger">*</span></label>
                                     <input type="number" step="0.01" class="form-control unit-price-input" 
                                            name="items[{{ $index }}][unit_price]" 
-                                           value="{{ $item->current_sage_price }}" 
-                                           min="0" 
+                                           value="0" 
+                                           min="0"
+                                           readonly
                                            required>
-                                    <small class="text-muted">Current SAGE price: Rs. {{ number_format($item->current_sage_price, 2) }}</small>
+                                    <small class="text-muted">Auto-calculated from item average cost</small>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -384,13 +383,23 @@
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{{ asset('js/sage300.js') }}"></script>
 <script>
+let allItems = [];
+let allLocations = [];
+
 $(document).ready(function() {
-    // Initialize Select2
-    $('.select2').select2({
-        theme: 'bootstrap',
-        width: '100%'
-    });
+    // Load items and locations from SAGE
+    loadItems();
+    loadLocations();
+
+    // Initialize Select2 after data loads
+    setTimeout(function() {
+        $('.select2').select2({
+            theme: 'bootstrap',
+            width: '100%'
+        });
+    }, 1000);
 
     // Toggle collapse
     $('.item-header').on('click', function(e) {
@@ -404,6 +413,40 @@ $(document).ready(function() {
         $(this).prev().find('.toggle-icon').removeClass('fa-chevron-right').addClass('fa-chevron-down');
     }).on('hidden.bs.collapse', function() {
         $(this).prev().find('.toggle-icon').removeClass('fa-chevron-down').addClass('fa-chevron-right');
+    });
+
+    // Item selection change
+    $(document).on('change', '.item-select', function() {
+        const itemCode = $(this).val();
+        const card = $(this).closest('.item-card');
+        const locationCode = card.find('.location-select').val();
+        
+        if (itemCode) {
+            // Get item details for fallback
+            const item = allItems.find(i => i.code === itemCode);
+            if (item) {
+                // Set default price from item average cost
+                const avgCost = item.average_cost || 0;
+                card.find('.unit-price-input').val(avgCost.toFixed(2));
+            }
+            
+            // If location is also selected, get location-specific price
+            if (locationCode) {
+                loadItemLocationPrice(itemCode, locationCode, card);
+            }
+        }
+    });
+
+    // Location selection change
+    $(document).on('change', '.location-select', function() {
+        const locationCode = $(this).val();
+        const card = $(this).closest('.item-card');
+        const itemCode = card.find('.item-select').val();
+        
+        // If both item and location are selected, get location-specific price
+        if (itemCode && locationCode) {
+            loadItemLocationPrice(itemCode, locationCode, card);
+        }
     });
 
     // Checkbox change
@@ -441,28 +484,8 @@ $(document).ready(function() {
         validateQuantities(card);
     });
 
-    function validateQuantities(card) {
-        const grnQty = parseInt(card.find('.grn-quantity').val()) || 0;
-        const scrapQty = parseInt(card.find('.scrap-quantity').val()) || 0;
-        const maxQty = parseInt(card.find('.grn-quantity').data('max'));
-        const totalQty = grnQty + scrapQty;
-        
-        const warning = card.find('.quantity-warning');
-        const currentTotal = warning.find('.current-total');
-        
-        currentTotal.text(totalQty);
-        
-        if (totalQty !== maxQty) {
-            warning.show();
-            card.find('.grn-quantity, .scrap-quantity').addClass('is-invalid');
-        } else {
-            warning.hide();
-            card.find('.grn-quantity, .scrap-quantity').removeClass('is-invalid');
-        }
-    }
-
     // Quick action buttons
-    $('.quick-btn').click(function() {
+    $(document).on('click', '.quick-btn', function() {
         const action = $(this).data('action');
         const card = $(this).closest('.item-card');
         const maxQty = parseInt(card.find('.grn-quantity').data('max'));
@@ -486,18 +509,13 @@ $(document).ready(function() {
     });
 
     // Quick note buttons
-    $('.quick-note-btn').click(function() {
+    $(document).on('click', '.quick-note-btn', function() {
         const note = $(this).data('note');
         const card = $(this).closest('.item-card');
         const noteInput = card.find('.admin-note');
         
         noteInput.val(note);
     });
-
-    function updateCheckedCount() {
-        const count = $('.item-checkbox:checked').length;
-        $('#checkedCount').text(count);
-    }
 
     // Form validation
     $('#approveItemsForm').submit(function(e) {
@@ -520,6 +538,9 @@ $(document).ready(function() {
         if (!valid) {
             e.preventDefault();
             alert('Please fix the following errors:' + errorMessage);
+        } else {
+            // Show loading
+            $('#submitBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
         }
     });
 
@@ -527,7 +548,173 @@ $(document).ready(function() {
     $('.item-card').each(function() {
         validateQuantities($(this));
     });
+    
+    // Load initial prices for items that have both item and location selected
+    setTimeout(function() {
+        $('.item-card').each(function() {
+            const card = $(this);
+            const itemCode = card.find('.item-select').val();
+            const locationCode = card.find('.location-select').val();
+            
+            if (itemCode && locationCode) {
+                loadItemLocationPrice(itemCode, locationCode, card);
+            }
+        });
+    }, 1500);
 });
+
+function loadItems() {
+    Sage300.getItems()
+        .done(function(response) {
+            if (response.success && response.data) {
+                allItems = response.data.map(item => ({
+                    code: item.UnformattedItemNumber,
+                    name: item.Description,
+                    category: item.Category || 'N/A',
+                    unit: item.StockingUnitOfMeasure,
+                    average_cost: parseFloat(item.AverageCost || 0)
+                }));
+                
+                // Populate all item selects
+                $('.item-select').each(function() {
+                    const select = $(this);
+                    const originalCode = select.data('original-code');
+                    
+                    select.html('<option value="">Select an item</option>');
+                    
+                    allItems.forEach(function(item) {
+                        const selected = item.code === originalCode ? 'selected' : '';
+                        select.append(
+                            `<option value="${item.code}" ${selected}>
+                                ${item.code} - ${item.name} (${item.category})
+                            </option>`
+                        );
+                    });
+                    
+                    // Set initial price for original item
+                    if (originalCode) {
+                        const item = allItems.find(i => i.code === originalCode);
+                        if (item) {
+                            const card = select.closest('.item-card');
+                            card.find('.unit-price-input').val(item.average_cost.toFixed(2));
+                        }
+                    }
+                });
+            }
+        })
+        .fail(function() {
+            console.error('Failed to load items');
+            alert('Failed to load items from SAGE300. Please refresh the page.');
+        });
+}
+
+function loadLocations() {
+    Sage300.getLocations()
+        .done(function(response) {
+            if (response.success && response.data) {
+                allLocations = response.data.map(loc => ({
+                    code: loc.LocationKey,
+                    name: loc.Name,
+                    description: loc.Description || ''
+                }));
+                
+                // Loop through each select element
+                $('.location-select').each(function() {
+                    const select = $(this);
+                    const originalLocation = select.data('original-location');
+                    
+                    select.html('<option value="">Select a location</option>');
+                    
+                    allLocations.forEach(function(loc) {
+                        const selected = loc.code === originalLocation ? 'selected' : '';
+                        select.append(
+                            `<option value="${loc.code}" ${selected}>
+                                ${loc.name} (${loc.code})
+                            </option>`
+                        );
+                    });
+                });
+            }
+        })
+        .fail(function() {
+            console.error('Failed to load locations');
+            alert('Failed to load locations from SAGE300. Please refresh the page.');
+        });
+}
+
+function loadItemLocationPrice(itemCode, locationCode, card) {
+    const priceInput = card.find('.unit-price-input');
+    
+    // Show loading state
+    priceInput.prop('readonly', true).val('Loading...');
+    
+    Sage300.getItemLocations(itemCode)
+        .done(function(response) {
+            if (response.success && response.data && response.data.length > 0) {
+                // Find the specific location
+                const locationData = response.data.find(loc => loc.location_code === locationCode);
+                
+                if (locationData && locationData.average_cost) {
+                    // Use location-specific unit cost
+                    priceInput.val(parseFloat(locationData.average_cost ?? 0).toFixed(2));
+                } else {
+                    // Fallback to item average cost
+                    const item = allItems.find(i => i.code === itemCode);
+                    if (item) {
+                        priceInput.val(item.average_cost.toFixed(2));
+                    }
+                }
+            } else {
+                // Fallback to item average cost
+                const item = allItems.find(i => i.code === itemCode);
+                if (item) {
+                    priceInput.val(item.average_cost.toFixed(2));
+                }
+            }
+            
+            // Allow admin to edit
+            priceInput.prop('readonly', false);
+        })
+        .fail(function() {
+            console.error('Failed to load item location price');
+            
+            // Fallback to item average cost
+            const item = allItems.find(i => i.code === itemCode);
+            if (item) {
+                priceInput.val(item.average_cost.toFixed(2));
+            } else {
+                priceInput.val('0.00');
+            }
+            
+            // Allow admin to edit
+            priceInput.prop('readonly', false);
+        });
+}
+
+function validateQuantities(card) {
+    const grnQty = parseInt(card.find('.grn-quantity').val()) || 0;
+    const scrapQty = parseInt(card.find('.scrap-quantity').val()) || 0;
+    const maxQty = parseInt(card.find('.grn-quantity').data('max'));
+    const totalQty = grnQty + scrapQty;
+    
+    const warning = card.find('.quantity-warning');
+    const currentTotal = warning.find('.current-total');
+    
+    currentTotal.text(totalQty);
+    
+    if (totalQty !== maxQty) {
+        warning.show();
+        card.find('.grn-quantity, .scrap-quantity').addClass('is-invalid');
+    } else {
+        warning.hide();
+        card.find('.grn-quantity, .scrap-quantity').removeClass('is-invalid');
+    }
+}
+
+function updateCheckedCount() {
+    const count = $('.item-checkbox:checked').length;
+    $('#checkedCount').text(count);
+}
 </script>
 
 <style>

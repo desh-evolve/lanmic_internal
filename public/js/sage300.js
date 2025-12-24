@@ -1,7 +1,7 @@
 // public/js/sage300.js
 
 const Sage300 = {
-    baseUrl: '../admin/sage300/api',
+    baseUrl: '/admin/sage300/api',
     
     get: function(endpoint, params = {}) {
         params.endpoint = endpoint;
