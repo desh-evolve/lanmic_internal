@@ -122,8 +122,8 @@ class User extends Authenticatable
      */
     public function hasAnyPermission($permissions)
     {
-        foreach ($this->roles as $role) {
-            if ($role->permissions()->whereIn('name', $permissions)->exists()) {
+        foreach ($permissions as $permission) {
+            if ($this->hasPermission($permission)) {
                 return true;
             }
         }
