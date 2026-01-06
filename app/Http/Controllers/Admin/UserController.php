@@ -15,16 +15,6 @@ use App\Http\Middleware\CheckPermission;
 class UserController extends Controller
 {
 
-    // public function __construct()
-    // {
-    //     $this->middleware('auth');
-    //     $this->middleware('permission:view-users')->only(['index', 'show']);
-    //     $this->middleware('permission:create-users')->only(['create', 'store']);
-    //     $this->middleware('permission:edit-users')->only(['edit', 'update','userPermission']);
-    //     $this->middleware('permission:delete-users')->only('destroy');
-    // }
-
-
     public function __construct()
     {
         // Apply DIRECT permission middleware to specific methods
