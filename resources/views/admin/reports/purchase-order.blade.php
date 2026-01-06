@@ -33,7 +33,7 @@
 
     {{-- Statistics Cards --}}
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card bg-primary text-white">
                 <div class="card-body text-center">
                     <i class="fas fa-shopping-cart fa-2x mb-2"></i>
@@ -42,7 +42,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card bg-warning text-dark">
                 <div class="card-body text-center">
                     <i class="fas fa-clock fa-2x mb-2"></i>
@@ -51,21 +51,12 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card bg-success text-white">
                 <div class="card-body text-center">
                     <i class="fas fa-check-circle fa-2x mb-2"></i>
                     <h3 class="mb-0">{{ number_format($statistics['cleared']) }}</h3>
                     <small>Cleared</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <i class="fas fa-dollar-sign fa-2x mb-2"></i>
-                    <h3 class="mb-0">{{ number_format($statistics['total_value'], 2) }}</h3>
-                    <small>Total Value</small>
                 </div>
             </div>
         </div>
@@ -124,9 +115,8 @@
                             <th>Item Code</th>
                             <th>Item Name</th>
                             <th>Department</th>
+                            <th>Location</th>
                             <th class="text-center">Quantity</th>
-                            <th class="text-end">Unit Price</th>
-                            <th class="text-end">Total Price</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -137,15 +127,14 @@
                                 <td>{{ $item->created_at->format('d M Y') }}</td>
                                 <td>
                                     <a href="{{ route('requisitions.show', $item->requisition_id) }}">
-                                        {{ $item->requisition->requisition_no ?? 'REQ-' . str_pad($item->requisition_id, 6, '0', STR_PAD_LEFT) }}
+                                        {{ $item->requisition->requisition_number ?? 'REQ-' . str_pad($item->requisition_id, 6, '0', STR_PAD_LEFT) }}
                                     </a>
                                 </td>
                                 <td><code>{{ $item->item_code }}</code></td>
                                 <td>{{ $item->item_name }}</td>
                                 <td>{{ $item->requisition->department->name ?? 'N/A' }}</td>
+                                <td>{{ $item->location_code ?? '-' }}</td>
                                 <td class="text-center">{{ number_format($item->quantity) }}</td>
-                                <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
-                                <td class="text-end">{{ number_format($item->total_price, 2) }}</td>
                                 <td>
                                     @if($item->status == 'pending')
                                         <span class="badge bg-warning text-dark">Pending</span>
@@ -158,7 +147,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center py-4">
+                                <td colspan="9" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No purchase order items found</p>
                                 </td>

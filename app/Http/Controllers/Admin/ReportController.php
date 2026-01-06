@@ -227,7 +227,6 @@ class ReportController extends Controller
             'total_po_items' => $query->count(),
             'pending' => PurchaseOrderItem::where('status', 'pending')->count(),
             'cleared' => PurchaseOrderItem::where('status', 'cleared')->count(),
-            'total_value' => $query->sum('total_price'),
         ];
 
         return view('admin.reports.purchase-order', compact('poItems', 'statistics'));
