@@ -50,7 +50,7 @@
 
     {{-- Statistics Cards --}}
     <div class="row mb-4">
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="col-xl-3 col-md-6 col-sm-6 mb-3">
             <div class="card stat-card primary h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase font-weight-bold">Total Requisitions</div>
@@ -58,19 +58,11 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="col-xl-3 col-md-6 col-sm-6 mb-3">
             <div class="card stat-card info h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase font-weight-bold">Total Items</div>
                     <div class="h2 font-weight-bold mb-0">{{ number_format($statistics['total_items']) }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
-            <div class="card stat-card success h-100">
-                <div class="card-body">
-                    <div class="text-muted small text-uppercase font-weight-bold">Total Value</div>
-                    <div class="h2 font-weight-bold mb-0">{{ number_format($statistics['total_value'], 2) }}</div>
                 </div>
             </div>
         </div>
@@ -176,7 +168,6 @@
                             <th>User</th>
                             <th>Department</th>
                             <th>Items Count</th>
-                            <th>Total Value</th>
                             <th>Status</th>
                             <th>Approved By</th>
                             <th>Approved Date</th>
@@ -188,14 +179,13 @@
                                 <td>{{ $requisitions->firstItem() + $index }}</td>
                                 <td>
                                     <a href="{{ route('requisitions.show', $requisition->id) }}">
-                                        {{ $requisition->requisition_no ?? 'REQ-' . str_pad($requisition->id, 6, '0', STR_PAD_LEFT) }}
+                                        {{ $requisition->requisition_number ?? 'REQ-' . str_pad($requisition->id, 6, '0', STR_PAD_LEFT) }}
                                     </a>
                                 </td>
                                 <td>{{ $requisition->created_at->format('d M Y') }}</td>
                                 <td>{{ $requisition->user->name ?? 'N/A' }}</td>
                                 <td>{{ $requisition->department->name ?? 'N/A' }}</td>
                                 <td class="text-center">{{ $requisition->items->count() }}</td>
-                                <td class="text-end">{{ number_format($requisition->items->sum('total_price'), 2) }}</td>
                                 <td>
                                     @if($requisition->approve_status == 'pending')
                                         <span class="badge bg-warning text-dark">Pending</span>
@@ -212,7 +202,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center py-4">
+                                <td colspan="9" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No requisitions found</p>
                                 </td>

@@ -133,11 +133,9 @@
                             <th>Return No</th>
                             <th>Return Date</th>
                             <th>Returned By</th>
+                            <th>Requisition No</th>
                             <th class="text-center">Items Count</th>
-                            <th>Reason</th>
                             <th>Status</th>
-                            <th>Processed By</th>
-                            <th>Processed Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -151,8 +149,16 @@
                                 </td>
                                 <td>{{ \Carbon\Carbon::parse($return->returned_at)->format('d M Y H:i') }}</td>
                                 <td>{{ $return->returnedBy->name ?? 'N/A' }}</td>
+                                <td>
+                                    @if($return->requisition)
+                                        <a href="{{ route('requisitions.show', $return->requisition_id) }}">
+                                            {{ $return->requisition->requisition_number ?? 'REQ-' . str_pad($return->requisition_id, 6, '0', STR_PAD_LEFT) }}
+                                        </a>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
                                 <td class="text-center">{{ $return->items->count() }}</td>
-                                <td>{{ Str::limit($return->reason, 50) }}</td>
                                 <td>
                                     @if($return->status == 'pending')
                                         <span class="badge bg-warning text-dark">Pending</span>
@@ -162,12 +168,10 @@
                                         <span class="badge bg-secondary">{{ ucfirst($return->status) }}</span>
                                     @endif
                                 </td>
-                                <td>{{ $return->processedBy->name ?? '-' }}</td>
-                                <td>{{ $return->processed_at ? \Carbon\Carbon::parse($return->processed_at)->format('d M Y') : '-' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center py-4">
+                                <td colspan="7" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No returns found</p>
                                 </td>

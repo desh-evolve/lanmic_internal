@@ -132,10 +132,6 @@
                                 <span>Total Items Requested</span>
                                 <strong>{{ number_format($data['total_items']) }}</strong>
                             </li>
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>Total Value</span>
-                                <strong class="text-success">{{ number_format($data['total_value'], 2) }}</strong>
-                            </li>
                         </ul>
                     </div>
                     <div class="card-footer bg-light">
@@ -166,15 +162,13 @@
                             <th class="text-center">Approved</th>
                             <th class="text-center">Rejected</th>
                             <th class="text-end">Total Items</th>
-                            <th class="text-end">Total Value</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @php $grandTotal = 0; $grandItems = 0; @endphp
+                        @php $grandItems = 0; @endphp
                         @forelse($reportData as $index => $data)
-                            @php 
-                                $grandTotal += $data['total_value']; 
+                            @php
                                 $grandItems += $data['total_items'];
                             @endphp
                             <tr>
@@ -196,9 +190,8 @@
                                     <span class="badge bg-danger rounded-pill">{{ $data['rejected_requisitions'] }}</span>
                                 </td>
                                 <td class="text-end">{{ number_format($data['total_items']) }}</td>
-                                <td class="text-end">{{ number_format($data['total_value'], 2) }}</td>
                                 <td class="text-center">
-                                    <a href="{{ route('reports.requisition-summary', ['department_id' => $data['department']->id]) }}" 
+                                    <a href="{{ route('reports.requisition-summary', ['department_id' => $data['department']->id]) }}"
                                        class="btn btn-sm btn-info" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
@@ -206,7 +199,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center py-4">
+                                <td colspan="8" class="text-center py-4">
                                     <i class="fas fa-building fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No department data found</p>
                                 </td>
@@ -217,7 +210,6 @@
                         <tr>
                             <th colspan="6" class="text-end">Grand Total:</th>
                             <th class="text-end">{{ number_format($grandItems) }}</th>
-                            <th class="text-end">{{ number_format($grandTotal, 2) }}</th>
                             <th></th>
                         </tr>
                     </tfoot>

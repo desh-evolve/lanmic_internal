@@ -48,7 +48,6 @@
                                     <th>Item Name</th>
                                     <th class="text-center">Request Count</th>
                                     <th class="text-end">Total Quantity</th>
-                                    <th class="text-end">Total Value</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -69,7 +68,6 @@
                                         <td>{{ $stat->item_name }}</td>
                                         <td class="text-center">{{ number_format($stat->request_count) }}</td>
                                         <td class="text-end">{{ number_format($stat->total_quantity) }}</td>
-                                        <td class="text-end">{{ number_format($stat->total_value, 2) }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -134,9 +132,8 @@
                             <th>Item Name</th>
                             <th>Requested By</th>
                             <th>Department</th>
+                            <th>Location</th>
                             <th class="text-center">Quantity</th>
-                            <th class="text-end">Unit Price</th>
-                            <th class="text-end">Total Price</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -145,7 +142,7 @@
                                 <td>{{ $items->firstItem() + $index }}</td>
                                 <td>
                                     <a href="{{ route('requisitions.show', $item->requisition_id) }}">
-                                        {{ $item->requisition->requisition_no ?? 'REQ-' . str_pad($item->requisition_id, 6, '0', STR_PAD_LEFT) }}
+                                        {{ $item->requisition->requisition_number ?? 'REQ-' . str_pad($item->requisition_id, 6, '0', STR_PAD_LEFT) }}
                                     </a>
                                 </td>
                                 <td>{{ $item->created_at->format('d M Y') }}</td>
@@ -153,13 +150,12 @@
                                 <td>{{ $item->item_name }}</td>
                                 <td>{{ $item->requisition->user->name ?? 'N/A' }}</td>
                                 <td>{{ $item->requisition->department->name ?? 'N/A' }}</td>
+                                <td>{{ $item->location_code ?? '-' }}</td>
                                 <td class="text-center">{{ number_format($item->quantity) }}</td>
-                                <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
-                                <td class="text-end">{{ number_format($item->total_price, 2) }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center py-4">
+                                <td colspan="9" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No items found</p>
                                 </td>

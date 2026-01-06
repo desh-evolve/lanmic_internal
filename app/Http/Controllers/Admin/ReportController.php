@@ -87,7 +87,6 @@ class ReportController extends Controller
         $statistics = [
             'total_requisitions' => $query->count(),
             'total_items' => RequisitionItem::whereIn('requisition_id', $query->pluck('id'))->sum('quantity'),
-            'total_value' => RequisitionItem::whereIn('requisition_id', $query->pluck('id'))->sum('total_price'),
             'pending' => Requisition::where('approve_status', 'pending')->where('status', 'active')->count(),
             'approved' => Requisition::where('approve_status', 'approved')->where('status', 'active')->count(),
             'rejected' => Requisition::where('approve_status', 'rejected')->where('status', 'active')->count(),
@@ -142,8 +141,7 @@ class ReportController extends Controller
             'item_code',
             'item_name',
             DB::raw('COUNT(*) as request_count'),
-            DB::raw('SUM(quantity) as total_quantity'),
-            DB::raw('SUM(total_price) as total_value')
+            DB::raw('SUM(quantity) as total_quantity')
         )
         ->where('status', '!=', 'delete')
         ->groupBy('item_code', 'item_name')
@@ -246,7 +244,7 @@ class ReportController extends Controller
             return Excel::download(new ReturnsSummaryExport($request->all()), $filename);
         }
 
-        $query = ReturnModel::with(['returnedBy', 'items'])
+        $query = ReturnModel::with(['returnedBy', 'items', 'requisition'])
             ->where('status', '!=', 'delete');
 
         // Date filter
@@ -274,7 +272,7 @@ class ReportController extends Controller
             'total_returns' => $query->count(),
             'pending' => ReturnModel::where('status', 'pending')->count(),
             'cleared' => ReturnModel::where('status', 'cleared')->count(),
-            'total_items' => ReturnItem::whereIn('return_id', $query->pluck('id'))->sum('return_quantity'),
+            'total_items' => ReturnItem::whereIn('return_id', $query->pluck('id'))->sum('quantity'),
         ];
 
         $users = User::all();
@@ -424,7 +422,6 @@ class ReportController extends Controller
                 'approved_requisitions' => Requisition::where('department_id', $department->id)->where('status', 'active')->where('approve_status', 'approved')->count(),
                 'rejected_requisitions' => Requisition::where('department_id', $department->id)->where('status', 'active')->where('approve_status', 'rejected')->count(),
                 'total_items' => RequisitionItem::whereIn('requisition_id', $requisitionIds)->sum('quantity'),
-                'total_value' => RequisitionItem::whereIn('requisition_id', $requisitionIds)->sum('total_price'),
             ];
         }
 
