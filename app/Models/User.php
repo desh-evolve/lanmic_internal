@@ -53,6 +53,14 @@ class User extends Authenticatable
     }
 
     /**
+     * The permissions that belong to the user directly (not through roles).
+     */
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class, 'permission_user');
+    }
+
+    /**
      * Check if user has a specific role.
      *
      * @param string $role
@@ -76,12 +84,19 @@ class User extends Authenticatable
 
     /**
      * Check if user has a specific permission.
+     * Checks both direct permissions and role-based permissions.
      *
      * @param string $permission
      * @return bool
      */
     public function hasPermission($permission)
     {
+        // Check direct permissions
+        if ($this->permissions()->where('name', $permission)->exists()) {
+            return true;
+        }
+
+        // Check role-based permissions
         foreach ($this->roles as $role) {
             if ($role->permissions()->where('name', $permission)->exists()) {
                 return true;
