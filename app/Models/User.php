@@ -53,6 +53,14 @@ class User extends Authenticatable
     }
 
     /**
+     * The direct permissions that belong to the user.
+     */
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class, 'permission_user');
+    }
+
+    /**
      * Check if user has a specific role.
      *
      * @param string $role
@@ -74,52 +82,161 @@ class User extends Authenticatable
         return $this->roles()->whereIn('name', $roles)->exists();
     }
 
+    // /**
+    //  * Check if user has a specific permission.
+    //  *
+    //  * @param string $permission
+    //  * @return bool
+    //  */
+    // public function hasPermission($permission)
+    // {
+    //     // Check direct user permissions first
+    //     if ($this->permissions()->where('name', $permission)->exists()) {
+    //         return true;
+    //     }
+
+    //     foreach ($this->roles as $role) {
+    //         if ($role->permissions()->where('name', $permission)->exists()) {
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
+
+    // /**
+    //  * Check if user has any of the given permissions.
+    //  *
+    //  * @param array $permissions
+    //  * @return bool
+    //  */
+    // public function hasAnyPermission($permissions)
+    // {
+    //     // Check direct user permissions first
+    //     if ($this->permissions()->whereIn('name', $permissions)->exists()) {
+    //         return true;
+    //     }
+
+
+    //     foreach ($this->roles as $role) {
+    //         if ($role->permissions()->whereIn('name', $permissions)->exists()) {
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
+
+    // /**
+    //  * Check if user has all of the given permissions.
+    //  *
+    //  * @param array $permissions
+    //  * @return bool
+    //  */
+    // public function hasAllPermissions($permissions)
+    // {
+    //     foreach ($permissions as $permission) {
+    //         if (!$this->hasPermission($permission)) {
+    //             return false;
+    //         }
+    //     }
+    //     return true;
+    // }
     /**
-     * Check if user has a specific permission.
+     * Get all permissions (both direct and from roles).
      *
-     * @param string $permission
-     * @return bool
+     * @return \Illuminate\Support\Collection
      */
+    // public function getAllPermissions()
+    // {
+    //     // Get direct permissions
+    //     $directPermissions = $this->permissions;
+
+    //     // Get permissions from roles
+    //     $rolePermissions = $this->roles->flatMap(function ($role) {
+    //         return $role->permissions;
+    //     });
+
+    //     // Merge and remove duplicates
+    //     return $directPermissions->merge($rolePermissions)->unique('id');
+    // }
+
     public function hasPermission($permission)
     {
-        foreach ($this->roles as $role) {
-            if ($role->permissions()->where('name', $permission)->exists()) {
-                return true;
-            }
-        }
-        return false;
+        // Check ONLY direct user permissions - ignore role permissions
+        return $this->permissions()->where('name', $permission)->exists();
     }
 
-    /**
-     * Check if user has any of the given permissions.
-     *
-     * @param array $permissions
-     * @return bool
-     */
+    // Also update hasAnyPermission to only check direct permissions
     public function hasAnyPermission($permissions)
     {
-        foreach ($this->roles as $role) {
-            if ($role->permissions()->whereIn('name', $permissions)->exists()) {
-                return true;
-            }
-        }
-        return false;
+        // Check ONLY direct user permissions
+        return $this->permissions()->whereIn('name', $permissions)->exists();
     }
 
-    /**
-     * Check if user has all of the given permissions.
-     *
-     * @param array $permissions
-     * @return bool
-     */
+    // Update hasAllPermissions to only check direct permissions
     public function hasAllPermissions($permissions)
     {
         foreach ($permissions as $permission) {
-            if (!$this->hasPermission($permission)) {
+            if (!$this->permissions()->where('name', $permission)->exists()) {
                 return false;
             }
         }
         return true;
+    }
+
+    // Update getAllPermissions to only return direct permissions
+    public function getAllPermissions()
+    {
+        // Return ONLY direct permissions
+        return $this->permissions;
+    }
+    /**
+     * Assign a permission directly to the user.
+     *
+     * @param string|Permission $permission
+     * @return void
+     */
+    public function givePermissionTo($permission)
+    {
+        if (is_string($permission)) {
+            $permission = Permission::where('name', $permission)->firstOrFail();
+        }
+
+        $this->permissions()->syncWithoutDetaching([$permission->id]);
+    }
+
+    /**
+     * Revoke a direct permission from the user.
+     *
+     * @param string|Permission $permission
+     * @return void
+     */
+    public function revokePermissionTo($permission)
+    {
+        if (is_string($permission)) {
+            $permission = Permission::where('name', $permission)->first();
+        }
+
+        if ($permission) {
+            $this->permissions()->detach($permission->id);
+        }
+    }
+
+    /**
+     * Sync direct permissions for the user.
+     *
+     * @param array $permissions
+     * @return void
+     */
+    public function syncPermissions($permissions)
+    {
+        $permissionIds = collect($permissions)->map(function ($permission) {
+            if (is_string($permission)) {
+                return Permission::where('name', $permission)->firstOrFail()->id;
+            }
+            return is_object($permission) ? $permission->id : $permission;
+        });
+
+        $this->permissions()->sync($permissionIds);
     }
 
     /**

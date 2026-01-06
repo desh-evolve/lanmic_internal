@@ -11,7 +11,7 @@
 
 @section('content')
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-12">
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Edit Sub-Department Information</h3>
@@ -125,7 +125,7 @@
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Update Sub-Department
                 </button>
-                <a href="{{ route('sub-departments.index') }}" class="btn btn-default">
+                <a href="{{ route('sub-departments.index') }}" class="btn btn-danger">
                     <i class="fas fa-times"></i> Cancel
                 </a>
             </div>
@@ -133,4 +133,5 @@
     </div>
 </div>
 
+@endsection
                                

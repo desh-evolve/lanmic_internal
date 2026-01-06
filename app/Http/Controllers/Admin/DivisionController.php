@@ -15,6 +15,10 @@ class DivisionController extends Controller
     {
         $this->middleware('auth');
         $this->middleware('role:admin');
+        // $this->middleware('permission:view-divisions')->only(['index', 'show']);
+        // $this->middleware('permission:create-divisions')->only(['create', 'store']);
+        // $this->middleware('permission:edit-divisions')->only(['edit', 'update']);
+        // $this->middleware('permission:delete-divisions')->only(['destroy']);
     }
 
     /**
@@ -22,7 +26,7 @@ class DivisionController extends Controller
      */
     public function index()
     {
-        $divisions = Division::withCount('subDepartments')->paginate(10);
+        $divisions = Division::active()->withCount('subDepartments')->paginate(10);
         return view('admin.divisions.index', compact('divisions'));
     }
 
@@ -75,9 +79,34 @@ class DivisionController extends Controller
     /**
      * Display the specified resource.
      */
+    // public function show(Division $division)
+    // {
+    //     // $division->load('subDepartments.departments');
+
+    //     $division->load([
+    //         'subDepartments' => function ($query) {
+    //             $query->where('sub_departments.status', 'active')   // correct
+    //                 ->where('division_sub_department.status', 'active'); // correct pivot
+    //         },
+    //         'departments' => function ($query) {
+    //             $query->where('departments.status', 'active');
+    //         },
+    //     ]);
+    //     return view('admin.divisions.show', compact('division'));
+    // }
+
     public function show(Division $division)
     {
-        $division->load('subDepartments.departments');
+        $division->load([
+            'subDepartments' => function ($q) {
+                $q->where('sub_departments.status', 'active')
+                    ->with(['departments' => function ($d) {
+                        $d->where('departments.status', 'active')
+                            ->where('department_sub_department.status', 'active');
+                    }]);
+            }
+        ]);
+
         return view('admin.divisions.show', compact('division'));
     }
 

@@ -7,14 +7,33 @@ use App\Models\Department;
 use App\Models\SubDepartment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
 
 class DepartmentController extends Controller
 {
+    // public function __construct()
+    // {
+    //     $this->middleware('auth');
+    //     $this->middleware('role:admin');
+    //     // Apply middleware to all methods
+    //     $this->middleware('permission:view-departments')->only(['index', 'show']);
+    //     $this->middleware('permission:create-departments')->only(['create', 'store']);
+    //     $this->middleware('permission:edit-departments')->only(['edit', 'update']);
+    //     $this->middleware('permission:delete-departments')->only(['destroy']);
+    // }
     public function __construct()
     {
-        $this->middleware('auth');
-        $this->middleware('role:admin');
+        // Apply permission middleware to specific methods
+        $this->middleware(CheckPermission::class . ':department.view')
+             ->only(['index', 'show']);
+        
+        $this->middleware(CheckPermission::class . ':department.create')
+             ->only(['create', 'store']);
+        
+        $this->middleware(CheckPermission::class . ':department.edit')
+             ->only(['edit', 'update']);
+        
+        $this->middleware(CheckPermission::class . ':department.delete')
+             ->only(['destroy']);
     }
 
     /**
@@ -22,7 +41,7 @@ class DepartmentController extends Controller
      */
     public function index()
     {
-        $departments = Department::withCount('subDepartments')->paginate(10);
+        $departments = Department::active()->withCount('subDepartments')->paginate(10);
         return view('admin.departments.index', compact('departments'));
     }
 
@@ -77,7 +96,17 @@ class DepartmentController extends Controller
      */
     public function show(Department $department)
     {
-        $department->load('subDepartments.divisions');
+        // $department->load('subDepartments.divisions');
+
+        $department->load([
+            'subDepartments' => function ($query) {
+                $query->where('sub_departments.status', 'active')   // department table
+                    ->where('department_sub_department.status', 'active'); // pivot table
+            },
+            'subDepartments.divisions' => function ($query) {
+                $query->where('divisions.status', 'active');
+            },
+        ]);
         return view('admin.departments.show', compact('department'));
     }
 
@@ -125,13 +154,11 @@ class DepartmentController extends Controller
             ->with('success', 'Department updated successfully.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Department $department)
+    public function destroy(Request $request, Department $department)
     {
-        $department->subDepartments()->detach();
-        $department->delete();
+        $department->update([
+            'status' => "delete",
+        ]);
 
         return redirect()->route('departments.index')
             ->with('success', 'Department deleted successfully.');
