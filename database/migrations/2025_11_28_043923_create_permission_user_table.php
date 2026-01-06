@@ -11,14 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Permission-User pivot table for direct user permissions
         Schema::create('permission_user', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('permission_id')->constrained()->onDelete('cascade');
-            $table->enum('status', ['active', 'delete'])->default('active');
-            $table->timestamps();
-            
-            // Prevent duplicate entries
+
+            $table->string('status')->default('active')->nullable();
+            $table->timestamp('created_at')->useCurrent();
+            $table->integer('created_by')->default(0)->nullable();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->integer('updated_by')->default(0)->nullable();
+
+            // Prevent duplicate assignments
             $table->unique(['user_id', 'permission_id']);
         });
     }

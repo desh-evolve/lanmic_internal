@@ -53,7 +53,7 @@ class User extends Authenticatable
     }
 
     /**
-     * The direct permissions that belong to the user.
+     * The permissions that belong to the user directly (not through roles).
      */
     public function permissions()
     {
@@ -141,7 +141,8 @@ class User extends Authenticatable
     //     return true;
     // }
     /**
-     * Get all permissions (both direct and from roles).
+     * Check if user has a specific permission.
+     * Checks both direct permissions and role-based permissions.
      *
      * @return \Illuminate\Support\Collection
      */
@@ -161,8 +162,18 @@ class User extends Authenticatable
 
     public function hasPermission($permission)
     {
-        // Check ONLY direct user permissions - ignore role permissions
-        return $this->permissions()->where('name', $permission)->exists();
+        // Check direct permissions
+        if ($this->permissions()->where('name', $permission)->exists()) {
+            return true;
+        }
+
+        // Check role-based permissions
+        foreach ($this->roles as $role) {
+            if ($role->permissions()->where('name', $permission)->exists()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Also update hasAnyPermission to only check direct permissions
