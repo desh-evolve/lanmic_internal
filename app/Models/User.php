@@ -189,8 +189,12 @@ class User extends Authenticatable
     // Also update hasAnyPermission to only check direct permissions
     public function hasAnyPermission($permissions)
     {
-        // Check ONLY direct user permissions
-        return $this->permissions()->whereIn('name', $permissions)->exists();
+        foreach ($permissions as $permission) {
+            if ($this->hasPermission($permission)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Update hasAllPermissions to only check direct permissions
