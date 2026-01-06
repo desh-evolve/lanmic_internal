@@ -145,6 +145,7 @@ class User extends Authenticatable
      *
      * @return \Illuminate\Support\Collection
      */
+    /*
     public function getAllPermissions()
     {
         // Get direct permissions
@@ -158,7 +159,7 @@ class User extends Authenticatable
 
         // Merge and remove duplicates
         return $directPermissions->merge($rolePermissions)->unique('id');
-    }
+    }*/
 
     /**
      * Check if user has a specific permission.

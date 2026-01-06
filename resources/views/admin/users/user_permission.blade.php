@@ -32,38 +32,11 @@
     @endif
 
     <div class="row">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">User Information</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Name:</strong> {{ $user->name }}</p>
-                    <p><strong>Email:</strong> {{ $user->email }}</p>
-                    <p><strong>Roles:</strong>
-                        @foreach($user->roles as $role)
-                            <span class="badge bg-info">{{ $role->name }}</span>
-                        @endforeach
-                    </p>
-                </div>
-            </div>
-
-            <div class="card mt-3">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">Legend</h5>
-                </div>
-                <div class="card-body">
-                    <p class="mb-2"><span class="badge bg-success">Green</span> = From Role (read-only)</p>
-                    <p class="mb-0"><span class="badge bg-primary">Blue</span> = Direct Permission (editable)</p>
-                </div>
-            </div>
-        </div>
-
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">Assign Direct Permissions</h5>
-                    <small class="text-muted">Green checkboxes are from roles and cannot be unchecked. Add or remove direct permissions below.</small>
+                    <small class="text-muted">Add or remove direct permissions below.</small>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('users.permissions.update', $user) }}" method="POST">
@@ -89,16 +62,9 @@
                                                     name="permissions[]"
                                                     value="{{ $permission->id }}"
                                                     id="perm_{{ $permission->id }}"
-                                                    {{ $isChecked ? 'checked' : '' }}
-                                                    {{ $isFromRole && !$isDirectPermission ? 'disabled' : '' }}>
-                                                <label class="form-check-label {{ $isFromRole && !$isDirectPermission ? 'text-success fw-bold' : '' }}" for="perm_{{ $permission->id }}">
+                                                    {{ $isChecked ? 'checked' : '' }}>
+                                                <label class="form-check-label" for="perm_{{ $permission->id }}">
                                                     {{ $permission->description }}
-                                                    @if($isFromRole && !$isDirectPermission)
-                                                        <small class="badge bg-success ms-1">Role</small>
-                                                    @endif
-                                                    @if($isDirectPermission)
-                                                        <small class="badge bg-primary ms-1">Direct</small>
-                                                    @endif
                                                 </label>
 
                                                 {{-- Hidden input for disabled checkboxes that are checked --}}
@@ -121,6 +87,23 @@
                             </a>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">User Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Name:</strong> {{ $user->name }}</p>
+                    <p><strong>Email:</strong> {{ $user->email }}</p>
+                    <p><strong>Roles:</strong>
+                        @foreach($user->roles as $role)
+                            <span class="badge bg-info">{{ $role->name }}</span>
+                        @endforeach
+                    </p>
                 </div>
             </div>
         </div>
