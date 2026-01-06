@@ -85,20 +85,11 @@ class UserController extends Controller
             'updated_by' => Auth::id(),
         ]);
 
+        // Attach roles
         $user->roles()->attach($request->roles);
 
-           // Get permissions through roles (assuming Role model has permissions relationship)
-    $permissionIds = [];
-    foreach ($request->roles as $roleId) {
-        $role = Role::find($roleId);
-        $rolePermissionIds = $role->permissions()->pluck('permission_id')->toArray();
-        $permissionIds = array_merge($permissionIds, $rolePermissionIds);
-    }
-   // Remove duplicates
-    $permissionIds = array_unique($permissionIds);
-    
-    // Attach permissions to user
-    $user->permissions()->attach($permissionIds);
+        // Auto-assign permissions from roles
+        $this->autoAssignPermissionsFromRoles($user);
 
         return redirect()->route('users.index')
             ->with('success', 'User created successfully.');
@@ -151,7 +142,11 @@ class UserController extends Controller
         
         $user->save();
 
+        // Sync roles
         $user->roles()->sync($request->roles);
+
+        // Auto-assign permissions from updated roles
+        $this->autoAssignPermissionsFromRoles($user);
 
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');
@@ -228,9 +223,63 @@ class UserController extends Controller
         }
 
         $user->roles()->detach();
+        $user->permissions()->detach();
         $user->delete();
 
         return redirect()->route('users.index')
             ->with('success', 'User deleted successfully.');
+    }
+
+    /**
+     * Show the user permission assignment form.
+     */
+    public function permissions(User $user)
+    {
+        // Get all permissions grouped by module
+        $permissions = Permission::orderBy('module')->orderBy('name')->get()->groupBy('module');
+
+        // Get user's role permissions
+        $rolePermissions = collect();
+        foreach ($user->roles as $role) {
+            $rolePermissions = $rolePermissions->merge($role->permissions);
+        }
+        $rolePermissions = $rolePermissions->unique('id')->pluck('id')->toArray();
+
+        // Get user's direct permissions
+        $userPermissions = $user->permissions->pluck('id')->toArray();
+
+        return view('admin.users.user_permission', compact('user', 'permissions', 'rolePermissions', 'userPermissions'));
+    }
+
+    /**
+     * Update user permissions.
+     */
+    public function updatePermissions(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'exists:permissions,id'
+        ]);
+
+        // Sync direct permissions
+        $user->permissions()->sync($request->input('permissions', []));
+
+        return redirect()->route('users.permissions', $user)
+            ->with('success', 'User permissions updated successfully.');
+    }
+
+    /**
+     * Auto-assign permissions to user based on their roles.
+     * This adds role permissions as direct permissions to the user.
+     */
+    private function autoAssignPermissionsFromRoles(User $user)
+    {
+        $rolePermissions = collect();
+        foreach ($user->roles as $role) {
+            $rolePermissions = $rolePermissions->merge($role->permissions->pluck('id'));
+        }
+
+        // Sync permissions without detaching existing ones
+        $user->permissions()->syncWithoutDetaching($rolePermissions->unique()->toArray());
     }
 }
