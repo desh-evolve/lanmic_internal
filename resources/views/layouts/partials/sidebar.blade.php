@@ -264,14 +264,14 @@
                         </li>
                         @endif
 
-                        @if(Auth::user()->hasPermission('view-permissions'))
+                        {{-- @if(Auth::user()->hasPermission('view-permissions'))
                         <li class="nav-item">
                             <a href="{{ route('permissions.index') }}" class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Permissions</p>
                             </a>
                         </li>
-                        @endif
+                        @endif --}}
                     </ul>
                 </li>
                 @endif
@@ -312,16 +312,6 @@
                         </li>
                         @endif
                     </ul>
-                </li>
-                @endif
-
-                <!-- SAGE 300 -->
-                @if(Auth::user()->hasPermission('view-sage300'))
-                <li class="nav-item">
-                    <a href="{{ route('sage300.index') }}" class="nav-link {{ request()->is('sage300*') ? 'active' : '' }}">
-                        <i class="far fa-circle nav-icon"></i>
-                        <p>sage</p>
-                    </a>
                 </li>
                 @endif
 

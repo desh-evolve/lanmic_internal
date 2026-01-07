@@ -171,7 +171,6 @@ class ReturnApprovalController extends Controller
                         
                         // Only create DB record if SAGE300 post was successful
                         if ($sage300Response['success']) {
-                            $grnTotalPrice = $sage300Response['unit_price'] * $grnQty;
 
                             GrnItem::create([
                                 'return_id' => $return->id,
@@ -182,7 +181,7 @@ class ReturnApprovalController extends Controller
                                 'unit' => $returnItem->unit,
                                 'location_code' => $itemData['location_code'],
                                 'unit_price' => $sage300Response['unit_price'],
-                                'total_price' => $grnTotalPrice,
+                                'total_price' => $sage300Response['cost_adjustment'],
                                 'grn_quantity' => $grnQty,
                                 'reference_number_1' => $sage300Response['reference_number_1'],
                                 'reference_number_2' => $sage300Response['reference_number_2'],

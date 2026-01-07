@@ -328,7 +328,7 @@ class Sage300Service
      * @param array $data
      * @return array Response from SAGE300 with unit_price, reference_numbers, etc.
      */
-    public function postIssue(array $data): array
+    /*public function postIssue(array $data): array
     {
         try {
             // Example API call structure - adjust based on your actual SAGE300 API
@@ -364,7 +364,7 @@ class Sage300Service
                 'error' => $e->getMessage()
             ];
         }
-    }
+    }*/
 
     /**
      * Post adjustment/issue transaction to SAGE300
@@ -463,15 +463,15 @@ class Sage300Service
                         'Location' => $grnData['location_code'],
                         'TransactionType' => 'BothIncrease', // For GRN returns - increase both qty and cost
                         'Quantity' => (int) $grnData['quantity'],
-                        'UnitCost' => (float) $grnData['unit_price'],
+                        'CostAdjustment' => (float) ($grnData['unit_price'] * $grnData['quantity']),
                         'Comments' => $grnData['notes'] ?? '',
                     ]
                 ]
             ];
-            
+            //dd($payload);
             // Use the existing post() method from this service
             $result = $this->post('IC/ICAdjustments', $payload);
-            
+            //dd($result);
             // Check if the request was successful
             if (!$result['success']) {
                 Log::error("SAGE300 GRN Adjustment API failed", [
