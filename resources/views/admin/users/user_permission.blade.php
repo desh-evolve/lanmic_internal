@@ -62,8 +62,8 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Assign Direct Permissions</h5>
-                    <small class="text-muted">Green checkboxes are from roles and cannot be unchecked. Add or remove direct permissions below.</small>
+                    <h5 class="mb-0">Assign Permissions</h5>
+                    <small class="text-muted">Green checkboxes indicate permissions from roles (pre-ticked but can be modified). Add or remove permissions as needed.</small>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('users.permissions.update', $user) }}" method="POST">
