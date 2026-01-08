@@ -1279,7 +1279,7 @@ This service handles all communication with SAGE 300 Web API.
 ```php
 // config/sage300.php
 return [
-    'base_url' => env('SAGE300_BASE_URL', 'http://192.168.11.68/Sage300WebApi/v1.0/-/SAMINC'),
+    'base_url' => env('SAGE300_BASE_URL', 'http://192.168.11.60/Sage300WebApi/v1.0/-/SAMINC'),
     'username' => env('SAGE300_USERNAME', 'WEBUSER'),
     'password' => env('SAGE300_PASSWORD', 'Webuser'),
     'timeout' => env('SAGE300_TIMEOUT', 30),
@@ -2084,7 +2084,7 @@ GET  /api/requisitions/{id}/issued-items
 
 ### SAGE 300 API Endpoints
 
-**Base URL**: `http://192.168.11.68/Sage300WebApi/v1.0/-/SAMINC`
+**Base URL**: `http://192.168.11.60/Sage300WebApi/v1.0/-/SAMINC`
 **Authentication**: Basic Auth (username/password)
 
 **Item Endpoints**:
@@ -2217,7 +2217,7 @@ POST IC/ICAdjustments
    DB_USERNAME=your-db-user
    DB_PASSWORD=your-db-password
 
-   SAGE300_BASE_URL=http://192.168.11.68/Sage300WebApi/v1.0/-/SAMINC
+   SAGE300_BASE_URL=http://192.168.11.60/Sage300WebApi/v1.0/-/SAMINC
    SAGE300_USERNAME=WEBUSER
    SAGE300_PASSWORD=Webuser
    SAGE300_TIMEOUT=30
@@ -2341,7 +2341,7 @@ WITH FORMAT, MEDIANAME = 'SQLServerBackups', NAME = 'Full Backup';
 **SAGE 300 Connection Issues**:
 ```bash
 # Test connectivity
-curl -u WEBUSER:Webuser http://192.168.11.68/Sage300WebApi/v1.0/-/SAMINC/IC/ICItems
+curl -u WEBUSER:Webuser http://192.168.11.60/Sage300WebApi/v1.0/-/SAMINC/IC/ICItems
 
 # Check Laravel logs
 tail -f storage/logs/laravel.log
