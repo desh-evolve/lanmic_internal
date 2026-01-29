@@ -177,10 +177,13 @@ class RolePermissionSeeder extends Seeder
 
         // Example: Assign a direct permission to a specific user (optional)
         // This demonstrates the permission_user table functionality
-        $specificPermission = Permission::where('name', 'view-settings')->first();
-        if ($specificPermission) {
-            $managerUser->permissions()->attach($specificPermission);
-        }
+        //$specificPermission = Permission::where('name', 'view-settings')->first();
+        //if ($specificPermission) {
+        //    $adminUser->permissions()->attach($specificPermission);
+        //}
+
+        // Assign ALL permissions directly to adminUser
+        $adminUser->permissions()->attach(Permission::all());
 
         $this->command->info('Roles, permissions, and users seeded successfully!');
         $this->command->info('Admin: admin@lanmic.com / password');
