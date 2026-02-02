@@ -383,7 +383,7 @@
                 <div class="modal-body">
                     <p>Are you sure you want to approve this requisition?</p>
                     <p><strong>Requisition #:</strong> {{ $requisition->requisition_number }}</p>
-                    <p><strong>Total Amount:</strong> Rs.{{ number_format($requisition->items->sum('total_price'), 2) }}</p>
+                    {{-- <p><strong>Total Amount:</strong> Rs.{{ number_format($requisition->items->sum('total_price'), 2) }}</p> --}}
                     
                     @if($requisition->purchaseOrderItems->count() > 0)
                         <div class="alert alert-warning">

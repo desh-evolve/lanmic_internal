@@ -53,7 +53,6 @@ class DepartmentActivityExport implements FromArray, WithHeadings, WithStyles, W
                 Requisition::where('department_id', $department->id)->where('status', 'active')->where('approve_status', 'approved')->count(),
                 Requisition::where('department_id', $department->id)->where('status', 'active')->where('approve_status', 'rejected')->count(),
                 RequisitionItem::whereIn('requisition_id', $requisitionIds)->sum('quantity'),
-                number_format(RequisitionItem::whereIn('requisition_id', $requisitionIds)->sum('total_price'), 2),
             ];
         }
 
@@ -70,7 +69,6 @@ class DepartmentActivityExport implements FromArray, WithHeadings, WithStyles, W
             'Approved',
             'Rejected',
             'Total Items',
-            'Total Value',
         ];
     }
 
@@ -97,7 +95,6 @@ class DepartmentActivityExport implements FromArray, WithHeadings, WithStyles, W
             'E' => 12,
             'F' => 12,
             'G' => 15,
-            'H' => 18,
         ];
     }
 
@@ -111,7 +108,7 @@ class DepartmentActivityExport implements FromArray, WithHeadings, WithStyles, W
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:H1');
+                $event->sheet->setAutoFilter('A1:G1');
             },
         ];
     }

@@ -47,7 +47,7 @@
     </div>
 
     {{-- Year Filter --}}
-    <div class="card mb-4">
+    <div class="card mb-4 no-print">
         <div class="card-header">
             <h5 class="mb-0"><i class="fas fa-calendar"></i> Select Year</h5>
         </div>

@@ -238,7 +238,7 @@
                         </div>
 
                         <!-- Quick Action Buttons -->
-                        <div class="row mb-3">
+                        {{-- <div class="row mb-3">
                             <div class="col-md-12">
                                 <div class="btn-group btn-group-sm" role="group">
                                     <button type="button" class="btn btn-outline-success quick-btn" data-action="all-grn">
@@ -252,7 +252,7 @@
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        </div> --}}
 
                         <!-- Validation Warning -->
                         <div class="alert alert-warning quantity-warning" style="display: none;">

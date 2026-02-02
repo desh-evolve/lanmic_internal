@@ -587,7 +587,7 @@ function renderTable() {
         
         if (item.needsPO) {
             statusBadge = `
-                <span class="badge badge-success">${item.requisition_qty} Available</span><br>
+                <span class="badge badge-success">${item.available_qty} Available</span><br>
                 <span class="badge badge-warning">${item.po_qty} PO Required</span>
             `;
             availableDisplay = `

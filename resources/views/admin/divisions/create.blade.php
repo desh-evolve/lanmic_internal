@@ -46,7 +46,7 @@
                         @enderror
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="display: none;">
                         <div class="custom-control custom-switch">
                             <input 
                                 type="checkbox" 
