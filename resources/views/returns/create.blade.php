@@ -31,7 +31,7 @@
                             <option value="">Select a requisition</option>
                             @foreach($requisitions as $req)
                                 <option value="{{ $req->id }}" {{ old('requisition_id') == $req->id ? 'selected' : '' }}>
-                                    {{ $req->requisition_number }} - {{ $req->department->name }} /  {{ $req->subDepartment->name }} / {{ $req->division->name }}
+                                    {{ $req->requisition_number }} - {{ $req->department->name ?? 'N/A' }}{{ $req->subDepartment ? ' / ' . $req->subDepartment->name : '' }}{{ $req->division ? ' / ' . $req->division->name : '' }}
                                     ({{ $req->created_at->format('Y-m-d') }})
                                 </option>
                             @endforeach
