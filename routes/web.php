@@ -134,7 +134,16 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('divisions/{division}', [DivisionController::class, 'update']);
         Route::delete('divisions/{division}', [DivisionController::class, 'destroy'])->middleware('permission:delete-divisions')->name('divisions.destroy');
 
-        // Requisition approval routes
+        // Sage 300 admin explorer routes (raw API access, admin only)
+        Route::prefix('sage300')->name('sage300.')->group(function () {
+            Route::get('/', [Sage300Controller::class, 'index'])->name('index');
+            Route::get('/api/get', [Sage300Controller::class, 'getData'])->name('api.get');
+            Route::post('/api/post', [Sage300Controller::class, 'postData'])->name('api.post');
+        });
+    });
+
+    // Requisition approval routes — permission-gated, no role:admin required
+    Route::prefix('admin')->group(function () {
         Route::get('requisitions', [RequisitionApprovalController::class, 'index'])->middleware('permission:view-requisitions')->name('admin.requisitions.index');
         Route::get('requisitions/{requisition}', [RequisitionApprovalController::class, 'show'])->middleware('permission:view-requisitions')->name('admin.requisitions.show');
         Route::post('requisitions/{requisition}/approve', [RequisitionApprovalController::class, 'approve'])->middleware('permission:approve-requisitions')->name('admin.requisitions.approve');
@@ -142,20 +151,20 @@ Route::middleware(['auth'])->group(function () {
         Route::get('requisitions/{requisition}/issue-items', [RequisitionApprovalController::class, 'issueItemsForm'])->middleware('permission:issue-requisitions')->name('admin.requisitions.issue-items');
         Route::post('requisitions/{requisition}/issue-items', [RequisitionApprovalController::class, 'issueItems'])->middleware('permission:issue-requisitions')->name('admin.requisitions.issue-items.store');
 
-        // Return approval routes
+        // Return approval routes — permission-gated, no role:admin required
         Route::get('returns', [ReturnApprovalController::class, 'index'])->middleware('permission:view-returns')->name('admin.returns.index');
         Route::get('returns/{return}', [ReturnApprovalController::class, 'show'])->middleware('permission:view-returns')->name('admin.returns.show');
         Route::get('returns/{return}/approve-items', [ReturnApprovalController::class, 'approveItemsForm'])->middleware('permission:approve-returns')->name('admin.returns.approve-items');
         Route::post('returns/{return}/approve-items', [ReturnApprovalController::class, 'approveItems'])->middleware('permission:approve-returns')->name('admin.returns.approve-items.store');
 
-        // Purchase Order routes
+        // Purchase Order routes — permission-gated, no role:admin required
         Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->middleware('permission:view-purchase-orders')->name('admin.purchase-orders.index');
         Route::get('purchase-orders/clear-form', [PurchaseOrderController::class, 'clearForm'])->middleware('permission:clear-purchase-orders')->name('admin.purchase-orders.clear-form');
         Route::post('purchase-orders/clear', [PurchaseOrderController::class, 'clear'])->middleware('permission:clear-purchase-orders')->name('admin.purchase-orders.clear');
         Route::post('purchase-orders/bulk-clear', [PurchaseOrderController::class, 'bulkClear'])->middleware('permission:clear-purchase-orders')->name('admin.purchase-orders.bulk-clear');
         Route::get('purchase-orders/{id}', [PurchaseOrderController::class, 'show'])->middleware('permission:view-purchase-orders')->name('admin.purchase-orders.show');
 
-        // Reports routes
+        // Reports routes — permission-gated, no role:admin required
         Route::middleware(['permission:view-reports'])->prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
             Route::get('/requisition-summary', [ReportController::class, 'requisitionSummary'])->name('requisition-summary');
@@ -168,13 +177,6 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/department-activity', [ReportController::class, 'departmentActivity'])->name('department-activity');
             Route::get('/user-activity', [ReportController::class, 'userActivity'])->name('user-activity');
             Route::get('/monthly-summary', [ReportController::class, 'monthlySummary'])->name('monthly-summary');
-        });
-
-        // Sage 300 admin explorer routes (raw API access)
-        Route::prefix('sage300')->name('sage300.')->group(function () {
-            Route::get('/', [Sage300Controller::class, 'index'])->name('index');
-            Route::get('/api/get', [Sage300Controller::class, 'getData'])->name('api.get');
-            Route::post('/api/post', [Sage300Controller::class, 'postData'])->name('api.post');
         });
     });
 });
