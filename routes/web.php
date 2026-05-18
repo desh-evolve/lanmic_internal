@@ -139,6 +139,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', [Sage300Controller::class, 'index'])->name('index');
             Route::get('/api/get', [Sage300Controller::class, 'getData'])->name('api.get');
             Route::post('/api/post', [Sage300Controller::class, 'postData'])->name('api.post');
+            Route::post('/api/items/refresh-cache', [Sage300Controller::class, 'refreshItemsCache'])->name('api.items.refresh-cache');
         });
     });
 

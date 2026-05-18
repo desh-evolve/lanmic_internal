@@ -15,6 +15,26 @@
         word-wrap: break-word;
     }
 </style>
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card card-warning">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-box-open"></i> Item Catalogue Cache</h3>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+                <p class="mb-0 text-muted">
+                    Items are cached indefinitely for fast loading on requisition and return forms.
+                    Click <strong>Refresh</strong> after adding or removing items in Sage 300.
+                </p>
+                <button id="refreshCacheBtn" class="btn btn-warning">
+                    <i class="fas fa-sync-alt"></i> Refresh Items Cache
+                </button>
+            </div>
+            <div id="cacheMsg" class="card-footer" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <!-- API Request Card -->
     <div class="col-md-6">
@@ -190,5 +210,34 @@ function quickLoad(endpoint) {
     $('#dataGroup').hide();
     sendRequest();
 }
+
+$('#refreshCacheBtn').on('click', function () {
+    const $btn = $(this);
+    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+    $('#cacheMsg').hide();
+
+    $.ajax({
+        url: '{{ route("sage300.api.items.refresh-cache") }}',
+        type: 'POST',
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        success: function (response) {
+            $('#cacheMsg')
+                .removeClass('bg-danger text-white')
+                .addClass('bg-success text-white')
+                .html('<i class="fas fa-check-circle"></i> Cache cleared. Items will be re-fetched from Sage 300 on the next load.')
+                .show();
+        },
+        error: function () {
+            $('#cacheMsg')
+                .removeClass('bg-success text-white')
+                .addClass('bg-danger text-white')
+                .html('<i class="fas fa-exclamation-circle"></i> Failed to clear cache. Please try again.')
+                .show();
+        },
+        complete: function () {
+            $btn.prop('disabled', false).html('<i class="fas fa-sync-alt"></i> Refresh Items Cache');
+        }
+    });
+});
 </script>
 @endpush

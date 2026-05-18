@@ -394,7 +394,7 @@ function loadItems() {
 
     Sage300.getItems()
         .done(function(response) {
-            if (response.success && response.data) {
+            if (response.success && response.data && response.data.length > 0) {
                 allItems = response.data.map(item => ({
                     code: item.UnformattedItemNumber,
                     name: item.Description,
@@ -402,11 +402,16 @@ function loadItems() {
                     unit: item.StockingUnitOfMeasure
                 }));
                 initializeSelect2();
+            } else {
+                // Cache is being built in the background — retry after 5 seconds
+                $('#itemSelect').html('<option value="">Items are being loaded, please wait...</option>');
+                setTimeout(loadItems, 5000);
             }
         })
         .fail(function(xhr, status, error) {
             console.error('Failed to load items from Sage300:', error);
-            alert('Failed to load items. Please refresh the page.');
+            $('#itemSelect').html('<option value="">Failed to load items. Retrying...</option>');
+            setTimeout(loadItems, 8000);
         });
 }
 

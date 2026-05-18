@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Exception;
 
 class Sage300Service
@@ -145,14 +146,90 @@ class Sage300Service
     }
 
     /**
-     * Get all items
+     * Return all items from cache.
+     * If the cache is empty, fire the warm-up command in the background and return []
+     * immediately so the web request never times out.
+     * Run `php artisan sage300:warm-items` once after deploy to pre-populate the cache.
      *
      * @return array
      */
     public function getItems(): array
     {
-        $result = $this->get('IC/ICItems');
-        return $result['success'] ? ($result['data']['value'] ?? []) : [];
+        if (Cache::has('sage300_items')) {
+            return Cache::get('sage300_items');
+        }
+
+        // Cache is empty — kick off a background refresh and return empty immediately
+        $this->dispatchWarmCommand();
+
+        return [];
+    }
+
+    /**
+     * Fetch ALL pages from Sage 300 and store the result in the indefinite cache.
+     * Called by the Artisan command and the admin refresh endpoint.
+     */
+    public function fetchAndCacheAllItems(): array
+    {
+        $allItems = [];
+        $endpoint = 'IC/ICItems';
+        $params   = ['$top' => 1000];
+        $maxPages = 50; // safety cap — 50 × 1000 = 50 000 items
+        $page     = 0;
+
+        while ($endpoint && $page < $maxPages) {
+            // On page 0 pass $top; subsequent pages use the nextLink which already carries it
+            $result = $this->get($endpoint, $page === 0 ? $params : []);
+
+            if (!$result['success']) {
+                Log::error('Sage300 fetchAndCacheAllItems page failed', [
+                    'page'     => $page,
+                    'endpoint' => $endpoint,
+                    'error'    => $result['error'] ?? $result['message'] ?? '',
+                ]);
+                break;
+            }
+
+            $batch    = $result['data']['value'] ?? [];
+            $allItems = array_merge($allItems, $batch);
+            $page++;
+
+            $nextLink = $result['data']['@odata.nextLink'] ?? null;
+            if ($nextLink) {
+                $endpoint = str_starts_with($nextLink, $this->baseUrl)
+                    ? ltrim(substr($nextLink, strlen($this->baseUrl)), '/')
+                    : ltrim($nextLink, '/');
+            } else {
+                $endpoint = null;
+            }
+        }
+
+        Log::info('Sage300 items cached', ['total' => count($allItems), 'pages' => $page]);
+
+        Cache::forever('sage300_items', $allItems);
+
+        return $allItems;
+    }
+
+    /**
+     * Bust the items cache.
+     */
+    public function clearItemsCache(): void
+    {
+        Cache::forget('sage300_items');
+    }
+
+    /**
+     * Spawn the warm-up Artisan command in a detached background process.
+     */
+    public function dispatchWarmCommand(): void
+    {
+        $artisan = base_path('artisan');
+        if (PHP_OS_FAMILY === 'Windows') {
+            pclose(popen("start /B php \"{$artisan}\" sage300:warm-items 2>&1", 'r'));
+        } else {
+            exec("php \"{$artisan}\" sage300:warm-items > /dev/null 2>&1 &");
+        }
     }
 
     /**

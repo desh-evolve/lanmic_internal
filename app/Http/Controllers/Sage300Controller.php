@@ -59,15 +59,31 @@ class Sage300Controller extends Controller
     }
 
     /**
-     * Get all items from Sage 300
+     * Get all items from Sage 300 (paginated internally, cached for 10 minutes)
      */
     public function getItems(Request $request): JsonResponse
     {
         $items = $this->sage300->getItems();
-        
+
         return response()->json([
             'success' => true,
-            'data' => $items
+            'data' => $items,
+            'count' => count($items),
+        ]);
+    }
+
+    /**
+     * Bust the cache and re-warm it in the background via an Artisan command,
+     * so the web request returns immediately instead of waiting for all API pages.
+     */
+    public function refreshItemsCache(Request $request): JsonResponse
+    {
+        $this->sage300->clearItemsCache();
+        $this->sage300->dispatchWarmCommand();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cache refresh started in the background. Items will be ready shortly.',
         ]);
     }
 

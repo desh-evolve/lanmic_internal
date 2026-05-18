@@ -620,9 +620,15 @@ function loadItems() {
                 });
             }
         })
+        .done(function(response) {
+            if (!response.data || response.data.length === 0) {
+                // Cache is being built — retry after 5 seconds
+                setTimeout(loadItems, 5000);
+            }
+        })
         .fail(function() {
             console.error('Failed to load items');
-            alert('Failed to load items from SAGE300. Please refresh the page.');
+            setTimeout(loadItems, 8000);
         });
 }
 
