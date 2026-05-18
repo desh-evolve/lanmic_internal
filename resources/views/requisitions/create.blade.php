@@ -99,6 +99,9 @@
                                 <select class="form-control select2" id="itemSelect" style="width: 100%;">
                                     <option value="">Search and select an item</option>
                                 </select>
+                                <button type="button" id="itemReloadBtn" class="btn btn-sm btn-outline-secondary mt-1" style="display:none;" onclick="loadItems()">
+                                    <i class="fas fa-sync-alt"></i> Retry loading items
+                                </button>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -391,6 +394,7 @@ $(document).ready(function() {
 
 function loadItems() {
     $('#itemSelect').html('<option value="">Loading items from Sage300...</option>');
+    $('#itemReloadBtn').hide();
 
     Sage300.getItems()
         .done(function(response) {
@@ -403,15 +407,14 @@ function loadItems() {
                 }));
                 initializeSelect2();
             } else {
-                // Cache is being built in the background — retry after 5 seconds
-                $('#itemSelect').html('<option value="">Items are being loaded, please wait...</option>');
-                setTimeout(loadItems, 5000);
+                $('#itemSelect').html('<option value="">Item catalogue not ready yet.</option>');
+                $('#itemReloadBtn').show();
             }
         })
         .fail(function(xhr, status, error) {
             console.error('Failed to load items from Sage300:', error);
-            $('#itemSelect').html('<option value="">Failed to load items. Retrying...</option>');
-            setTimeout(loadItems, 8000);
+            $('#itemSelect').html('<option value="">Failed to load items.</option>');
+            $('#itemReloadBtn').show();
         });
 }
 

@@ -26,6 +26,21 @@ class Sage300Controller extends Controller
     }
 
     /**
+     * Item browser - view all cached items in a searchable table
+     */
+    public function itemsList(): View
+    {
+        $items     = $this->sage300->getItems();
+        $total     = count($items);
+        $fileExists = file_exists(storage_path('app/sage300_items.json'));
+        $lastUpdated = $fileExists
+            ? \Carbon\Carbon::createFromTimestamp(filemtime(storage_path('app/sage300_items.json')))->format('d M Y H:i')
+            : null;
+
+        return view('admin.sage300.items', compact('total', 'lastUpdated', 'fileExists'));
+    }
+
+    /**
      * API: GET data from any endpoint
      */
     public function getData(Request $request): JsonResponse
@@ -73,17 +88,17 @@ class Sage300Controller extends Controller
     }
 
     /**
-     * Bust the cache and re-warm it in the background via an Artisan command,
-     * so the web request returns immediately instead of waiting for all API pages.
+     * Re-fetch all items from Sage 300 and update the cache synchronously.
+     * Called by the admin "Refresh Items Cache" button.
      */
     public function refreshItemsCache(Request $request): JsonResponse
     {
-        $this->sage300->clearItemsCache();
-        $this->sage300->dispatchWarmCommand();
+        $items = $this->sage300->fetchAndCacheAllItems();
 
         return response()->json([
             'success' => true,
-            'message' => 'Cache refresh started in the background. Items will be ready shortly.',
+            'message' => count($items) . ' items loaded and cached successfully.',
+            'count'   => count($items),
         ]);
     }
 

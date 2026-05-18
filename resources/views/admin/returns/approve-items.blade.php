@@ -47,6 +47,13 @@
             </div>
             @endif
 
+            <div id="itemsLoadError" class="alert alert-warning" style="display:none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Could not load item catalogue from Sage 300.</strong>
+                <a href="javascript:void(0)" onclick="loadItems(); $('#itemsLoadError').hide();">Click here to retry</a>
+                or ask an admin to refresh the cache on the Sage 300 page.
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Return Information</h3>
@@ -620,15 +627,9 @@ function loadItems() {
                 });
             }
         })
-        .done(function(response) {
-            if (!response.data || response.data.length === 0) {
-                // Cache is being built — retry after 5 seconds
-                setTimeout(loadItems, 5000);
-            }
-        })
         .fail(function() {
             console.error('Failed to load items');
-            setTimeout(loadItems, 8000);
+            $('#itemsLoadError').show();
         });
 }
 

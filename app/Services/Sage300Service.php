@@ -4,7 +4,6 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 use Exception;
 
 class Sage300Service
@@ -146,40 +145,56 @@ class Sage300Service
     }
 
     /**
-     * Return all items from cache.
-     * If the cache is empty, fire the warm-up command in the background and return []
-     * immediately so the web request never times out.
-     * Run `php artisan sage300:warm-items` once after deploy to pre-populate the cache.
-     *
-     * @return array
+     * Path to the local JSON file used as the items store.
+     * Using a flat JSON file avoids PHP serialize() which balloons memory on large datasets.
      */
-    public function getItems(): array
+    protected function itemsFilePath(): string
     {
-        if (Cache::has('sage300_items')) {
-            return Cache::get('sage300_items');
-        }
-
-        // Cache is empty — kick off a background refresh and return empty immediately
-        $this->dispatchWarmCommand();
-
-        return [];
+        return storage_path('app/sage300_items.json');
     }
 
     /**
-     * Fetch ALL pages from Sage 300 and store the result in the indefinite cache.
-     * Called by the Artisan command and the admin refresh endpoint.
+     * Return all items from the local JSON file.
+     * Returns [] if the file doesn't exist yet (run sage300:warm-items to populate).
+     */
+    public function getItems(): array
+    {
+        $path = $this->itemsFilePath();
+
+        if (!file_exists($path)) {
+            return [];
+        }
+
+        $json = file_get_contents($path);
+
+        return json_decode($json, true) ?? [];
+    }
+
+    /**
+     * Fetch ALL pages from Sage 300 and write them to a local JSON file.
+     * Streams each page directly to the file to keep peak memory low.
      */
     public function fetchAndCacheAllItems(): array
     {
-        $allItems = [];
-        $endpoint = 'IC/ICItems';
-        $params   = ['$top' => 1000];
-        $maxPages = 50; // safety cap — 50 × 1000 = 50 000 items
+        $path     = $this->itemsFilePath();
+        $maxPages = 50;
         $page     = 0;
+        $total    = 0;
+
+        // Open file for writing and start the JSON array manually
+        $fh = fopen($path, 'w');
+        if (!$fh) {
+            Log::error('Sage300: could not open items file for writing', ['path' => $path]);
+            return [];
+        }
+
+        fwrite($fh, '[');
+        $first = true;
+
+        $endpoint = 'IC/ICItems?$top=1000';
 
         while ($endpoint && $page < $maxPages) {
-            // On page 0 pass $top; subsequent pages use the nextLink which already carries it
-            $result = $this->get($endpoint, $page === 0 ? $params : []);
+            $result = $this->get($endpoint);
 
             if (!$result['success']) {
                 Log::error('Sage300 fetchAndCacheAllItems page failed', [
@@ -190,11 +205,22 @@ class Sage300Service
                 break;
             }
 
-            $batch    = $result['data']['value'] ?? [];
-            $allItems = array_merge($allItems, $batch);
+            $batch = $result['data']['value'] ?? [];
+
+            foreach ($batch as $item) {
+                if (!$first) {
+                    fwrite($fh, ',');
+                }
+                fwrite($fh, json_encode($item));
+                $first = false;
+                $total++;
+            }
+
             $page++;
 
             $nextLink = $result['data']['@odata.nextLink'] ?? null;
+            unset($batch, $result); // free page memory after reading nextLink
+
             if ($nextLink) {
                 $endpoint = str_starts_with($nextLink, $this->baseUrl)
                     ? ltrim(substr($nextLink, strlen($this->baseUrl)), '/')
@@ -204,33 +230,25 @@ class Sage300Service
             }
         }
 
-        Log::info('Sage300 items cached', ['total' => count($allItems), 'pages' => $page]);
+        fwrite($fh, ']');
+        fclose($fh);
 
-        Cache::forever('sage300_items', $allItems);
+        Log::info('Sage300 items stored to file', ['total' => $total, 'pages' => $page, 'path' => $path]);
 
-        return $allItems;
+        return $this->getItems();
     }
 
     /**
-     * Bust the items cache.
+     * Delete the items file so the next getItems() call returns empty.
      */
     public function clearItemsCache(): void
     {
-        Cache::forget('sage300_items');
-    }
-
-    /**
-     * Spawn the warm-up Artisan command in a detached background process.
-     */
-    public function dispatchWarmCommand(): void
-    {
-        $artisan = base_path('artisan');
-        if (PHP_OS_FAMILY === 'Windows') {
-            pclose(popen("start /B php \"{$artisan}\" sage300:warm-items 2>&1", 'r'));
-        } else {
-            exec("php \"{$artisan}\" sage300:warm-items > /dev/null 2>&1 &");
+        $path = $this->itemsFilePath();
+        if (file_exists($path)) {
+            unlink($path);
         }
     }
+
 
     /**
      * Get single item by code

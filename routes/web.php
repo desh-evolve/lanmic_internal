@@ -137,6 +137,7 @@ Route::middleware(['auth'])->group(function () {
         // Sage 300 admin explorer routes (raw API access, admin only)
         Route::prefix('sage300')->name('sage300.')->group(function () {
             Route::get('/', [Sage300Controller::class, 'index'])->name('index');
+            Route::get('/items', [Sage300Controller::class, 'itemsList'])->name('items');
             Route::get('/api/get', [Sage300Controller::class, 'getData'])->name('api.get');
             Route::post('/api/post', [Sage300Controller::class, 'postData'])->name('api.post');
             Route::post('/api/items/refresh-cache', [Sage300Controller::class, 'refreshItemsCache'])->name('api.items.refresh-cache');

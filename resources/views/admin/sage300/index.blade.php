@@ -26,9 +26,14 @@
                     Items are cached indefinitely for fast loading on requisition and return forms.
                     Click <strong>Refresh</strong> after adding or removing items in Sage 300.
                 </p>
-                <button id="refreshCacheBtn" class="btn btn-warning">
-                    <i class="fas fa-sync-alt"></i> Refresh Items Cache
-                </button>
+                <div class="d-flex" style="gap:8px;">
+                    <a href="{{ route('sage300.items') }}" class="btn btn-info">
+                        <i class="fas fa-list"></i> View Items
+                    </a>
+                    <button id="refreshCacheBtn" class="btn btn-warning">
+                        <i class="fas fa-sync-alt"></i> Refresh Items Cache
+                    </button>
+                </div>
             </div>
             <div id="cacheMsg" class="card-footer" style="display:none;"></div>
         </div>
