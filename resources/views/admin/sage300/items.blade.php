@@ -108,7 +108,7 @@ $(document).ready(function () {
     // Sync / Refresh button
     $('#refreshBtn').on('click', function () {
         const $btn = $(this);
-        if (!confirm('This will sync all items from Sage 300. It may take a minute. Continue?')) return;
+        if (!confirm('This will sync all items from Sage 300. It may take several minutes. Continue?')) return;
 
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Syncing...');
         $('#refreshMsg').hide();
