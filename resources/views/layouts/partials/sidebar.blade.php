@@ -227,6 +227,12 @@
                                 <p>Monthly Summary</p>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="{{ route('reports.inventory-movement') }}" class="nav-link {{ request()->routeIs('reports.inventory-movement') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Inventory Movement</p>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 @endif
