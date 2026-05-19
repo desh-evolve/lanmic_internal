@@ -67,7 +67,7 @@ class RequisitionController extends Controller
             'requisition_items' => 'required|array|min:1',
             'requisition_items.*.item_code' => 'required|string',
             'requisition_items.*.item_name' => 'required|string',
-            'requisition_items.*.quantity' => 'required|numeric|min:0.0001',
+            'requisition_items.*.quantity' => ['required', 'numeric', 'min:0.0001', 'regex:/^\d+(\.\d{1,4})?$/'],
             'requisition_items.*.location_code' => 'required',
             'requisition_items.*.specifications' => 'nullable|string',
         ]);

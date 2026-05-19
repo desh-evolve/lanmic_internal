@@ -118,7 +118,7 @@
                         <div class="col-md-2">
                             <div class="form-group">
                                 <label>Quantity <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="itemQuantity" min="0.0001" step="any" value="1" disabled>
+                                <input type="number" class="form-control" id="itemQuantity" min="0.0001" step="0.0001" value="1" disabled>
                             </div>
                         </div>
                         <div class="col-md-3 d-flex align-items-center pb-2">
@@ -266,7 +266,7 @@
                 </div>
                 <div class="form-group">
                     <label>Quantity <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control" id="editQuantity" min="0.0001" step="any" required>
+                    <input type="number" class="form-control" id="editQuantity" min="0.0001" step="0.0001" required>
                 </div>
             </div>
             <div class="modal-footer">
@@ -535,6 +535,10 @@ function addItemToTable() {
         alert('Quantity must be greater than 0');
         return;
     }
+    if (!/^\d+(\.\d{1,4})?$/.test($('#itemQuantity').val())) {
+        alert('Quantity cannot have more than 4 decimal places');
+        return;
+    }
 
     // Check if same item-location combination already exists
     const existingIndex = allRequestedItems.findIndex(i => 
@@ -703,6 +707,10 @@ function saveEdit() {
 
     if (quantity <= 0) {
         alert('Quantity must be greater than 0');
+        return;
+    }
+    if (!/^\d+(\.\d{1,4})?$/.test($('#editQuantity').val())) {
+        alert('Quantity cannot have more than 4 decimal places');
         return;
     }
 
