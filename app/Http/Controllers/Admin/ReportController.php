@@ -9,6 +9,7 @@ use App\Models\RequisitionIssuedItem;
 use App\Models\PurchaseOrderItem;
 use App\Models\ReturnModel;
 use App\Models\ReturnItem;
+use App\Exports\InventoryMovementExport;
 use App\Models\GrnItem;
 use App\Models\ScrapItem;
 use App\Models\User;
@@ -163,7 +164,7 @@ class ReportController extends Controller
             return Excel::download(new IssuedItemsExport($request->all()), $filename);
         }
 
-        $query = RequisitionIssuedItem::with(['requisition.user', 'requisitionItem'])
+        $query = RequisitionIssuedItem::with(['requisition.user', 'requisition.department', 'requisition.subDepartment', 'requisitionItem', 'issuedBy'])
             ->where('status', '!=', 'delete');
 
         // Date filter
@@ -243,35 +244,41 @@ class ReportController extends Controller
             return Excel::download(new ReturnsSummaryExport($request->all()), $filename);
         }
 
-        $query = ReturnModel::with(['returnedBy', 'items', 'requisition'])
-            ->where('status', '!=', 'delete');
+        $query = ReturnItem::with([
+                'return.returnedBy',
+                'return.requisition.department',
+                'return.requisition.subDepartment',
+            ])
+            ->where('status', 'active');
 
         // Date filter
         if ($request->filled('date_from')) {
-            $query->whereDate('returned_at', '>=', $request->date_from);
+            $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '>=', $request->date_from));
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('returned_at', '<=', $request->date_to);
+            $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '<=', $request->date_to));
         }
 
-        // Status filter
+        // Status filter (return-level)
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('return', fn($q) => $q->where('status', $request->status));
         }
 
         // User filter
         if ($request->filled('user_id')) {
-            $query->where('returned_by', $request->user_id);
+            $query->whereHas('return', fn($q) => $q->where('returned_by', $request->user_id));
         }
 
-        $returns = $query->orderBy('returned_at', 'desc')->paginate(50);
+        $returns = $query->orderByDesc(
+            ReturnModel::select('returned_at')->whereColumn('returns.id', 'return_items.return_id')->limit(1)
+        )->paginate(50);
 
         // Statistics
         $statistics = [
-            'total_returns' => $query->count(),
-            'pending' => ReturnModel::where('status', 'pending')->count(),
-            'cleared' => ReturnModel::where('status', 'cleared')->count(),
-            'total_items' => ReturnItem::whereIn('return_id', $query->pluck('id'))->sum('quantity'),
+            'total_returns' => ReturnModel::where('status', '!=', 'delete')->count(),
+            'pending'       => ReturnModel::where('status', 'pending')->count(),
+            'cleared'       => ReturnModel::where('status', 'cleared')->count(),
+            'total_items'   => $query->count(),
         ];
 
         $users = User::all();
@@ -473,45 +480,169 @@ class ReportController extends Controller
     }
 
     /**
+     * Inventory Movement Report — mirrors Sage 300 ICMVMT02.
+     * Shows all Inventory Out (Issues) and Inventory In (GRN) grouped by item,
+     * with document number, invoice number, department, remarks, and running totals.
+     */
+    public function inventoryMovement(Request $request)
+    {
+        $dateFrom    = $request->input('date_from', Carbon::now()->startOfMonth()->toDateString());
+        $dateTo      = $request->input('date_to',   Carbon::now()->toDateString());
+        $itemCode    = $request->input('item_code');
+        $deptId      = $request->input('department_id');
+
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'inventory_movement_' . $dateFrom . '_to_' . $dateTo . '.xlsx';
+            return Excel::download(new InventoryMovementExport($dateFrom, $dateTo, $itemCode, $deptId), $filename);
+        }
+
+        // ── Inventory OUT — Issued Items ──────────────────────────────────
+        $issuesQuery = RequisitionIssuedItem::with(['requisition.department', 'requisition.subDepartment', 'issuedBy'])
+            ->where('status', '!=', 'delete')
+            ->whereDate('issued_at', '>=', $dateFrom)
+            ->whereDate('issued_at', '<=', $dateTo);
+
+        if ($itemCode) $issuesQuery->where('item_code', 'like', '%' . $itemCode . '%');
+        if ($deptId)   $issuesQuery->whereHas('requisition', fn($q) => $q->where('department_id', $deptId));
+
+        $issues = $issuesQuery->orderBy('issued_at')->get();
+
+        // ── Inventory IN — GRN Items ──────────────────────────────────────
+        $grnQuery = GrnItem::with(['return.requisition.department', 'processedBy'])
+            ->where('status', '!=', 'delete')
+            ->whereDate('processed_at', '>=', $dateFrom)
+            ->whereDate('processed_at', '<=', $dateTo);
+
+        if ($itemCode) $grnQuery->where('item_code', 'like', '%' . $itemCode . '%');
+
+        $grns = $grnQuery->orderBy('processed_at')->get();
+
+        // ── Merge into item-grouped movements ────────────────────────────
+        $movements = collect();
+
+        foreach ($issues as $issue) {
+            $movements->push([
+                'date'         => $issue->issued_at,
+                'document_no'  => $issue->reference_number_1 ?? $issue->requisition?->requisition_number ?? '—',
+                'invoice_no'   => $issue->reference_number_2 ?? '—',
+                'vendor_no'    => '—',
+                'vendor_name'  => '—',
+                'type'         => 'Internal Usage',
+                'unit'         => $issue->unit ?? '—',
+                'department'   => $issue->requisition?->department?->name ?? '—',
+                'sub_dept'     => $issue->requisition?->subDepartment?->name ?? '',
+                'remarks'      => $issue->notes ?? '—',
+                'qty_in'       => 0,
+                'cost_in'      => 0,
+                'qty_out'      => (float) $issue->issued_quantity,
+                'cost_out'     => (float) $issue->total_price,
+                'item_code'    => $issue->item_code,
+                'item_name'    => $issue->item_name,
+            ]);
+        }
+
+        foreach ($grns as $grn) {
+            $movements->push([
+                'date'         => $grn->processed_at,
+                'document_no'  => $grn->reference_number_1 ?? '—',
+                'invoice_no'   => $grn->reference_number_2 ?? '—',
+                'vendor_no'    => '—',
+                'vendor_name'  => '—',
+                'type'         => 'GRN',
+                'unit'         => $grn->unit ?? '—',
+                'department'   => $grn->return?->requisition?->department?->name ?? '—',
+                'sub_dept'     => '',
+                'remarks'      => '—',
+                'qty_in'       => (float) $grn->grn_quantity,
+                'cost_in'      => (float) $grn->total_price,
+                'qty_out'      => 0,
+                'cost_out'     => 0,
+                'item_code'    => $grn->item_code,
+                'item_name'    => $grn->item_name,
+            ]);
+        }
+
+        // Group by item code, sorted by date within each group
+        $grouped = $movements
+            ->sortBy('date')
+            ->groupBy('item_code')
+            ->sortKeys();
+
+        $departments = Department::active()->get();
+
+        return view('admin.reports.inventory-movement', compact(
+            'grouped', 'dateFrom', 'dateTo', 'itemCode', 'deptId', 'departments'
+        ));
+    }
+
+    /**
      * Monthly Summary Report.
      */
     public function monthlySummary(Request $request)
     {
-        $year = $request->input('year', date('Y'));
+        $year         = $request->input('year', date('Y'));
+        $departmentId = $request->input('department_id');
+        $subDeptId    = $request->input('sub_department_id');
 
         // Check if export is requested
         if ($request->has('export') && $request->export === 'excel') {
             $filename = 'monthly_summary_' . $year . '_' . date('Y-m-d_H-i-s') . '.xlsx';
-            return Excel::download(new MonthlySummaryExport($year), $filename);
+            return Excel::download(new MonthlySummaryExport($year, $departmentId, $subDeptId), $filename);
         }
 
         $months = [];
 
         for ($month = 1; $month <= 12; $month++) {
             $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+            $endDate   = Carbon::create($year, $month, 1)->endOfMonth();
 
             $requisitions = Requisition::whereBetween('created_at', [$startDate, $endDate])
                 ->where('status', 'active');
+            if ($departmentId) $requisitions->where('department_id', $departmentId);
+            if ($subDeptId)    $requisitions->where('sub_department_id', $subDeptId);
+
+            $reqIds = (clone $requisitions)->pluck('id');
 
             $returns = ReturnModel::whereBetween('returned_at', [$startDate, $endDate])
                 ->where('status', '!=', 'delete');
+            if ($reqIds->isNotEmpty()) {
+                $returns->whereIn('requisition_id', $reqIds);
+            } elseif ($departmentId || $subDeptId) {
+                $returns->whereRaw('0=1'); // no requisitions match → no returns
+            }
+
+            $issuedQuery = RequisitionIssuedItem::whereBetween('issued_at', [$startDate, $endDate])
+                ->where('status', '!=', 'delete');
+            if ($reqIds->isNotEmpty()) {
+                $issuedQuery->whereIn('requisition_id', $reqIds);
+            } elseif ($departmentId || $subDeptId) {
+                $issuedQuery->whereRaw('0=1');
+            }
 
             $months[] = [
-                'month' => $startDate->format('F'),
-                'requisitions_count' => $requisitions->count(),
+                'month'                 => $startDate->format('F'),
+                'requisitions_count'    => $requisitions->count(),
                 'requisitions_approved' => (clone $requisitions)->where('approve_status', 'approved')->count(),
-                'returns_count' => $returns->count(),
-                'returns_cleared' => (clone $returns)->where('status', 'cleared')->count(),
-                'issued_items' => RequisitionIssuedItem::whereBetween('issued_at', [$startDate, $endDate])
-                    ->where('status', '!=', 'delete')->sum('issued_quantity'),
-                'grn_items' => GrnItem::whereBetween('created_at', [$startDate, $endDate])
-                    ->where('status', '!=', 'delete')->sum('grn_quantity'),
+                'returns_count'         => $returns->count(),
+                'returns_cleared'       => (clone $returns)->where('status', 'cleared')->count(),
+                'issued_items'          => (clone $issuedQuery)->sum('issued_quantity'),
+                'issued_cost'           => (clone $issuedQuery)->sum('total_price'),
+                'grn_items'             => GrnItem::whereBetween('created_at', [$startDate, $endDate])
+                                            ->where('status', '!=', 'delete')->sum('grn_quantity'),
             ];
         }
 
-        $years = range(date('Y'), date('Y') - 5);
+        $years       = range(date('Y'), date('Y') - 5);
+        $departments = Department::active()->get();
 
-        return view('admin.reports.monthly-summary', compact('months', 'year', 'years'));
+        // Sub-departments for the selected department
+        $subDepartments = $departmentId
+            ? \App\Models\SubDepartment::where('department_id', $departmentId)->get()
+            : collect();
+
+        return view('admin.reports.monthly-summary', compact(
+            'months', 'year', 'years', 'departments', 'subDepartments',
+            'departmentId', 'subDeptId'
+        ));
     }
 }

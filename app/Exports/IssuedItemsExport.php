@@ -26,7 +26,7 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
 
     public function collection()
     {
-        $query = RequisitionIssuedItem::with(['requisition.user', 'requisitionItem', 'issuedBy'])
+        $query = RequisitionIssuedItem::with(['requisition.user', 'requisition.department', 'requisition.subDepartment', 'requisitionItem', 'issuedBy'])
             ->where('status', '!=', 'delete');
 
         if (!empty($this->filters['date_from'])) {
@@ -51,9 +51,12 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
             'Item Code',
             'Item Name',
             'Issued To',
+            'Department',
+            'Sub-Department',
             'Issued Qty',
             'Unit Price',
             'Total Price',
+            'Remarks',
             'Issued By',
         ];
     }
@@ -66,13 +69,16 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
         return [
             $index,
             Carbon::parse($item->issued_at)->format('d M Y H:i'),
-            $item->requisition->requisition_no ?? 'REQ-' . str_pad($item->requisition_id, 6, '0', STR_PAD_LEFT),
+            $item->requisition->requisition_number ?? 'REQ-' . str_pad($item->requisition_id, 6, '0', STR_PAD_LEFT),
             $item->item_code,
             $item->item_name,
             $item->requisition->user->name ?? 'N/A',
+            $item->requisition->department->name ?? '',
+            $item->requisition->subDepartment->name ?? '',
             $item->issued_quantity,
             number_format($item->unit_price, 2),
             number_format($item->total_price, 2),
+            $item->notes ?? '',
             $item->issuedBy->name ?? 'N/A',
         ];
     }
@@ -99,10 +105,13 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
             'D' => 15,
             'E' => 30,
             'F' => 25,
-            'G' => 12,
-            'H' => 12,
-            'I' => 15,
-            'J' => 20,
+            'G' => 25,
+            'H' => 25,
+            'I' => 12,
+            'J' => 12,
+            'K' => 15,
+            'L' => 30,
+            'M' => 20,
         ];
     }
 
@@ -116,7 +125,7 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:J1');
+                $event->sheet->setAutoFilter('A1:M1');
             },
         ];
     }

@@ -179,6 +179,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/department-activity', [ReportController::class, 'departmentActivity'])->name('department-activity');
             Route::get('/user-activity', [ReportController::class, 'userActivity'])->name('user-activity');
             Route::get('/monthly-summary', [ReportController::class, 'monthlySummary'])->name('monthly-summary');
+            Route::get('/inventory-movement', [ReportController::class, 'inventoryMovement'])->name('inventory-movement');
         });
     });
 });

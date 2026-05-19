@@ -123,9 +123,12 @@
                             <th>Item Code</th>
                             <th>Item Name</th>
                             <th>Issued To</th>
+                            <th>Department</th>
+                            <th>Sub-Dept</th>
                             <th class="text-center">Issued Qty</th>
                             <th class="text-end">Unit Price</th>
                             <th class="text-end">Total Price</th>
+                            <th>Remarks</th>
                             <th>Issued By</th>
                         </tr>
                     </thead>
@@ -136,20 +139,23 @@
                                 <td>{{ \Carbon\Carbon::parse($item->issued_at)->format('d M Y H:i') }}</td>
                                 <td>
                                     <a href="{{ route('requisitions.show', $item->requisition_id) }}">
-                                        {{ $item->requisition->requisition_no ?? 'REQ-' . str_pad($item->requisition_id, 6, '0', STR_PAD_LEFT) }}
+                                        {{ $item->requisition->requisition_number ?? 'REQ-' . str_pad($item->requisition_id, 6, '0', STR_PAD_LEFT) }}
                                     </a>
                                 </td>
                                 <td><code>{{ $item->item_code }}</code></td>
                                 <td>{{ $item->item_name }}</td>
                                 <td>{{ $item->requisition->user->name ?? 'N/A' }}</td>
+                                <td>{{ $item->requisition->department->name ?? '—' }}</td>
+                                <td>{{ $item->requisition->subDepartment->name ?? '—' }}</td>
                                 <td class="text-center">{{ number_format($item->issued_quantity) }}</td>
                                 <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
                                 <td class="text-end">{{ number_format($item->total_price, 2) }}</td>
+                                <td>{{ $item->notes ?? '—' }}</td>
                                 <td>{{ $item->issuedBy->name ?? 'N/A' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center py-4">
+                                <td colspan="13" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No issued items found</p>
                                 </td>

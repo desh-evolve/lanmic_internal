@@ -46,20 +46,52 @@
         </div>
     </div>
 
-    {{-- Year Filter --}}
+    {{-- Filters --}}
     <div class="card mb-4 no-print">
         <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-calendar"></i> Select Year</h5>
+            <h5 class="mb-0"><i class="fas fa-filter"></i> Filters</h5>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ route('reports.monthly-summary') }}" class="row">
-                <div class="col-md-4">
+            <form method="GET" action="{{ route('reports.monthly-summary') }}" class="row g-2 align-items-end">
+                <div class="col-md-2">
                     <label class="form-label">Year</label>
-                    <select name="year" class="form-control" onchange="this.form.submit()">
+                    <select name="year" class="form-control">
                         @foreach($years as $y)
                             <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>{{ $y }}</option>
                         @endforeach
                     </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Department</label>
+                    <select name="department_id" class="form-control">
+                        <option value="">All Departments</option>
+                        @foreach($departments as $dept)
+                            <option value="{{ $dept->id }}" {{ $departmentId == $dept->id ? 'selected' : '' }}>
+                                {{ $dept->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Sub-Department</label>
+                    <select name="sub_department_id" class="form-control">
+                        <option value="">All Sub-Departments</option>
+                        @foreach($subDepartments as $sub)
+                            <option value="{{ $sub->id }}" {{ $subDeptId == $sub->id ? 'selected' : '' }}>
+                                {{ $sub->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Apply
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.monthly-summary') }}" class="btn btn-secondary w-100">
+                        <i class="fas fa-redo"></i> Reset
+                    </a>
                 </div>
             </form>
         </div>
@@ -73,6 +105,7 @@
             $yearlyReturns = collect($months)->sum('returns_count');
             $yearlyIssued = collect($months)->sum('issued_items');
             $yearlyGRN = collect($months)->sum('grn_items');
+            $yearlyCost = collect($months)->sum('issued_cost');
         @endphp
         <div class="col-md-2">
             <div class="card bg-primary text-white">
@@ -119,6 +152,14 @@
                 <div class="card-body text-center py-3">
                     <h4 class="mb-0">{{ $yearlyRequisitions > 0 ? round(($yearlyApproved / $yearlyRequisitions) * 100) : 0 }}%</h4>
                     <small>Approval Rate</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white" style="background:#6f42c1;">
+                <div class="card-body text-center py-3">
+                    <h4 class="mb-0">{{ number_format($yearlyCost, 2) }}</h4>
+                    <small>Total Issued Cost</small>
                 </div>
             </div>
         </div>
@@ -184,6 +225,10 @@
                                 <td class="text-end"><strong>{{ number_format($month['issued_items']) }}</strong></td>
                             </tr>
                             <tr>
+                                <td><i class="fas fa-dollar-sign text-purple"></i> Cost</td>
+                                <td class="text-end"><strong>{{ number_format($month['issued_cost'], 2) }}</strong></td>
+                            </tr>
+                            <tr>
                                 <td><i class="fas fa-clipboard-check text-dark"></i> GRN</td>
                                 <td class="text-end"><strong>{{ number_format($month['grn_items']) }}</strong></td>
                             </tr>
@@ -221,6 +266,7 @@
                             <th class="text-center">Returns</th>
                             <th class="text-center">Cleared</th>
                             <th class="text-center">Items Issued</th>
+                            <th class="text-end">Total Cost</th>
                             <th class="text-center">GRN Items</th>
                         </tr>
                     </thead>
@@ -254,6 +300,7 @@
                                     <span class="badge bg-info rounded-pill">{{ $month['returns_cleared'] }}</span>
                                 </td>
                                 <td class="text-center">{{ number_format($month['issued_items']) }}</td>
+                                <td class="text-end">{{ number_format($month['issued_cost'], 2) }}</td>
                                 <td class="text-center">{{ number_format($month['grn_items']) }}</td>
                             </tr>
                         @endforeach
@@ -269,6 +316,7 @@
                             <th class="text-center">{{ $yearlyReturns }}</th>
                             <th class="text-center">{{ collect($months)->sum('returns_cleared') }}</th>
                             <th class="text-center">{{ number_format($yearlyIssued) }}</th>
+                            <th class="text-end">{{ number_format($yearlyCost, 2) }}</th>
                             <th class="text-center">{{ number_format($yearlyGRN) }}</th>
                         </tr>
                     </tfoot>

@@ -130,50 +130,71 @@
                     <thead class="table-dark">
                         <tr>
                             <th>#</th>
-                            <th>Return No</th>
                             <th>Return Date</th>
-                            <th>Returned By</th>
+                            <th>Return No</th>
                             <th>Requisition No</th>
-                            <th class="text-center">Items Count</th>
+                            <th>Item Code</th>
+                            <th>Item Name</th>
+                            <th>Department</th>
+                            <th>Sub-Dept</th>
+                            <th class="text-center">Qty</th>
+                            <th>Type</th>
+                            <th>Remarks</th>
+                            <th>Returned By</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($returns as $index => $return)
+                        @forelse($returns as $index => $returnItem)
+                            @php $ret = $returnItem->return; @endphp
                             <tr>
                                 <td>{{ $returns->firstItem() + $index }}</td>
+                                <td>{{ $ret ? \Carbon\Carbon::parse($ret->returned_at)->format('d M Y H:i') : '—' }}</td>
                                 <td>
-                                    <a href="{{ route('returns.show', $return->id) }}">
-                                        {{ $return->return_no ?? 'RET-' . str_pad($return->id, 6, '0', STR_PAD_LEFT) }}
-                                    </a>
-                                </td>
-                                <td>{{ \Carbon\Carbon::parse($return->returned_at)->format('d M Y H:i') }}</td>
-                                <td>{{ $return->returnedBy->name ?? 'N/A' }}</td>
-                                <td>
-                                    @if($return->requisition)
-                                        <a href="{{ route('requisitions.show', $return->requisition_id) }}">
-                                            {{ $return->requisition->requisition_number ?? 'REQ-' . str_pad($return->requisition_id, 6, '0', STR_PAD_LEFT) }}
+                                    @if($ret)
+                                        <a href="{{ route('returns.show', $ret->id) }}">
+                                            RET-{{ str_pad($ret->id, 6, '0', STR_PAD_LEFT) }}
                                         </a>
-                                    @else
-                                        -
+                                    @else —
                                     @endif
                                 </td>
-                                <td class="text-center">{{ $return->items->count() }}</td>
                                 <td>
-                                    @if($return->status == 'pending')
+                                    @if($ret?->requisition)
+                                        <a href="{{ route('requisitions.show', $ret->requisition_id) }}">
+                                            {{ $ret->requisition->requisition_number ?? 'REQ-' . str_pad($ret->requisition_id, 6, '0', STR_PAD_LEFT) }}
+                                        </a>
+                                    @else —
+                                    @endif
+                                </td>
+                                <td><code>{{ $returnItem->item_code }}</code></td>
+                                <td>{{ $returnItem->item_name }}</td>
+                                <td>{{ $ret?->requisition?->department?->name ?? '—' }}</td>
+                                <td>{{ $ret?->requisition?->subDepartment?->name ?? '—' }}</td>
+                                <td class="text-center">{{ number_format($returnItem->quantity) }}</td>
+                                <td>
+                                    @if($returnItem->return_type == 'used')
+                                        <span class="badge bg-warning text-dark">Used</span>
+                                    @else
+                                        <span class="badge bg-success">Same Condition</span>
+                                    @endif
+                                </td>
+                                <td>{{ $returnItem->notes ?? '—' }}</td>
+                                <td>{{ $ret?->returnedBy?->name ?? 'N/A' }}</td>
+                                <td>
+                                    @if($ret?->status == 'pending')
                                         <span class="badge bg-warning text-dark">Pending</span>
-                                    @elseif($return->status == 'cleared')
+                                    @elseif($ret?->status == 'cleared')
                                         <span class="badge bg-success">Cleared</span>
                                     @else
-                                        <span class="badge bg-secondary">{{ ucfirst($return->status) }}</span>
+                                        <span class="badge bg-secondary">{{ ucfirst($ret?->status ?? '') }}</span>
                                     @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-4">
+                                <td colspan="13" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                    <p class="text-muted">No returns found</p>
+                                    <p class="text-muted">No return items found</p>
                                 </td>
                             </tr>
                         @endforelse
@@ -184,7 +205,7 @@
             {{-- Pagination --}}
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <div>
-                    Showing {{ $returns->firstItem() ?? 0 }} to {{ $returns->lastItem() ?? 0 }} of {{ $returns->total() }} entries
+                    Showing {{ $returns->firstItem() ?? 0 }} to {{ $returns->lastItem() ?? 0 }} of {{ $returns->total() }} items
                 </div>
                 {{ $returns->appends(request()->query())->links() }}
             </div>
