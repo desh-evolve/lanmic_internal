@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\Sage300Item;
 use Exception;
 
 class Sage300Service
@@ -145,59 +146,48 @@ class Sage300Service
     }
 
     /**
-     * Path to the local JSON file used as the items store.
-     * Using a flat JSON file avoids PHP serialize() which balloons memory on large datasets.
-     */
-    protected function itemsFilePath(): string
-    {
-        return storage_path('app/sage300_items.json');
-    }
-
-    /**
-     * Return all items from the local JSON file.
-     * Returns [] if the file doesn't exist yet (run sage300:warm-items to populate).
+     * Return all active items from the local DB table — fast, indexed, no memory issues.
+     * Returns raw-API-shaped arrays so existing JS (UnformattedItemNumber, Description…) keeps working.
      */
     public function getItems(): array
     {
-        $path = $this->itemsFilePath();
-
-        if (!file_exists($path)) {
-            return [];
-        }
-
-        $json = file_get_contents($path);
-
-        return json_decode($json, true) ?? [];
+        return Sage300Item::active()
+            ->orderBy('item_code')
+            ->get()
+            ->map(fn($i) => [
+                'UnformattedItemNumber' => $i->item_code,
+                'Description'          => $i->description,
+                'Category'             => $i->category,
+                'StockingUnitOfMeasure'=> $i->unit,
+                'QuantityOnHand'       => $i->quantity_on_hand,
+                'AverageCost'          => $i->average_cost,
+            ])
+            ->toArray();
     }
 
     /**
-     * Fetch ALL pages from Sage 300 and write them to a local JSON file.
-     * Streams each page directly to the file to keep peak memory low.
+     * Fetch every page from Sage 300 and sync to the local DB table.
+     * - New items are inserted.
+     * - Changed items (description, category, unit, qty, cost) are updated.
+     * - Items that no longer exist in Sage 300 are marked inactive.
+     *
+     * Returns ['added'=>n, 'updated'=>n, 'deactivated'=>n, 'total'=>n].
      */
-    public function fetchAndCacheAllItems(): array
+    public function syncItems(): array
     {
-        $path     = $this->itemsFilePath();
+        $endpoint = 'IC/ICItems?$top=1000';
         $maxPages = 50;
         $page     = 0;
-        $total    = 0;
+        $apiCodes = [];   // track every code returned by the API
 
-        // Open file for writing and start the JSON array manually
-        $fh = fopen($path, 'w');
-        if (!$fh) {
-            Log::error('Sage300: could not open items file for writing', ['path' => $path]);
-            return [];
-        }
-
-        fwrite($fh, '[');
-        $first = true;
-
-        $endpoint = 'IC/ICItems?$top=1000';
+        $added      = 0;
+        $updated    = 0;
 
         while ($endpoint && $page < $maxPages) {
             $result = $this->get($endpoint);
 
             if (!$result['success']) {
-                Log::error('Sage300 fetchAndCacheAllItems page failed', [
+                Log::error('Sage300 syncItems page failed', [
                     'page'     => $page,
                     'endpoint' => $endpoint,
                     'error'    => $result['error'] ?? $result['message'] ?? '',
@@ -207,46 +197,75 @@ class Sage300Service
 
             $batch = $result['data']['value'] ?? [];
 
-            foreach ($batch as $item) {
-                if (!$first) {
-                    fwrite($fh, ',');
+            // Build upsert rows for this page
+            $rows = array_map(fn($item) => [
+                'item_code'       => $item['UnformattedItemNumber'],
+                'description'     => $item['Description']           ?? null,
+                'category'        => $item['Category']              ?? null,
+                'unit'            => $item['StockingUnitOfMeasure'] ?? null,
+                'quantity_on_hand'=> $item['QuantityOnHand']        ?? 0,
+                'average_cost'    => $item['AverageCost']           ?? 0,
+                'active'          => true,
+                'updated_at'      => now(),
+                'created_at'      => now(),
+            ], $batch);
+
+            if (!empty($rows)) {
+                // Count before to detect adds vs updates
+                $existingCodes = Sage300Item::whereIn('item_code', array_column($rows, 'item_code'))
+                    ->pluck('item_code')->toArray();
+
+                Sage300Item::upsert(
+                    $rows,
+                    ['item_code'],                                                   // unique key
+                    ['description', 'category', 'unit', 'quantity_on_hand', 'average_cost', 'active', 'updated_at']
+                );
+
+                foreach ($rows as $row) {
+                    if (in_array($row['item_code'], $existingCodes)) {
+                        $updated++;
+                    } else {
+                        $added++;
+                    }
                 }
-                fwrite($fh, json_encode($item));
-                $first = false;
-                $total++;
+
+                foreach ($batch as $item) {
+                    $apiCodes[] = $item['UnformattedItemNumber'];
+                }
             }
 
             $page++;
-
             $nextLink = $result['data']['@odata.nextLink'] ?? null;
-            unset($batch, $result); // free page memory after reading nextLink
+            unset($batch, $rows, $result);
 
-            if ($nextLink) {
-                $endpoint = str_starts_with($nextLink, $this->baseUrl)
+            $endpoint = $nextLink
+                ? (str_starts_with($nextLink, $this->baseUrl)
                     ? ltrim(substr($nextLink, strlen($this->baseUrl)), '/')
-                    : ltrim($nextLink, '/');
-            } else {
-                $endpoint = null;
-            }
+                    : ltrim($nextLink, '/'))
+                : null;
         }
 
-        fwrite($fh, ']');
-        fclose($fh);
+        // Mark items that are no longer in Sage 300 as inactive
+        $deactivated = 0;
+        if (!empty($apiCodes)) {
+            $deactivated = Sage300Item::where('active', true)
+                ->whereNotIn('item_code', $apiCodes)
+                ->update(['active' => false, 'updated_at' => now()]);
+        }
 
-        Log::info('Sage300 items stored to file', ['total' => $total, 'pages' => $page, 'path' => $path]);
+        $total = Sage300Item::active()->count();
 
-        return $this->getItems();
+        Log::info('Sage300 items synced', compact('added', 'updated', 'deactivated', 'total', 'page'));
+
+        return compact('added', 'updated', 'deactivated', 'total');
     }
 
     /**
-     * Delete the items file so the next getItems() call returns empty.
+     * Mark all items inactive (does not delete rows — history is preserved).
      */
     public function clearItemsCache(): void
     {
-        $path = $this->itemsFilePath();
-        if (file_exists($path)) {
-            unlink($path);
-        }
+        Sage300Item::query()->update(['active' => false]);
     }
 
 

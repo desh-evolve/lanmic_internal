@@ -19,11 +19,13 @@
     <div class="card-header d-flex align-items-center justify-content-between">
         <h3 class="card-title">
             <i class="fas fa-boxes"></i> All Items
-            @if($fileExists)
+            @if($hasItems)
                 <span class="badge badge-success ml-2">{{ number_format($total) }} items</span>
-                <small class="text-muted ml-2" style="font-size:0.8rem;">Last updated: {{ $lastUpdated }}</small>
+                @if($lastUpdated)
+                    <small class="text-muted ml-2" style="font-size:0.8rem;">Last synced: {{ $lastUpdated }}</small>
+                @endif
             @else
-                <span class="badge badge-warning ml-2">Cache not built</span>
+                <span class="badge badge-warning ml-2">No items synced yet</span>
             @endif
         </h3>
         <div>
@@ -31,16 +33,16 @@
                 <i class="fas fa-cogs"></i> API Explorer
             </a>
             <button id="refreshBtn" class="btn btn-sm btn-warning">
-                <i class="fas fa-sync-alt"></i> Refresh Cache
+                <i class="fas fa-sync-alt"></i> Sync from Sage 300
             </button>
         </div>
     </div>
 
     <div class="card-body">
-        @if(!$fileExists)
+        @if(!$hasItems)
             <div class="alert alert-warning">
                 <i class="fas fa-exclamation-triangle"></i>
-                Item catalogue has not been built yet. Click <strong>Refresh Cache</strong> to fetch all items from Sage 300.
+                No items in the database yet. Click <strong>Sync from Sage 300</strong> to fetch all items.
             </div>
         @endif
 
@@ -77,7 +79,7 @@ $(document).ready(function () {
             error: function () {
                 $('#refreshMsg')
                     .removeClass('alert-success').addClass('alert alert-danger')
-                    .html('<i class="fas fa-exclamation-circle"></i> Failed to load items. Cache may not be built yet.')
+                    .html('<i class="fas fa-exclamation-circle"></i> Failed to load items. Try syncing from Sage 300 first.')
                     .show();
             }
         },
@@ -99,16 +101,16 @@ $(document).ready(function () {
         pageLength: 25,
         language: {
             processing: '<i class="fas fa-spinner fa-spin"></i> Loading items...',
-            emptyTable: 'No items found. Refresh the cache to fetch from Sage 300.',
+            emptyTable: 'No items found. Click "Sync from Sage 300" to fetch items.',
         }
     });
 
-    // Refresh cache button
+    // Sync / Refresh button
     $('#refreshBtn').on('click', function () {
         const $btn = $(this);
-        if (!confirm('This will re-fetch all items from Sage 300. It may take a minute. Continue?')) return;
+        if (!confirm('This will sync all items from Sage 300. It may take a minute. Continue?')) return;
 
-        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Syncing...');
         $('#refreshMsg').hide();
 
         $.ajax({
@@ -118,18 +120,24 @@ $(document).ready(function () {
             success: function (response) {
                 $('#refreshMsg')
                     .removeClass('alert-danger').addClass('alert alert-success')
-                    .html('<i class="fas fa-check-circle"></i> ' + response.message)
+                    .html(
+                        '<i class="fas fa-check-circle"></i> <strong>Sync complete.</strong> ' +
+                        response.total + ' active items &mdash; ' +
+                        '<span class="text-success">' + response.added + ' added</span>, ' +
+                        response.updated + ' updated, ' +
+                        '<span class="text-warning">' + response.deactivated + ' deactivated</span>.'
+                    )
                     .show();
                 table.ajax.reload();
             },
             error: function () {
                 $('#refreshMsg')
                     .removeClass('alert-success').addClass('alert alert-danger')
-                    .html('<i class="fas fa-exclamation-circle"></i> Refresh failed. Please try again.')
+                    .html('<i class="fas fa-exclamation-circle"></i> Sync failed. Please try again.')
                     .show();
             },
             complete: function () {
-                $btn.prop('disabled', false).html('<i class="fas fa-sync-alt"></i> Refresh Cache');
+                $btn.prop('disabled', false).html('<i class="fas fa-sync-alt"></i> Sync from Sage 300');
             }
         });
     });

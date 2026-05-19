@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\Sage300Service;
+use App\Models\Sage300Item;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
@@ -26,18 +27,18 @@ class Sage300Controller extends Controller
     }
 
     /**
-     * Item browser - view all cached items in a searchable table
+     * Item browser - view all synced items in a searchable table
      */
     public function itemsList(): View
     {
-        $items     = $this->sage300->getItems();
-        $total     = count($items);
-        $fileExists = file_exists(storage_path('app/sage300_items.json'));
-        $lastUpdated = $fileExists
-            ? \Carbon\Carbon::createFromTimestamp(filemtime(storage_path('app/sage300_items.json')))->format('d M Y H:i')
+        $total      = Sage300Item::where('active', true)->count();
+        $lastSync   = Sage300Item::max('updated_at');
+        $lastUpdated = $lastSync
+            ? \Carbon\Carbon::parse($lastSync)->format('d M Y H:i')
             : null;
+        $hasItems   = $total > 0;
 
-        return view('admin.sage300.items', compact('total', 'lastUpdated', 'fileExists'));
+        return view('admin.sage300.items', compact('total', 'lastUpdated', 'hasItems'));
     }
 
     /**
@@ -88,17 +89,20 @@ class Sage300Controller extends Controller
     }
 
     /**
-     * Re-fetch all items from Sage 300 and update the cache synchronously.
+     * Sync all items from Sage 300 into the DB.
      * Called by the admin "Refresh Items Cache" button.
      */
     public function refreshItemsCache(Request $request): JsonResponse
     {
-        $items = $this->sage300->fetchAndCacheAllItems();
+        $stats = $this->sage300->syncItems();
 
         return response()->json([
-            'success' => true,
-            'message' => count($items) . ' items loaded and cached successfully.',
-            'count'   => count($items),
+            'success'     => true,
+            'message'     => "{$stats['total']} active items — {$stats['added']} added, {$stats['updated']} updated, {$stats['deactivated']} deactivated.",
+            'added'       => $stats['added'],
+            'updated'     => $stats['updated'],
+            'deactivated' => $stats['deactivated'],
+            'total'       => $stats['total'],
         ]);
     }
 

@@ -7,21 +7,27 @@ use App\Services\Sage300Service;
 
 class WarmSage300ItemsCache extends Command
 {
-    protected $signature   = 'sage300:warm-items {--force : Clear existing cache before fetching}';
-    protected $description = 'Fetch all items from Sage 300 and store them in the indefinite cache.';
+    protected $signature   = 'sage300:warm-items {--force : Deactivate all items before syncing}';
+    protected $description = 'Sync all items from Sage 300 into the local database (upsert new/changed, deactivate removed).';
 
     public function handle(Sage300Service $sage300): int
     {
         if ($this->option('force')) {
             $sage300->clearItemsCache();
-            $this->info('Existing cache cleared.');
+            $this->info('All items marked inactive — starting fresh sync.');
         }
 
-        $this->info('Fetching all items from Sage 300 (this may take a moment)...');
+        $this->info('Syncing items from Sage 300 (this may take a moment)...');
 
-        $items = $sage300->fetchAndCacheAllItems();
+        $stats = $sage300->syncItems();
 
-        $this->info('Done — ' . count($items) . ' items cached.');
+        $this->info(sprintf(
+            'Done — %d total active | %d added | %d updated | %d deactivated',
+            $stats['total'],
+            $stats['added'],
+            $stats['updated'],
+            $stats['deactivated'],
+        ));
 
         return Command::SUCCESS;
     }

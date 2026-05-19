@@ -229,7 +229,13 @@ $('#refreshCacheBtn').on('click', function () {
             $('#cacheMsg')
                 .removeClass('bg-danger text-white')
                 .addClass('bg-success text-white')
-                .html('<i class="fas fa-check-circle"></i> Cache cleared. Items will be re-fetched from Sage 300 on the next load.')
+                .html(
+                    '<i class="fas fa-check-circle"></i> <strong>Sync complete.</strong> ' +
+                    response.total + ' active items &mdash; ' +
+                    response.added + ' added, ' +
+                    response.updated + ' updated, ' +
+                    response.deactivated + ' deactivated.'
+                )
                 .show();
         },
         error: function () {
