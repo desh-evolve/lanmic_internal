@@ -94,6 +94,9 @@ class Sage300Controller extends Controller
      */
     public function refreshItemsCache(Request $request): JsonResponse
     {
+        // Remove time limit — syncing 10,000+ items takes longer than PHP's default 30s
+        set_time_limit(0);
+
         $stats = $this->sage300->syncItems();
 
         return response()->json([

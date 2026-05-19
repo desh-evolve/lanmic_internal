@@ -166,32 +166,30 @@ class Sage300Service
     }
 
     /**
-     * Fetch every page from Sage 300 and sync to the local DB table.
-     * - New items are inserted.
-     * - Changed items (description, category, unit, cost) are updated.
-     * - Items that no longer exist in Sage 300 are marked inactive.
-     * Quantity on hand is NOT stored — it is fetched live per location when issuing.
+     * Fetch every item from Sage 300 and sync to the local DB table.
+     * Paginates using %24skip (%24 = URL-encoded $) until a page returns fewer
+     * than $pageSize items, meaning we have reached the end.
      *
      * Returns ['added'=>n, 'updated'=>n, 'deactivated'=>n, 'total'=>n].
      */
     public function syncItems(): array
     {
-        // Use full URL for first request so nextLink URLs are handled consistently
-        $nextUrl  = $this->baseUrl . '/IC/ICItems?$top=1000';
-        $maxPages = 100;
-        $page     = 0;
+        $pageSize = 100;
+        $skip     = 0;
         $apiCodes = [];
+        $added    = 0;
+        $updated  = 0;
+        $batch    = [];
 
-        $added   = 0;
-        $updated = 0;
+        do {
+            // %24 is the URL-encoded form of $ required by this Sage 300 API
+            $url = $this->baseUrl . '/IC/ICItems?%24top=' . $pageSize . '&%24skip=' . $skip;
 
-        while ($nextUrl && $page < $maxPages) {
-            $result = $this->fetchUrl($nextUrl);
+            $result = $this->fetchUrl($url);
 
             if (!$result['success']) {
-                Log::error('Sage300 syncItems page failed', [
-                    'page'  => $page,
-                    'url'   => $nextUrl,
+                Log::error('Sage300 syncItems failed', [
+                    'skip'  => $skip,
                     'error' => $result['error'] ?? $result['message'] ?? '',
                 ]);
                 break;
@@ -201,14 +199,14 @@ class Sage300Service
 
             if (!empty($batch)) {
                 $rows = array_map(fn($item) => [
-                    'item_code'   => $item['UnformattedItemNumber'],
-                    'description' => $item['Description']           ?? null,
-                    'category'    => $item['Category']              ?? null,
-                    'unit'        => $item['StockingUnitOfMeasure'] ?? null,
-                    'average_cost'=> $item['AverageCost']           ?? 0,
-                    'active'      => true,
-                    'updated_at'  => now(),
-                    'created_at'  => now(),
+                    'item_code'    => $item['UnformattedItemNumber'],
+                    'description'  => $item['Description']           ?? null,
+                    'category'     => $item['Category']              ?? null,
+                    'unit'         => $item['StockingUnitOfMeasure'] ?? null,
+                    'average_cost' => $item['AverageCost']           ?? 0,
+                    'active'       => true,
+                    'updated_at'   => now(),
+                    'created_at'   => now(),
                 ], $batch);
 
                 $existingCodes = Sage300Item::whereIn('item_code', array_column($rows, 'item_code'))
@@ -232,23 +230,30 @@ class Sage300Service
                 unset($rows);
             }
 
-            $page++;
-            // nextLink is always a full URL from Sage 300 — use it directly
-            $nextUrl = $result['data']['@odata.nextLink'] ?? null;
-            unset($batch, $result);
-        }
+            $skip += $pageSize;
+            unset($result);
 
-        // Mark items no longer in Sage 300 as inactive
+        } while (count($batch) === $pageSize);
+
+        // Mark items no longer in Sage 300 as inactive.
+        // Use a temporary flag approach to avoid whereNotIn with 10,000+ codes.
         $deactivated = 0;
         if (!empty($apiCodes)) {
-            $deactivated = Sage300Item::where('active', true)
-                ->whereNotIn('item_code', $apiCodes)
-                ->update(['active' => false, 'updated_at' => now()]);
+            // First mark ALL active items as inactive, then re-activate the ones we just saw.
+            // This is safer than a huge whereNotIn query.
+            Sage300Item::where('active', true)->update(['active' => false]);
+
+            foreach (array_chunk($apiCodes, 500) as $chunk) {
+                Sage300Item::whereIn('item_code', $chunk)
+                    ->update(['active' => true, 'updated_at' => now()]);
+            }
+
+            $deactivated = Sage300Item::where('active', false)->count();
         }
 
         $total = Sage300Item::active()->count();
 
-        Log::info('Sage300 items synced', compact('added', 'updated', 'deactivated', 'total', 'page'));
+        Log::info('Sage300 items synced', compact('added', 'updated', 'deactivated', 'total'));
 
         return compact('added', 'updated', 'deactivated', 'total');
     }

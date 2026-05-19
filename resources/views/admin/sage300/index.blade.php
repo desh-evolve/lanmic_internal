@@ -224,6 +224,7 @@ $('#refreshCacheBtn').on('click', function () {
     $.ajax({
         url: '{{ route("sage300.api.items.refresh-cache") }}',
         type: 'POST',
+        timeout: 600000,
         headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
         success: function (response) {
             $('#cacheMsg')
