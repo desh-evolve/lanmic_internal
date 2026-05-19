@@ -174,7 +174,7 @@ class Sage300Service
      */
     public function syncItems(): array
     {
-        $pageSize = 100;
+        $pageSize = 1000;  // request max per page — server will return whatever its cap allows
         $skip     = 0;
         $apiCodes = [];
         $added    = 0;
