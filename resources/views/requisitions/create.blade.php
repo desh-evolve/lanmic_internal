@@ -118,7 +118,7 @@
                         <div class="col-md-2">
                             <div class="form-group">
                                 <label>Quantity <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="itemQuantity" min="1" value="1" disabled>
+                                <input type="number" class="form-control" id="itemQuantity" min="0.0001" step="any" value="1" disabled>
                             </div>
                         </div>
                         <div class="col-md-3 d-flex align-items-center pb-2">
@@ -266,7 +266,7 @@
                 </div>
                 <div class="form-group">
                     <label>Quantity <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control" id="editQuantity" min="1" required>
+                    <input type="number" class="form-control" id="editQuantity" min="0.0001" step="any" required>
                 </div>
             </div>
             <div class="modal-footer">
@@ -424,7 +424,7 @@ function loadPendingApprovals() {
         pendingApprovals = {};
         data.forEach(function(item) {
             const key = `${item.item_code}_${item.location_code}`;
-            pendingApprovals[key] = parseInt(item.total_quantity) || 0;
+            pendingApprovals[key] = parseFloat(item.total_quantity) || 0;
         });
     }).fail(function() {
         console.log('Could not load pending approvals');
@@ -529,10 +529,10 @@ function addItemToTable() {
 
     const item = selectedOption.item;
     const locationData = JSON.parse(locationSelect.find('option:selected').attr('data-location'));
-    const requestedQty = parseInt($('#itemQuantity').val()) || 1;
+    const requestedQty = parseFloat($('#itemQuantity').val()) || 1;
 
-    if (requestedQty < 1) {
-        alert('Quantity must be at least 1');
+    if (requestedQty <= 0) {
+        alert('Quantity must be greater than 0');
         return;
     }
 
@@ -699,10 +699,10 @@ function editItem(index) {
 
 function saveEdit() {
     const index = parseInt($('#editIndex').val());
-    const quantity = parseInt($('#editQuantity').val());
+    const quantity = parseFloat($('#editQuantity').val());
 
-    if (quantity < 1) {
-        alert('Quantity must be at least 1');
+    if (quantity <= 0) {
+        alert('Quantity must be greater than 0');
         return;
     }
 
