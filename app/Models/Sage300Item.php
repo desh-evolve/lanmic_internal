@@ -11,15 +11,13 @@ class Sage300Item extends Model
         'description',
         'category',
         'unit',
-        'quantity_on_hand',
         'average_cost',
         'active',
     ];
 
     protected $casts = [
-        'quantity_on_hand' => 'float',
-        'average_cost'     => 'float',
-        'active'           => 'boolean',
+        'average_cost' => 'float',
+        'active'       => 'boolean',
     ];
 
     public function scopeActive($query)

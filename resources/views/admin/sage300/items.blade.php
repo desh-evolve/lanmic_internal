@@ -55,7 +55,6 @@
                     <th>Description</th>
                     <th>Category</th>
                     <th>Unit</th>
-                    <th>Qty On Hand</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -88,14 +87,6 @@ $(document).ready(function () {
             { data: 'Description',           defaultContent: '' },
             { data: 'Category',              defaultContent: '<span class="text-muted">—</span>' },
             { data: 'StockingUnitOfMeasure', defaultContent: '' },
-            {
-                data: 'QuantityOnHand',
-                defaultContent: '0',
-                className: 'text-right',
-                render: function (data) {
-                    return data != null ? parseFloat(data).toLocaleString() : '0';
-                }
-            },
         ],
         order: [[0, 'asc']],
         pageLength: 25,

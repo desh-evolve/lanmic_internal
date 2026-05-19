@@ -148,6 +148,7 @@ class Sage300Service
     /**
      * Return all active items from the local DB table — fast, indexed, no memory issues.
      * Returns raw-API-shaped arrays so existing JS (UnformattedItemNumber, Description…) keeps working.
+     * Quantity is intentionally excluded — it is fetched live from Sage 300 per location when needed.
      */
     public function getItems(): array
     {
@@ -159,7 +160,6 @@ class Sage300Service
                 'Description'          => $i->description,
                 'Category'             => $i->category,
                 'StockingUnitOfMeasure'=> $i->unit,
-                'QuantityOnHand'       => $i->quantity_on_hand,
                 'AverageCost'          => $i->average_cost,
             ])
             ->toArray();
@@ -168,57 +168,56 @@ class Sage300Service
     /**
      * Fetch every page from Sage 300 and sync to the local DB table.
      * - New items are inserted.
-     * - Changed items (description, category, unit, qty, cost) are updated.
+     * - Changed items (description, category, unit, cost) are updated.
      * - Items that no longer exist in Sage 300 are marked inactive.
+     * Quantity on hand is NOT stored — it is fetched live per location when issuing.
      *
      * Returns ['added'=>n, 'updated'=>n, 'deactivated'=>n, 'total'=>n].
      */
     public function syncItems(): array
     {
-        $endpoint = 'IC/ICItems?$top=1000';
-        $maxPages = 50;
+        // Use full URL for first request so nextLink URLs are handled consistently
+        $nextUrl  = $this->baseUrl . '/IC/ICItems?$top=1000';
+        $maxPages = 100;
         $page     = 0;
-        $apiCodes = [];   // track every code returned by the API
+        $apiCodes = [];
 
-        $added      = 0;
-        $updated    = 0;
+        $added   = 0;
+        $updated = 0;
 
-        while ($endpoint && $page < $maxPages) {
-            $result = $this->get($endpoint);
+        while ($nextUrl && $page < $maxPages) {
+            $result = $this->fetchUrl($nextUrl);
 
             if (!$result['success']) {
                 Log::error('Sage300 syncItems page failed', [
-                    'page'     => $page,
-                    'endpoint' => $endpoint,
-                    'error'    => $result['error'] ?? $result['message'] ?? '',
+                    'page'  => $page,
+                    'url'   => $nextUrl,
+                    'error' => $result['error'] ?? $result['message'] ?? '',
                 ]);
                 break;
             }
 
             $batch = $result['data']['value'] ?? [];
 
-            // Build upsert rows for this page
-            $rows = array_map(fn($item) => [
-                'item_code'       => $item['UnformattedItemNumber'],
-                'description'     => $item['Description']           ?? null,
-                'category'        => $item['Category']              ?? null,
-                'unit'            => $item['StockingUnitOfMeasure'] ?? null,
-                'quantity_on_hand'=> $item['QuantityOnHand']        ?? 0,
-                'average_cost'    => $item['AverageCost']           ?? 0,
-                'active'          => true,
-                'updated_at'      => now(),
-                'created_at'      => now(),
-            ], $batch);
+            if (!empty($batch)) {
+                $rows = array_map(fn($item) => [
+                    'item_code'   => $item['UnformattedItemNumber'],
+                    'description' => $item['Description']           ?? null,
+                    'category'    => $item['Category']              ?? null,
+                    'unit'        => $item['StockingUnitOfMeasure'] ?? null,
+                    'average_cost'=> $item['AverageCost']           ?? 0,
+                    'active'      => true,
+                    'updated_at'  => now(),
+                    'created_at'  => now(),
+                ], $batch);
 
-            if (!empty($rows)) {
-                // Count before to detect adds vs updates
                 $existingCodes = Sage300Item::whereIn('item_code', array_column($rows, 'item_code'))
                     ->pluck('item_code')->toArray();
 
                 Sage300Item::upsert(
                     $rows,
-                    ['item_code'],                                                   // unique key
-                    ['description', 'category', 'unit', 'quantity_on_hand', 'average_cost', 'active', 'updated_at']
+                    ['item_code'],
+                    ['description', 'category', 'unit', 'average_cost', 'active', 'updated_at']
                 );
 
                 foreach ($rows as $row) {
@@ -227,25 +226,19 @@ class Sage300Service
                     } else {
                         $added++;
                     }
+                    $apiCodes[] = $row['item_code'];
                 }
 
-                foreach ($batch as $item) {
-                    $apiCodes[] = $item['UnformattedItemNumber'];
-                }
+                unset($rows);
             }
 
             $page++;
-            $nextLink = $result['data']['@odata.nextLink'] ?? null;
-            unset($batch, $rows, $result);
-
-            $endpoint = $nextLink
-                ? (str_starts_with($nextLink, $this->baseUrl)
-                    ? ltrim(substr($nextLink, strlen($this->baseUrl)), '/')
-                    : ltrim($nextLink, '/'))
-                : null;
+            // nextLink is always a full URL from Sage 300 — use it directly
+            $nextUrl = $result['data']['@odata.nextLink'] ?? null;
+            unset($batch, $result);
         }
 
-        // Mark items that are no longer in Sage 300 as inactive
+        // Mark items no longer in Sage 300 as inactive
         $deactivated = 0;
         if (!empty($apiCodes)) {
             $deactivated = Sage300Item::where('active', true)
@@ -258,6 +251,34 @@ class Sage300Service
         Log::info('Sage300 items synced', compact('added', 'updated', 'deactivated', 'total', 'page'));
 
         return compact('added', 'updated', 'deactivated', 'total');
+    }
+
+    /**
+     * Make a GET request directly to a full URL (used for OData nextLink pagination).
+     */
+    private function fetchUrl(string $url): array
+    {
+        try {
+            $response = Http::withBasicAuth($this->username, $this->password)
+                ->withOptions(['verify' => false])
+                ->timeout($this->timeout)
+                ->accept('application/json')
+                ->get($url);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Request failed',
+                'error'   => $response->body(),
+                'status'  => $response->status(),
+            ];
+        } catch (Exception $e) {
+            Log::error('Sage300 fetchUrl error: ' . $e->getMessage(), ['url' => $url]);
+            return ['success' => false, 'message' => 'Connection error', 'error' => $e->getMessage()];
+        }
     }
 
     /**
