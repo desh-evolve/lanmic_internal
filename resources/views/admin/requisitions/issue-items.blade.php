@@ -141,8 +141,8 @@
                                         <div class="form-group mb-2">
                                             <label class="mb-1">Quantity <span class="text-danger">*</span></label>
                                             <div class="input-group input-group-sm">
-                                                <input type="number" class="form-control quantity-input-new" 
-                                                    data-item-index="{{ $index }}" min="1" max="{{ $qtyMax }}" value="{{ $qtyMax }}">
+                                                <input type="number" class="form-control quantity-input-new"
+                                                    data-item-index="{{ $index }}" min="0.0001" step="0.0001" max="{{ $qtyMax }}" value="{{ $qtyMax }}">
                                                 <div class="input-group-append">
                                                     <span class="input-group-text">{{ $item->unit }}</span>
                                                 </div>
@@ -310,7 +310,7 @@ $(document).ready(function() {
         locationStocks[index] = {};
         if (item.locations) {
             item.locations.forEach(loc => {
-                locationStocks[index][loc.location_code] = parseFloat(loc.quantity);
+                locationStocks[index][loc.location_code] = parseFloat(loc.quantity) || 0;
             });
         }
     });
@@ -328,8 +328,8 @@ $(document).ready(function() {
         
         const locationCode = locationSelect.val();
         const locationName = locationSelect.find('option:selected').data('location-name');
-        const quantity = parseInt(quantityInput.val()) || 0;
-        const locationStock = parseInt(locationSelect.find('option:selected').data('quantity')) || 0;
+        const quantity = parseFloat(quantityInput.val()) || 0;
+        const locationStock = parseFloat(locationSelect.find('option:selected').data('quantity')) || 0;
         const notes = notesInput.val().trim();
         
         // Validation
@@ -459,8 +459,18 @@ $(document).ready(function() {
                     <input type="hidden" name="items[${itemIndex}][locations][${rowCounter}][requisition_item_id]" value="${data.requisitionItemId}">
                 </td>
                 <td>
-                    <span class="badge badge-primary">${data.quantity}</span> ${itemUnit}
-                    <input type="hidden" name="items[${itemIndex}][locations][${rowCounter}][issued_quantity]" value="${data.quantity}">
+                    <div class="input-group input-group-sm" style="width:130px;">
+                        <input type="number"
+                            class="form-control row-qty-input"
+                            name="items[${itemIndex}][locations][${rowCounter}][issued_quantity]"
+                            value="${data.quantity}"
+                            min="0.0001" step="0.0001"
+                            data-max-stock="${data.locationStock}"
+                            data-item-index="${itemIndex}">
+                        <div class="input-group-append">
+                            <span class="input-group-text">${itemUnit}</span>
+                        </div>
+                    </div>
                 </td>
                 <td>
                     <span class="badge badge-info">${data.locationStock}</span> ${itemUnit}
@@ -482,21 +492,60 @@ $(document).ready(function() {
     
     function calculateTotal(tbody) {
         let total = 0;
-        tbody.find('input[name*="[issued_quantity]"]').each(function() {
-            total += parseInt($(this).val()) || 0;
+        tbody.find('.row-qty-input').each(function() {
+            total += parseFloat($(this).val()) || 0;
         });
         return total;
     }
-    
+
     function getLocationIssuedQuantity(tbody, locationCode) {
         let total = 0;
         tbody.find('tr').each(function() {
             if ($(this).data('location-code') === locationCode) {
-                total += parseInt($(this).data('quantity')) || 0;
+                total += parseFloat($(this).find('.row-qty-input').val()) || 0;
             }
         });
         return total;
     }
+
+    // Live qty editing on issued rows
+    $(document).on('change', '.row-qty-input', function() {
+        const $input = $(this);
+        const tbody = $input.closest('tbody');
+        const itemIndex = tbody.closest('.issues-table').data('item-index');
+        const newQty = parseFloat($input.val()) || 0;
+        const maxStock = parseFloat($input.data('max-stock')) || 0;
+        const originalRemaining = parseFloat(tbody.data('original-remaining'));
+
+        // Calc total excluding this row
+        let otherTotal = 0;
+        tbody.find('.row-qty-input').not($input).each(function() {
+            otherTotal += parseFloat($(this).val()) || 0;
+        });
+
+        if (newQty <= 0) {
+            alert('Quantity must be greater than 0');
+            $input.val($input.data('prev') || 0.0001);
+            return;
+        }
+        if (newQty > maxStock) {
+            alert(`Quantity (${newQty}) cannot exceed location stock (${maxStock})`);
+            $input.val(maxStock);
+            return;
+        }
+        if (newQty + otherTotal > originalRemaining) {
+            alert(`Total (${newQty + otherTotal}) would exceed remaining quantity (${originalRemaining})`);
+            $input.val(originalRemaining - otherTotal);
+            return;
+        }
+
+        $input.data('prev', parseFloat($input.val()));
+        $input.closest('tr').data('quantity', parseFloat($input.val()));
+        updateTotal(tbody, itemIndex);
+        recalculateAvailableQuantities(itemIndex);
+    }).on('focus', '.row-qty-input', function() {
+        $(this).data('prev', parseFloat($(this).val()) || 0);
+    });
     
     function recalculateAvailableQuantities(itemIndex) {
         const card = $(`.item-card[data-item-index="${itemIndex}"]`);

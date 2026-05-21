@@ -78,7 +78,7 @@
         </div>
         <div class="card-body">
             <form method="GET" action="{{ route('reports.returns-summary') }}">
-                <div class="row">
+                <div class="row g-2">
                     <div class="col-md-2">
                         <label class="form-label">Date From</label>
                         <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
@@ -88,31 +88,38 @@
                         <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
                     </div>
                     <div class="col-md-2">
+                        <label class="form-label">Item Description</label>
+                        <input type="text" name="item_name" class="form-control" placeholder="Item name..." value="{{ request('item_name') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Department</label>
+                        <select name="department_id" class="form-control">
+                            <option value="">All Departments</option>
+                            @foreach($departments as $dept)
+                                <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>{{ $dept->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-1">
                         <label class="form-label">Status</label>
                         <select name="status" class="form-control">
-                            <option value="">All Status</option>
+                            <option value="">All</option>
                             <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
                             <option value="cleared" {{ request('status') == 'cleared' ? 'selected' : '' }}>Cleared</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">Returned By</label>
                         <select name="user_id" class="form-control">
                             <option value="">All Users</option>
                             @foreach($users as $user)
-                                <option value="{{ $user->id }}" {{ request('user_id') == $user->id ? 'selected' : '' }}>
-                                    {{ $user->name }}
-                                </option>
+                                <option value="{{ $user->id }}" {{ request('user_id') == $user->id ? 'selected' : '' }}>{{ $user->name }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary me-2">
-                            <i class="fas fa-search"></i> Filter
-                        </button>
-                        <a href="{{ route('reports.returns-summary') }}" class="btn btn-secondary">
-                            <i class="fas fa-redo"></i> Reset
-                        </a>
+                    <div class="col-md-1 d-flex align-items-end gap-1">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+                        <a href="{{ route('reports.returns-summary') }}" class="btn btn-secondary"><i class="fas fa-redo"></i></a>
                     </div>
                 </div>
             </form>

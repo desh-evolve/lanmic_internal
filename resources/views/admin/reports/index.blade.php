@@ -37,6 +37,50 @@
                             </div>
                         </div>
 
+                        {{-- Local Item Issuing Report --}}
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card text-white h-100" style="background-color: #2e7d32;">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <i class="fas fa-home fa-3x opacity-75 mr-3"></i>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h5 class="card-title">Local Item Issuing</h5>
+                                            <p class="card-text small">Issued items filtered by local item category</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-0">
+                                    <a href="{{ route('reports.local-issued-items') }}" class="btn btn-light btn-sm">
+                                        <i class="fas fa-arrow-right"></i> View Report
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Import Item Issuing Report --}}
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card text-white h-100" style="background-color: #0277bd;">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <i class="fas fa-plane-arrival fa-3x opacity-75 mr-3"></i>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h5 class="card-title">Import Item Issuing</h5>
+                                            <p class="card-text small">Issued items filtered by import item category</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-0">
+                                    <a href="{{ route('reports.import-issued-items') }}" class="btn btn-light btn-sm">
+                                        <i class="fas fa-arrow-right"></i> View Report
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
                         {{-- Item Requisition Report --}}
                         <div class="col-lg-4 col-md-6 mb-4">
                             <div class="card bg-success text-white h-100">

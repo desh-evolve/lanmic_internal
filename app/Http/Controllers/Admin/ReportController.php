@@ -154,42 +154,102 @@ class ReportController extends Controller
     }
 
     /**
+     * Build a base issued-items query with all common filters applied.
+     */
+    private function buildIssuedQuery(Request $request)
+    {
+        $query = RequisitionIssuedItem::with([
+                'requisition.user', 'requisition.department',
+                'requisition.subDepartment', 'requisitionItem', 'issuedBy',
+            ])
+            ->where('status', '!=', 'delete');
+
+        if ($request->filled('date_from'))    $query->whereDate('issued_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))      $query->whereDate('issued_at', '<=', $request->date_to);
+        if ($request->filled('item_code'))    $query->where('item_code',  'like', '%' . $request->item_code  . '%');
+        if ($request->filled('item_name'))    $query->where('item_name',  'like', '%' . $request->item_name  . '%');
+        if ($request->filled('department_id')) {
+            $query->whereHas('requisition', fn($q) => $q->where('department_id', $request->department_id));
+        }
+        if ($request->filled('category'))     $query->where('item_category', 'like', '%' . $request->category . '%');
+
+        return $query;
+    }
+
+    /**
      * Issued Items Report.
      */
     public function issuedItems(Request $request)
     {
-        // Check if export is requested
         if ($request->has('export') && $request->export === 'excel') {
-            $filename = 'issued_items_' . date('Y-m-d_H-i-s') . '.xlsx';
-            return Excel::download(new IssuedItemsExport($request->all()), $filename);
+            return Excel::download(
+                new IssuedItemsExport($request->all()),
+                'issued_items_' . date('Y-m-d_H-i-s') . '.xlsx'
+            );
         }
 
-        $query = RequisitionIssuedItem::with(['requisition.user', 'requisition.department', 'requisition.subDepartment', 'requisitionItem', 'issuedBy'])
-            ->where('status', '!=', 'delete');
-
-        // Date filter
-        if ($request->filled('date_from')) {
-            $query->whereDate('issued_at', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('issued_at', '<=', $request->date_to);
-        }
-
-        // Item filter
-        if ($request->filled('item_code')) {
-            $query->where('item_code', 'like', '%' . $request->item_code . '%');
-        }
-
-        $issuedItems = $query->orderBy('issued_at', 'desc')->paginate(50);
-
-        // Statistics
-        $statistics = [
-            'total_issued' => $query->count(),
+        $query       = $this->buildIssuedQuery($request);
+        $issuedItems = (clone $query)->orderBy('issued_at', 'desc')->paginate(50)->appends($request->query());
+        $statistics  = [
+            'total_issued'   => $query->count(),
             'total_quantity' => $query->sum('issued_quantity'),
-            'total_value' => $query->sum('total_price'),
+            'total_value'    => $query->sum('total_price'),
         ];
+        $departments = Department::active()->get();
 
-        return view('admin.reports.issued-items', compact('issuedItems', 'statistics'));
+        return view('admin.reports.issued-items', compact('issuedItems', 'statistics', 'departments'));
+    }
+
+    /**
+     * Local Item Issuing Report.
+     */
+    public function localIssuedItems(Request $request)
+    {
+        if (!$request->filled('category')) $request->merge(['category' => 'LOCAL']);
+
+        if ($request->has('export') && $request->export === 'excel') {
+            return Excel::download(
+                new IssuedItemsExport($request->all()),
+                'local_issued_items_' . date('Y-m-d_H-i-s') . '.xlsx'
+            );
+        }
+
+        $query       = $this->buildIssuedQuery($request);
+        $issuedItems = (clone $query)->orderBy('issued_at', 'desc')->paginate(50)->appends($request->query());
+        $statistics  = [
+            'total_issued'   => $query->count(),
+            'total_quantity' => $query->sum('issued_quantity'),
+            'total_value'    => $query->sum('total_price'),
+        ];
+        $departments = Department::active()->get();
+
+        return view('admin.reports.local-issued-items', compact('issuedItems', 'statistics', 'departments'));
+    }
+
+    /**
+     * Import Item Issuing Report.
+     */
+    public function importIssuedItems(Request $request)
+    {
+        if (!$request->filled('category')) $request->merge(['category' => 'IMPORT']);
+
+        if ($request->has('export') && $request->export === 'excel') {
+            return Excel::download(
+                new IssuedItemsExport($request->all()),
+                'import_issued_items_' . date('Y-m-d_H-i-s') . '.xlsx'
+            );
+        }
+
+        $query       = $this->buildIssuedQuery($request);
+        $issuedItems = (clone $query)->orderBy('issued_at', 'desc')->paginate(50)->appends($request->query());
+        $statistics  = [
+            'total_issued'   => $query->count(),
+            'total_quantity' => $query->sum('issued_quantity'),
+            'total_value'    => $query->sum('total_price'),
+        ];
+        $departments = Department::active()->get();
+
+        return view('admin.reports.import-issued-items', compact('issuedItems', 'statistics', 'departments'));
     }
 
     /**
@@ -269,9 +329,19 @@ class ReportController extends Controller
             $query->whereHas('return', fn($q) => $q->where('returned_by', $request->user_id));
         }
 
+        // Department filter
+        if ($request->filled('department_id')) {
+            $query->whereHas('return.requisition', fn($q) => $q->where('department_id', $request->department_id));
+        }
+
+        // Item name filter
+        if ($request->filled('item_name')) {
+            $query->where('item_name', 'like', '%' . $request->item_name . '%');
+        }
+
         $returns = $query->orderByDesc(
             ReturnModel::select('returned_at')->whereColumn('returns.id', 'return_items.return_id')->limit(1)
-        )->paginate(50);
+        )->paginate(50)->appends($request->query());
 
         // Statistics
         $statistics = [
@@ -281,9 +351,10 @@ class ReportController extends Controller
             'total_items'   => $query->count(),
         ];
 
-        $users = User::all();
+        $users       = User::all();
+        $departments = Department::active()->get();
 
-        return view('admin.reports.returns-summary', compact('returns', 'statistics', 'users'));
+        return view('admin.reports.returns-summary', compact('returns', 'statistics', 'users', 'departments'));
     }
 
     /**

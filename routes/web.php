@@ -172,6 +172,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/requisition-summary', [ReportController::class, 'requisitionSummary'])->name('requisition-summary');
             Route::get('/item-requisition', [ReportController::class, 'itemRequisition'])->name('item-requisition');
             Route::get('/issued-items', [ReportController::class, 'issuedItems'])->name('issued-items');
+            Route::get('/local-issued-items', [ReportController::class, 'localIssuedItems'])->name('local-issued-items');
+            Route::get('/import-issued-items', [ReportController::class, 'importIssuedItems'])->name('import-issued-items');
             Route::get('/purchase-order', [ReportController::class, 'purchaseOrder'])->name('purchase-order');
             Route::get('/returns-summary', [ReportController::class, 'returnsSummary'])->name('returns-summary');
             Route::get('/grn', [ReportController::class, 'grn'])->name('grn');

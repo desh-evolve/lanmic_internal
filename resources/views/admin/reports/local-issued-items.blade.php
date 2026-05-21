@@ -1,7 +1,7 @@
-{{-- resources/views/admin/reports/issued-items.blade.php --}}
+{{-- resources/views/admin/reports/local-issued-items.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Issued Items Report')
+@section('title', 'Local Item Issuing Report')
 
 @section('content')
 <div class="container-fluid">
@@ -10,12 +10,12 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="h3 mb-0">Issued Items Report</h1>
+                    <h1 class="h3 mb-0"><i class="fas fa-home text-success mr-2"></i>Local Item Issuing Report</h1>
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-0">
                             <li class="breadcrumb-item"><a href="{{ route('home') }}">Dashboard</a></li>
                             <li class="breadcrumb-item"><a href="{{ route('reports.index') }}">Reports</a></li>
-                            <li class="breadcrumb-item active">Issued Items</li>
+                            <li class="breadcrumb-item active">Local Item Issuing</li>
                         </ol>
                     </nav>
                 </div>
@@ -80,7 +80,7 @@
             <h5 class="mb-0"><i class="fas fa-filter"></i> Filters</h5>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ route('reports.issued-items') }}">
+            <form method="GET" action="{{ route('reports.local-issued-items') }}">
                 <div class="row g-2">
                     <div class="col-md-2">
                         <label class="form-label">Date From</label>
@@ -90,9 +90,9 @@
                         <label class="form-label">Date To</label>
                         <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-1">
                         <label class="form-label">Item Code</label>
-                        <input type="text" name="item_code" class="form-control" placeholder="Item code..." value="{{ request('item_code') }}">
+                        <input type="text" name="item_code" class="form-control" placeholder="Code..." value="{{ request('item_code') }}">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Item Description</label>
@@ -107,9 +107,13 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-2 d-flex align-items-end gap-1">
+                    <div class="col-md-2">
+                        <label class="form-label">Category Filter <small class="text-muted">(item_category)</small></label>
+                        <input type="text" name="category" class="form-control" value="{{ request('category', 'LOCAL') }}" placeholder="e.g. LOCAL">
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end gap-1">
                         <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
-                        <a href="{{ route('reports.issued-items') }}" class="btn btn-secondary"><i class="fas fa-redo"></i></a>
+                        <a href="{{ route('reports.local-issued-items') }}" class="btn btn-secondary"><i class="fas fa-redo"></i></a>
                     </div>
                 </div>
             </form>
@@ -119,7 +123,10 @@
     {{-- Data Table --}}
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-table"></i> Issued Items Details</h5>
+            <h5 class="mb-0">
+                <i class="fas fa-table"></i> Local Item Issued Details
+                <span class="badge badge-success ml-2">Category: {{ request('category', 'LOCAL') }}</span>
+            </h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -131,6 +138,7 @@
                             <th>Requisition No</th>
                             <th>Item Code</th>
                             <th>Item Name</th>
+                            <th>Category</th>
                             <th>Issued To</th>
                             <th>Department</th>
                             <th>Sub-Dept</th>
@@ -153,10 +161,11 @@
                                 </td>
                                 <td><code>{{ $item->item_code }}</code></td>
                                 <td>{{ $item->item_name }}</td>
+                                <td><span class="badge badge-success">{{ $item->item_category ?? '—' }}</span></td>
                                 <td>{{ $item->requisition->user->name ?? 'N/A' }}</td>
                                 <td>{{ $item->requisition->department->name ?? '—' }}</td>
                                 <td>{{ $item->requisition->subDepartment->name ?? '—' }}</td>
-                                <td class="text-center">{{ number_format($item->issued_quantity) }}</td>
+                                <td class="text-center">{{ number_format($item->issued_quantity, 4) }}</td>
                                 <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
                                 <td class="text-end">{{ number_format($item->total_price, 2) }}</td>
                                 <td>{{ $item->notes ?? '—' }}</td>
@@ -164,21 +173,31 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="text-center py-4">
+                                <td colspan="14" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                    <p class="text-muted">No issued items found</p>
+                                    <p class="text-muted">No local items found for the selected filters.<br>
+                                    <small>Tip: Adjust the <strong>Category Filter</strong> field to match your Sage 300 local item category code.</small></p>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
+                    @if($issuedItems->count() > 0)
+                    <tfoot class="table-secondary">
+                        <tr>
+                            <td colspan="9" class="text-right font-weight-bold">Page Total:</td>
+                            <td class="text-center font-weight-bold">{{ number_format($issuedItems->sum('issued_quantity'), 4) }}</td>
+                            <td></td>
+                            <td class="text-end font-weight-bold">{{ number_format($issuedItems->sum('total_price'), 2) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                    @endif
                 </table>
             </div>
 
             {{-- Pagination --}}
             <div class="d-flex justify-content-between align-items-center mt-3">
-                <div>
-                    Showing {{ $issuedItems->firstItem() ?? 0 }} to {{ $issuedItems->lastItem() ?? 0 }} of {{ $issuedItems->total() }} entries
-                </div>
+                <div>Showing {{ $issuedItems->firstItem() ?? 0 }} to {{ $issuedItems->lastItem() ?? 0 }} of {{ $issuedItems->total() }} entries</div>
                 {{ $issuedItems->appends(request()->query())->links() }}
             </div>
         </div>
@@ -187,11 +206,8 @@
 
 <script>
     function exportToExcel() {
-        // Get current URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.set('export', 'excel');
-        
-        // Redirect with export parameter
         window.location.href = window.location.pathname + '?' + urlParams.toString();
     }
 </script>

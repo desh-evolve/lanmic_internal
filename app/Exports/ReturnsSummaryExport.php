@@ -33,18 +33,12 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
             ])
             ->where('status', 'active');
 
-        if (!empty($this->filters['date_from'])) {
-            $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '>=', $this->filters['date_from']));
-        }
-        if (!empty($this->filters['date_to'])) {
-            $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '<=', $this->filters['date_to']));
-        }
-        if (!empty($this->filters['status'])) {
-            $query->whereHas('return', fn($q) => $q->where('status', $this->filters['status']));
-        }
-        if (!empty($this->filters['user_id'])) {
-            $query->whereHas('return', fn($q) => $q->where('returned_by', $this->filters['user_id']));
-        }
+        if (!empty($this->filters['date_from']))      $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '>=', $this->filters['date_from']));
+        if (!empty($this->filters['date_to']))        $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '<=', $this->filters['date_to']));
+        if (!empty($this->filters['status']))         $query->whereHas('return', fn($q) => $q->where('status', $this->filters['status']));
+        if (!empty($this->filters['user_id']))        $query->whereHas('return', fn($q) => $q->where('returned_by', $this->filters['user_id']));
+        if (!empty($this->filters['department_id']))  $query->whereHas('return.requisition', fn($q) => $q->where('department_id', $this->filters['department_id']));
+        if (!empty($this->filters['item_name']))      $query->where('item_name', 'like', '%' . $this->filters['item_name'] . '%');
 
         return $query->get();
     }

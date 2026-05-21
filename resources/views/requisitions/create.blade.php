@@ -238,10 +238,10 @@
 
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Item</h5>
+                <h5 class="modal-title"><i class="fas fa-edit mr-1"></i> Edit Item</h5>
                 <button type="button" class="close" data-dismiss="modal">
                     <span>&times;</span>
                 </button>
@@ -249,20 +249,17 @@
             <div class="modal-body">
                 <input type="hidden" id="editIndex">
                 <div class="form-group">
-                    <label>Item Code</label>
-                    <input type="text" class="form-control" id="editItemCode" readonly>
+                    <label>Item <span class="text-danger">*</span></label>
+                    <select class="form-control" id="editItemSelect" style="width:100%;"></select>
                 </div>
                 <div class="form-group">
-                    <label>Item Name</label>
-                    <input type="text" class="form-control" id="editItemName" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Location</label>
-                    <input type="text" class="form-control" id="editLocation" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Available Quantity</label>
-                    <input type="text" class="form-control" id="editAvailableQty" readonly>
+                    <label>Location <span class="text-danger">*</span></label>
+                    <select class="form-control" id="editLocationSelect">
+                        <option value="">— Select item first —</option>
+                    </select>
+                    <small class="text-muted">
+                        Available: <span id="editAvailableQtyDisplay" class="font-weight-bold text-success">—</span>
+                    </small>
                 </div>
                 <div class="form-group">
                     <label>Quantity <span class="text-danger">*</span></label>
@@ -285,7 +282,8 @@
 let allRequestedItems = [];
 let allItems = [];
 let itemLocations = {};
-let pendingApprovals = {}; // Track pending quantities per item-location combination
+let pendingApprovals = {};
+let suppressEditItemChange = false; // prevent double-firing when programmatically setting edit select2
 
 $(document).ready(function() {
     loadItems();
@@ -373,6 +371,34 @@ $(document).ready(function() {
         saveEdit();
     });
 
+    // Edit modal: when item changes, reload locations
+    $('#editItemSelect').on('change', function() {
+        if (suppressEditItemChange) return;
+        const code = $(this).val();
+        if (code) loadEditLocations(code);
+        else {
+            $('#editLocationSelect').html('<option value="">— Select item first —</option>');
+            $('#editAvailableQtyDisplay').text('—');
+        }
+    });
+
+    // Edit modal: when location changes, update available qty display
+    $('#editLocationSelect').on('change', function() {
+        const $opt = $(this).find('option:selected');
+        if ($opt.val() && $opt.attr('data-location')) {
+            const loc = JSON.parse($opt.attr('data-location'));
+            const itemCode = $('#editItemSelect').val();
+            const pendingKey = `${itemCode}_${loc.location_code}`;
+            const pendingQty = pendingApprovals[pendingKey] || 0;
+            const available = Math.max(0, loc.quantity - pendingQty);
+            $('#editAvailableQtyDisplay').text(
+                available + (pendingQty > 0 ? ` (${pendingQty} pending)` : '')
+            );
+        } else {
+            $('#editAvailableQtyDisplay').text('—');
+        }
+    });
+
     $('#requisitionForm').submit(function(e) {
         if (allRequestedItems.length === 0) {
             e.preventDefault();
@@ -432,49 +458,48 @@ function loadPendingApprovals() {
     });
 }
 
-function initializeSelect2() {
-    const normalizedItems = allItems.map(item => {
-        return {
-            code: item.code || '',
-            name: item.name || '',
-            category: item.category || 'N/A',
-            unit: item.unit || 'pcs'
-        };
-    }).filter(item => item.code && item.name);
+function itemMatcher(params, data) {
+    if ($.trim(params.term) === '') return data;
+    if (!data.item) return null;
+    const term = params.term.toLowerCase();
+    const item = data.item;
+    if (item.code && item.code.toString().toLowerCase().indexOf(term) > -1) return data;
+    if (item.name && item.name.toLowerCase().indexOf(term) > -1) return data;
+    if (item.category && item.category.toLowerCase().indexOf(term) > -1) return data;
+    return null;
+}
 
+function initializeSelect2() {
+    const normalizedItems = allItems.map(item => ({
+        code: item.code || '',
+        name: item.name || '',
+        category: item.category || 'N/A',
+        unit: item.unit || 'pcs'
+    })).filter(item => item.code && item.name);
+
+    const selectData = normalizedItems.map(item => ({
+        id: item.code,
+        text: `${item.code} - ${item.name} (${item.category})`,
+        item: item
+    }));
+
+    // Main item select
     $('#itemSelect').select2({
         theme: 'bootstrap',
         placeholder: 'Search for an item by code or name',
         allowClear: true,
-        data: normalizedItems.map(item => ({
-            id: item.code,
-            text: `${item.code} - ${item.name} (${item.category})`,
-            item: item
-        })),
-        matcher: function(params, data) {
-            if ($.trim(params.term) === '') {
-                return data;
-            }
+        data: selectData,
+        matcher: itemMatcher
+    });
 
-            if (!data.item) {
-                return null;
-            }
-
-            const term = params.term.toLowerCase();
-            const item = data.item;
-            
-            if (item.code && item.code.toString().toLowerCase().indexOf(term) > -1) {
-                return data;
-            }
-            if (item.name && item.name.toLowerCase().indexOf(term) > -1) {
-                return data;
-            }
-            if (item.category && item.category.toLowerCase().indexOf(term) > -1) {
-                return data;
-            }
-
-            return null;
-        }
+    // Edit modal item select
+    $('#editItemSelect').select2({
+        theme: 'bootstrap',
+        placeholder: 'Search for an item...',
+        allowClear: true,
+        dropdownParent: $('#editModal'),
+        data: selectData,
+        matcher: itemMatcher
     });
 }
 
@@ -690,13 +715,44 @@ function renderPOSummary() {
     });
 }
 
+function loadEditLocations(itemCode, preselect = null) {
+    const $locSel = $('#editLocationSelect');
+    $locSel.html('<option value="">Loading locations…</option>').prop('disabled', true);
+    $('#editAvailableQtyDisplay').text('—');
+
+    Sage300.getItemLocations(itemCode)
+        .done(function(response) {
+            $locSel.html('<option value="">Select Location</option>').prop('disabled', false);
+            if (response.success && response.data && response.data.length > 0) {
+                response.data.forEach(function(loc) {
+                    const pendingKey = `${itemCode}_${loc.location_code}`;
+                    const pendingQty = pendingApprovals[pendingKey] || 0;
+                    const available = Math.max(0, loc.quantity - pendingQty);
+                    const label = `${loc.location_code} — ${loc.location_name} (Avail: ${available}${pendingQty > 0 ? `, Pending: ${pendingQty}` : ''})`;
+                    const $opt = $('<option>').val(loc.location_code).text(label).attr('data-location', JSON.stringify(loc));
+                    if (preselect && loc.location_code === preselect) $opt.prop('selected', true);
+                    $locSel.append($opt);
+                });
+            }
+            $locSel.trigger('change'); // refresh available qty display
+        })
+        .fail(function() {
+            $locSel.html('<option value="">Error loading locations</option>').prop('disabled', false);
+        });
+}
+
 function editItem(index) {
     const item = allRequestedItems[index];
     $('#editIndex').val(index);
-    $('#editItemCode').val(item.code);
-    $('#editItemName').val(item.name);
-    $('#editLocation').val(`${item.location_code} - ${item.location_name}`);
-    $('#editAvailableQty').val(`${item.available_qty}${item.pending_qty > 0 ? ` (${item.pending_qty} pending)` : ''}`);
+
+    // Set item in select2 without triggering the change→loadEditLocations handler
+    suppressEditItemChange = true;
+    $('#editItemSelect').val(item.code).trigger('change');
+    suppressEditItemChange = false;
+
+    // Load locations for current item and pre-select current location
+    loadEditLocations(item.code, item.location_code);
+
     $('#editQuantity').val(item.quantity);
     $('#editModal').modal('show');
 }
@@ -704,28 +760,59 @@ function editItem(index) {
 function saveEdit() {
     const index = parseInt($('#editIndex').val());
     const quantity = parseFloat($('#editQuantity').val());
+    const newItemCode = $('#editItemSelect').val();
+    const newLocationCode = $('#editLocationSelect').val();
 
-    if (quantity <= 0) {
-        alert('Quantity must be greater than 0');
-        return;
-    }
+    if (!newItemCode) { alert('Please select an item'); return; }
+    if (!newLocationCode) { alert('Please select a location'); return; }
+    if (quantity <= 0) { alert('Quantity must be greater than 0'); return; }
     if (!/^\d+(\.\d{1,4})?$/.test($('#editQuantity').val())) {
         alert('Quantity cannot have more than 4 decimal places');
         return;
     }
 
-    const item = allRequestedItems[index];
-    
-    // Recalculate PO needs with actual available (considering pending)
-    const actualAvailable = item.available_qty;
+    // Duplicate check (skip the item being edited)
+    const dup = allRequestedItems.findIndex((i, idx) =>
+        idx !== index && i.code === newItemCode && i.location_code === newLocationCode
+    );
+    if (dup !== -1) {
+        alert('This item + location combination already exists in the list. Please edit that entry instead.');
+        return;
+    }
+
+    // Get item details from allItems
+    const itemData = allItems.find(i => i.code === newItemCode);
+    if (!itemData) { alert('Item not found. Please try again.'); return; }
+
+    // Get location details from dropdown
+    const $locOpt = $('#editLocationSelect').find('option:selected');
+    const locDataAttr = $locOpt.attr('data-location');
+    if (!locDataAttr) { alert('Location data missing. Please re-select.'); return; }
+    const locationData = JSON.parse(locDataAttr);
+
+    // Recalculate availability
+    const pendingKey = `${newItemCode}_${newLocationCode}`;
+    const pendingQty = pendingApprovals[pendingKey] || 0;
+    const stockQty = locationData.quantity;
+    const actualAvailable = Math.max(0, stockQty - pendingQty);
     const needsPO = quantity > actualAvailable;
-    const requisitionQty = Math.min(quantity, actualAvailable);
     const poQty = Math.max(0, quantity - actualAvailable);
 
-    item.quantity = quantity;
-    item.needsPO = needsPO;
-    item.requisition_qty = requisitionQty;
-    item.po_qty = poQty;
+    allRequestedItems[index] = {
+        code: itemData.code,
+        name: itemData.name,
+        category: itemData.category || 'N/A',
+        unit: itemData.unit || 'pcs',
+        location_code: newLocationCode,
+        location_name: locationData.location_name,
+        quantity: quantity,
+        stock_qty: stockQty,
+        pending_qty: pendingQty,
+        available_qty: actualAvailable,
+        needsPO: needsPO,
+        requisition_qty: quantity,
+        po_qty: poQty
+    };
 
     $('#editModal').modal('hide');
     renderTable();

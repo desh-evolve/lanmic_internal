@@ -29,15 +29,14 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
         $query = RequisitionIssuedItem::with(['requisition.user', 'requisition.department', 'requisition.subDepartment', 'requisitionItem', 'issuedBy'])
             ->where('status', '!=', 'delete');
 
-        if (!empty($this->filters['date_from'])) {
-            $query->whereDate('issued_at', '>=', $this->filters['date_from']);
+        if (!empty($this->filters['date_from']))     $query->whereDate('issued_at', '>=', $this->filters['date_from']);
+        if (!empty($this->filters['date_to']))       $query->whereDate('issued_at', '<=', $this->filters['date_to']);
+        if (!empty($this->filters['item_code']))     $query->where('item_code', 'like', '%' . $this->filters['item_code'] . '%');
+        if (!empty($this->filters['item_name']))     $query->where('item_name', 'like', '%' . $this->filters['item_name'] . '%');
+        if (!empty($this->filters['department_id'])) {
+            $query->whereHas('requisition', fn($q) => $q->where('department_id', $this->filters['department_id']));
         }
-        if (!empty($this->filters['date_to'])) {
-            $query->whereDate('issued_at', '<=', $this->filters['date_to']);
-        }
-        if (!empty($this->filters['item_code'])) {
-            $query->where('item_code', 'like', '%' . $this->filters['item_code'] . '%');
-        }
+        if (!empty($this->filters['category']))      $query->where('item_category', 'like', '%' . $this->filters['category'] . '%');
 
         return $query->orderBy('issued_at', 'desc')->get();
     }
