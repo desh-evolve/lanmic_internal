@@ -133,22 +133,24 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped table-hover">
+                <table class="table table-bordered table-striped table-hover table-sm">
                     <thead class="table-dark">
                         <tr>
                             <th>#</th>
-                            <th>Return Date</th>
-                            <th>Return No</th>
-                            <th>Requisition No</th>
+                            <th>Returned Date</th>
+                            <th>Return Number</th>
+                            <th>Requisition Number</th>
                             <th>Item Code</th>
                             <th>Item Name</th>
-                            <th>Department</th>
-                            <th>Sub-Dept</th>
+                            <th class="text-center">UOM</th>
                             <th class="text-center">Qty</th>
-                            <th>Type</th>
+                            <th class="text-end">Unit Price</th>
+                            <th class="text-end">Total Price</th>
+                            <th>Department</th>
+                            <th>Sub Department</th>
                             <th>Remarks</th>
                             <th>Returned By</th>
-                            <th>Status</th>
+                            <th>Accepted By</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -175,37 +177,38 @@
                                 </td>
                                 <td><code>{{ $returnItem->item_code }}</code></td>
                                 <td>{{ $returnItem->item_name }}</td>
+                                <td class="text-center">{{ $returnItem->unit ?? '—' }}</td>
+                                <td class="text-center">{{ number_format($returnItem->quantity, 4) }}</td>
+                                <td class="text-end">{{ $returnItem->issuedItem ? number_format($returnItem->issuedItem->unit_price, 2) : '—' }}</td>
+                                <td class="text-end">{{ $returnItem->issuedItem ? number_format($returnItem->issuedItem->unit_price * $returnItem->quantity, 2) : '—' }}</td>
                                 <td>{{ $ret?->requisition?->department?->name ?? '—' }}</td>
                                 <td>{{ $ret?->requisition?->subDepartment?->name ?? '—' }}</td>
-                                <td class="text-center">{{ number_format($returnItem->quantity) }}</td>
-                                <td>
-                                    @if($returnItem->return_type == 'used')
-                                        <span class="badge bg-warning text-dark">Used</span>
-                                    @else
-                                        <span class="badge bg-success">Same Condition</span>
-                                    @endif
-                                </td>
                                 <td>{{ $returnItem->notes ?? '—' }}</td>
                                 <td>{{ $ret?->returnedBy?->name ?? 'N/A' }}</td>
-                                <td>
-                                    @if($ret?->status == 'pending')
-                                        <span class="badge bg-warning text-dark">Pending</span>
-                                    @elseif($ret?->status == 'cleared')
-                                        <span class="badge bg-success">Cleared</span>
-                                    @else
-                                        <span class="badge bg-secondary">{{ ucfirst($ret?->status ?? '') }}</span>
-                                    @endif
-                                </td>
+                                <td>{{ $returnItem->approvedBy?->name ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="text-center py-4">
+                                <td colspan="15" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No return items found</p>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
+                    @if($returns->count() > 0)
+                    <tfoot class="table-secondary font-weight-bold">
+                        <tr>
+                            <td colspan="7" class="text-right">Page Total:</td>
+                            <td class="text-center">{{ number_format($returns->sum('quantity'), 4) }}</td>
+                            <td></td>
+                            <td class="text-end">
+                                {{ number_format($returns->sum(fn($ri) => $ri->issuedItem ? $ri->issuedItem->unit_price * $ri->quantity : 0), 2) }}
+                            </td>
+                            <td colspan="5"></td>
+                        </tr>
+                    </tfoot>
+                    @endif
                 </table>
             </div>
 
@@ -218,6 +221,44 @@
             </div>
         </div>
     </div>
+
+    {{-- Department-wise Totals --}}
+    @if(isset($deptTotals) && $deptTotals->count() > 0)
+    <div class="card mt-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-building mr-2"></i>Department-wise Returned Value Summary</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-bordered table-hover mb-0">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>#</th>
+                        <th>Department</th>
+                        <th class="text-center">Total Qty Returned</th>
+                        <th class="text-end">Total Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($deptTotals as $i => $dt)
+                    <tr>
+                        <td>{{ $i + 1 }}</td>
+                        <td>{{ $dt->dept_name }}</td>
+                        <td class="text-center">{{ number_format($dt->total_qty, 4) }}</td>
+                        <td class="text-end">{{ number_format($dt->total_value, 2) }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+                <tfoot class="table-dark text-white font-weight-bold">
+                    <tr>
+                        <td colspan="2" class="text-right">Grand Total</td>
+                        <td class="text-center">{{ number_format($deptTotals->sum('total_qty'), 4) }}</td>
+                        <td class="text-end">{{ number_format($deptTotals->sum('total_value'), 2) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    @endif
 </div>
 
 <script>

@@ -90,9 +90,9 @@
                         <label class="form-label">Date To</label>
                         <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-md-2">
                         <label class="form-label">Item Code</label>
-                        <input type="text" name="item_code" class="form-control" placeholder="Code..." value="{{ request('item_code') }}">
+                        <input type="text" name="item_code" class="form-control" placeholder="Item code..." value="{{ request('item_code') }}">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Item Description</label>
@@ -107,12 +107,9 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Category Filter <small class="text-muted">(item_category)</small></label>
-                        <input type="text" name="category" class="form-control" value="{{ request('category', 'IMPORT') }}" placeholder="e.g. IMPORT">
-                    </div>
-                    <div class="col-md-1 d-flex align-items-end gap-1">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+                    <input type="hidden" name="category" value="IMPORT">
+                    <div class="col-md-2 d-flex align-items-end gap-1">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Search</button>
                         <a href="{{ route('reports.import-issued-items') }}" class="btn btn-secondary"><i class="fas fa-redo"></i></a>
                     </div>
                 </div>
@@ -138,14 +135,14 @@
                             <th>Requisition No</th>
                             <th>Item Code</th>
                             <th>Item Name</th>
-                            <th>Category</th>
-                            <th>Issued To</th>
-                            <th>Department</th>
-                            <th>Sub-Dept</th>
-                            <th class="text-center">Issued Qty</th>
+                            <th class="text-center">UOM</th>
+                            <th class="text-center">Qty</th>
                             <th class="text-end">Unit Price</th>
                             <th class="text-end">Total Price</th>
+                            <th>Department</th>
+                            <th>Sub-Dept</th>
                             <th>Remarks</th>
+                            <th>Issued To</th>
                             <th>Issued By</th>
                         </tr>
                     </thead>
@@ -161,34 +158,33 @@
                                 </td>
                                 <td><code>{{ $item->item_code }}</code></td>
                                 <td>{{ $item->item_name }}</td>
-                                <td><span class="badge badge-primary">{{ $item->item_category ?? '—' }}</span></td>
-                                <td>{{ $item->requisition->user->name ?? 'N/A' }}</td>
-                                <td>{{ $item->requisition->department->name ?? '—' }}</td>
-                                <td>{{ $item->requisition->subDepartment->name ?? '—' }}</td>
+                                <td class="text-center">{{ $item->unit ?? '—' }}</td>
                                 <td class="text-center">{{ number_format($item->issued_quantity, 4) }}</td>
                                 <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
                                 <td class="text-end">{{ number_format($item->total_price, 2) }}</td>
+                                <td>{{ $item->requisition->department->name ?? '—' }}</td>
+                                <td>{{ $item->requisition->subDepartment->name ?? '—' }}</td>
                                 <td>{{ $item->notes ?? '—' }}</td>
+                                <td>{{ $item->requisition->user->name ?? 'N/A' }}</td>
                                 <td>{{ $item->issuedBy->name ?? 'N/A' }}</td>
                             </tr>
                         @empty
                             <tr>
                                 <td colspan="14" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                    <p class="text-muted">No import items found for the selected filters.<br>
-                                    <small>Tip: Adjust the <strong>Category Filter</strong> field to match your Sage 300 import item category code.</small></p>
+                                    <p class="text-muted">No import items found for the selected filters.</p>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
                     @if($issuedItems->count() > 0)
-                    <tfoot class="table-secondary">
+                    <tfoot class="table-secondary font-weight-bold">
                         <tr>
-                            <td colspan="9" class="text-right font-weight-bold">Page Total:</td>
-                            <td class="text-center font-weight-bold">{{ number_format($issuedItems->sum('issued_quantity'), 4) }}</td>
+                            <td colspan="6" class="text-right">Page Total:</td>
+                            <td class="text-center">{{ number_format($issuedItems->sum('issued_quantity'), 4) }}</td>
                             <td></td>
-                            <td class="text-end font-weight-bold">{{ number_format($issuedItems->sum('total_price'), 2) }}</td>
-                            <td colspan="2"></td>
+                            <td class="text-end">{{ number_format($issuedItems->sum('total_price'), 2) }}</td>
+                            <td colspan="5"></td>
                         </tr>
                     </tfoot>
                     @endif
@@ -202,6 +198,44 @@
             </div>
         </div>
     </div>
+
+    {{-- Department-wise Totals --}}
+    @if(isset($deptTotals) && $deptTotals->count() > 0)
+    <div class="card mt-4">
+        <div class="card-header" style="background-color: #0277bd; color: white;">
+            <h5 class="mb-0"><i class="fas fa-building mr-2"></i>Department-wise Import Item Issued Value</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-bordered table-hover mb-0">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>#</th>
+                        <th>Department</th>
+                        <th class="text-center">Total Qty</th>
+                        <th class="text-end">Total Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($deptTotals as $i => $dt)
+                    <tr>
+                        <td>{{ $i + 1 }}</td>
+                        <td>{{ $dt->dept_name }}</td>
+                        <td class="text-center">{{ number_format($dt->total_qty, 4) }}</td>
+                        <td class="text-end">{{ number_format($dt->total_value, 2) }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+                <tfoot class="table-dark text-white font-weight-bold">
+                    <tr>
+                        <td colspan="2" class="text-right">Grand Total</td>
+                        <td class="text-center">{{ number_format($deptTotals->sum('total_qty'), 4) }}</td>
+                        <td class="text-end">{{ number_format($deptTotals->sum('total_value'), 2) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    @endif
 </div>
 
 <script>

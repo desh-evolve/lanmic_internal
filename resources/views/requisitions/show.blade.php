@@ -170,6 +170,11 @@
             <a href="{{ route('requisitions.index') }}" class="btn btn-default">
                 <i class="fas fa-arrow-left"></i> Back to List
             </a>
+            @if($requisition->approve_status === 'pending' && Auth::user()->hasPermission('edit-requisitions'))
+            <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning">
+                <i class="fas fa-edit"></i> Edit Requisition
+            </a>
+            @endif
         </div>
     </div>
 

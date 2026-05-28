@@ -82,23 +82,30 @@
                 <h3 class="card-title">All Requisitions</h3>
                 <div class="card-tools">
                     <form method="GET" action="{{ route('admin.requisitions.index') }}" class="form-inline">
-                        <div class="input-group input-group-sm" style="width: 350px;">
-                            <select name="approve_status" class="form-control form-control-sm">
+                        <div class="d-flex flex-wrap gap-1" style="max-width: 700px;">
+                            <select name="approve_status" class="form-control form-control-sm" style="width: 140px;">
                                 <option value="">All Approve Status</option>
-                                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
-                                <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
+                                <option value="pending" {{ request('approve_status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="approved" {{ request('approve_status') === 'approved' ? 'selected' : '' }}>Approved</option>
+                                <option value="rejected" {{ request('approve_status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
                             </select>
-                            <select name="clear_status" class="form-control form-control-sm">
+                            <select name="clear_status" class="form-control form-control-sm" style="width: 130px;">
                                 <option value="">All Clear Status</option>
-                                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="cleared" {{ request('status') === 'cleared' ? 'selected' : '' }}>Cleared</option>
+                                <option value="pending" {{ request('clear_status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="cleared" {{ request('clear_status') === 'cleared' ? 'selected' : '' }}>Cleared</option>
                             </select>
-                            <div class="input-group-append">
-                                <button type="submit" class="btn btn-default">
-                                    <i class="fas fa-filter"></i>
-                                </button>
-                            </div>
+                            <select name="user_id" class="form-control form-control-sm" style="width: 160px;">
+                                <option value="">All Requesters</option>
+                                @foreach($users as $user)
+                                    <option value="{{ $user->id }}" {{ request('user_id') == $user->id ? 'selected' : '' }}>{{ $user->name }}</option>
+                                @endforeach
+                            </select>
+                            <button type="submit" class="btn btn-default btn-sm">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                            <a href="{{ route('admin.requisitions.index') }}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-redo"></i>
+                            </a>
                         </div>
                     </form>
                 </div>

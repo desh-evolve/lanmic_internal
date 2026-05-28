@@ -123,7 +123,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped table-hover">
+                <table class="table table-bordered table-striped table-hover table-sm">
                     <thead class="table-dark">
                         <tr>
                             <th>#</th>
@@ -131,13 +131,14 @@
                             <th>Requisition No</th>
                             <th>Item Code</th>
                             <th>Item Name</th>
-                            <th>Issued To</th>
-                            <th>Department</th>
-                            <th>Sub-Dept</th>
-                            <th class="text-center">Issued Qty</th>
+                            <th class="text-center">UOM</th>
+                            <th class="text-center">Qty</th>
                             <th class="text-end">Unit Price</th>
                             <th class="text-end">Total Price</th>
+                            <th>Department</th>
+                            <th>Sub-Dept</th>
                             <th>Remarks</th>
+                            <th>Issued To</th>
                             <th>Issued By</th>
                         </tr>
                     </thead>
@@ -153,24 +154,36 @@
                                 </td>
                                 <td><code>{{ $item->item_code }}</code></td>
                                 <td>{{ $item->item_name }}</td>
-                                <td>{{ $item->requisition->user->name ?? 'N/A' }}</td>
-                                <td>{{ $item->requisition->department->name ?? '—' }}</td>
-                                <td>{{ $item->requisition->subDepartment->name ?? '—' }}</td>
-                                <td class="text-center">{{ number_format($item->issued_quantity) }}</td>
+                                <td class="text-center">{{ $item->unit ?? '—' }}</td>
+                                <td class="text-center">{{ number_format($item->issued_quantity, 4) }}</td>
                                 <td class="text-end">{{ number_format($item->unit_price, 2) }}</td>
                                 <td class="text-end">{{ number_format($item->total_price, 2) }}</td>
+                                <td>{{ $item->requisition->department->name ?? '—' }}</td>
+                                <td>{{ $item->requisition->subDepartment->name ?? '—' }}</td>
                                 <td>{{ $item->notes ?? '—' }}</td>
+                                <td>{{ $item->requisition->user->name ?? 'N/A' }}</td>
                                 <td>{{ $item->issuedBy->name ?? 'N/A' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="text-center py-4">
+                                <td colspan="14" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No issued items found</p>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
+                    @if($issuedItems->count() > 0)
+                    <tfoot class="table-secondary font-weight-bold">
+                        <tr>
+                            <td colspan="6" class="text-right">Page Total:</td>
+                            <td class="text-center">{{ number_format($issuedItems->sum('issued_quantity'), 4) }}</td>
+                            <td></td>
+                            <td class="text-end">{{ number_format($issuedItems->sum('total_price'), 2) }}</td>
+                            <td colspan="5"></td>
+                        </tr>
+                    </tfoot>
+                    @endif
                 </table>
             </div>
 
@@ -183,6 +196,44 @@
             </div>
         </div>
     </div>
+
+    {{-- Department-wise Totals --}}
+    @if(isset($deptTotals) && $deptTotals->count() > 0)
+    <div class="card mt-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-building mr-2"></i>Department-wise Issued Value Summary</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-bordered table-hover mb-0">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>#</th>
+                        <th>Department</th>
+                        <th class="text-center">Total Qty Issued</th>
+                        <th class="text-end">Total Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($deptTotals as $i => $dt)
+                    <tr>
+                        <td>{{ $i + 1 }}</td>
+                        <td>{{ $dt->dept_name }}</td>
+                        <td class="text-center">{{ number_format($dt->total_qty, 4) }}</td>
+                        <td class="text-end">{{ number_format($dt->total_value, 2) }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+                <tfoot class="table-dark text-white font-weight-bold">
+                    <tr>
+                        <td colspan="2" class="text-right">Grand Total</td>
+                        <td class="text-center">{{ number_format($deptTotals->sum('total_qty'), 4) }}</td>
+                        <td class="text-end">{{ number_format($deptTotals->sum('total_value'), 2) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    @endif
 </div>
 
 <script>

@@ -152,6 +152,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('requisitions/{requisition}/reject', [RequisitionApprovalController::class, 'reject'])->middleware('permission:approve-requisitions')->name('admin.requisitions.reject');
         Route::get('requisitions/{requisition}/issue-items', [RequisitionApprovalController::class, 'issueItemsForm'])->middleware('permission:issue-requisitions')->name('admin.requisitions.issue-items');
         Route::post('requisitions/{requisition}/issue-items', [RequisitionApprovalController::class, 'issueItems'])->middleware('permission:issue-requisitions')->name('admin.requisitions.issue-items.store');
+        Route::post('requisitions/{requisition}/update-items', [RequisitionApprovalController::class, 'updateItems'])->middleware('permission:approve-requisitions')->name('admin.requisitions.update-items');
 
         // Return approval routes — permission-gated, no role:admin required
         Route::get('returns', [ReturnApprovalController::class, 'index'])->middleware('permission:view-returns')->name('admin.returns.index');

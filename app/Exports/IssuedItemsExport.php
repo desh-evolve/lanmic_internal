@@ -49,13 +49,14 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
             'Requisition No',
             'Item Code',
             'Item Name',
-            'Issued To',
-            'Department',
-            'Sub-Department',
+            'UOM',
             'Issued Qty',
             'Unit Price',
             'Total Price',
+            'Department',
+            'Sub-Department',
             'Remarks',
+            'Issued To',
             'Issued By',
         ];
     }
@@ -71,13 +72,14 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
             $item->requisition->requisition_number ?? 'REQ-' . str_pad($item->requisition_id, 6, '0', STR_PAD_LEFT),
             $item->item_code,
             $item->item_name,
-            $item->requisition->user->name ?? 'N/A',
-            $item->requisition->department->name ?? '',
-            $item->requisition->subDepartment->name ?? '',
+            $item->unit ?? '',
             $item->issued_quantity,
             number_format($item->unit_price, 2),
             number_format($item->total_price, 2),
+            $item->requisition->department->name ?? '',
+            $item->requisition->subDepartment->name ?? '',
             $item->notes ?? '',
+            $item->requisition->user->name ?? 'N/A',
             $item->issuedBy->name ?? 'N/A',
         ];
     }
@@ -98,19 +100,20 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
     public function columnWidths(): array
     {
         return [
-            'A' => 8,
+            'A' => 6,
             'B' => 20,
-            'C' => 20,
-            'D' => 15,
+            'C' => 18,
+            'D' => 14,
             'E' => 30,
-            'F' => 25,
-            'G' => 25,
-            'H' => 25,
-            'I' => 12,
-            'J' => 12,
-            'K' => 15,
+            'F' => 8,
+            'G' => 10,
+            'H' => 12,
+            'I' => 14,
+            'J' => 25,
+            'K' => 22,
             'L' => 30,
-            'M' => 20,
+            'M' => 25,
+            'N' => 20,
         ];
     }
 
@@ -124,7 +127,7 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:M1');
+                $event->sheet->setAutoFilter('A1:N1');
             },
         ];
     }

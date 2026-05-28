@@ -177,6 +177,31 @@ class ReportController extends Controller
     }
 
     /**
+     * Build department-wise totals for issued items with the same filters.
+     */
+    private function buildIssuedDeptTotals(Request $request)
+    {
+        $query = DB::table('requisition_issued_items as rii')
+            ->join('requisitions as r', 'rii.requisition_id', '=', 'r.id')
+            ->join('departments as d', 'r.department_id', '=', 'd.id')
+            ->where('rii.status', '!=', 'delete')
+            ->select(
+                'd.name as dept_name',
+                DB::raw('SUM(rii.issued_quantity) as total_qty'),
+                DB::raw('SUM(rii.total_price) as total_value')
+            );
+
+        if ($request->filled('date_from'))     $query->whereDate('rii.issued_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))       $query->whereDate('rii.issued_at', '<=', $request->date_to);
+        if ($request->filled('item_code'))     $query->where('rii.item_code', 'like', '%' . $request->item_code . '%');
+        if ($request->filled('item_name'))     $query->where('rii.item_name', 'like', '%' . $request->item_name . '%');
+        if ($request->filled('department_id')) $query->where('r.department_id', $request->department_id);
+        if ($request->filled('category'))      $query->where('rii.item_category', 'like', '%' . $request->category . '%');
+
+        return $query->groupBy('d.id', 'd.name')->orderBy('d.name')->get();
+    }
+
+    /**
      * Issued Items Report.
      */
     public function issuedItems(Request $request)
@@ -189,15 +214,22 @@ class ReportController extends Controller
         }
 
         $query       = $this->buildIssuedQuery($request);
-        $issuedItems = (clone $query)->orderBy('issued_at', 'desc')->paginate(50)->appends($request->query());
+        $issuedItems = (clone $query)
+            ->leftJoin('requisitions as rq_sort', 'requisition_issued_items.requisition_id', '=', 'rq_sort.id')
+            ->leftJoin('departments as d_sort', 'rq_sort.department_id', '=', 'd_sort.id')
+            ->select('requisition_issued_items.*')
+            ->orderBy('d_sort.name', 'asc')
+            ->orderBy('requisition_issued_items.issued_at', 'desc')
+            ->paginate(50)->appends($request->query());
         $statistics  = [
             'total_issued'   => $query->count(),
             'total_quantity' => $query->sum('issued_quantity'),
             'total_value'    => $query->sum('total_price'),
         ];
-        $departments = Department::active()->get();
+        $departments = Department::active()->orderBy('name')->get();
+        $deptTotals  = $this->buildIssuedDeptTotals($request);
 
-        return view('admin.reports.issued-items', compact('issuedItems', 'statistics', 'departments'));
+        return view('admin.reports.issued-items', compact('issuedItems', 'statistics', 'departments', 'deptTotals'));
     }
 
     /**
@@ -215,15 +247,22 @@ class ReportController extends Controller
         }
 
         $query       = $this->buildIssuedQuery($request);
-        $issuedItems = (clone $query)->orderBy('issued_at', 'desc')->paginate(50)->appends($request->query());
+        $issuedItems = (clone $query)
+            ->leftJoin('requisitions as rq_sort', 'requisition_issued_items.requisition_id', '=', 'rq_sort.id')
+            ->leftJoin('departments as d_sort', 'rq_sort.department_id', '=', 'd_sort.id')
+            ->select('requisition_issued_items.*')
+            ->orderBy('d_sort.name', 'asc')
+            ->orderBy('requisition_issued_items.issued_at', 'desc')
+            ->paginate(50)->appends($request->query());
         $statistics  = [
             'total_issued'   => $query->count(),
             'total_quantity' => $query->sum('issued_quantity'),
             'total_value'    => $query->sum('total_price'),
         ];
-        $departments = Department::active()->get();
+        $departments = Department::active()->orderBy('name')->get();
+        $deptTotals  = $this->buildIssuedDeptTotals($request);
 
-        return view('admin.reports.local-issued-items', compact('issuedItems', 'statistics', 'departments'));
+        return view('admin.reports.local-issued-items', compact('issuedItems', 'statistics', 'departments', 'deptTotals'));
     }
 
     /**
@@ -241,15 +280,22 @@ class ReportController extends Controller
         }
 
         $query       = $this->buildIssuedQuery($request);
-        $issuedItems = (clone $query)->orderBy('issued_at', 'desc')->paginate(50)->appends($request->query());
+        $issuedItems = (clone $query)
+            ->leftJoin('requisitions as rq_sort', 'requisition_issued_items.requisition_id', '=', 'rq_sort.id')
+            ->leftJoin('departments as d_sort', 'rq_sort.department_id', '=', 'd_sort.id')
+            ->select('requisition_issued_items.*')
+            ->orderBy('d_sort.name', 'asc')
+            ->orderBy('requisition_issued_items.issued_at', 'desc')
+            ->paginate(50)->appends($request->query());
         $statistics  = [
             'total_issued'   => $query->count(),
             'total_quantity' => $query->sum('issued_quantity'),
             'total_value'    => $query->sum('total_price'),
         ];
-        $departments = Department::active()->get();
+        $departments = Department::active()->orderBy('name')->get();
+        $deptTotals  = $this->buildIssuedDeptTotals($request);
 
-        return view('admin.reports.import-issued-items', compact('issuedItems', 'statistics', 'departments'));
+        return view('admin.reports.import-issued-items', compact('issuedItems', 'statistics', 'departments', 'deptTotals'));
     }
 
     /**
@@ -308,6 +354,8 @@ class ReportController extends Controller
                 'return.returnedBy',
                 'return.requisition.department',
                 'return.requisition.subDepartment',
+                'issuedItem',
+                'approvedBy',
             ])
             ->where('status', 'active');
 
@@ -352,9 +400,31 @@ class ReportController extends Controller
         ];
 
         $users       = User::all();
-        $departments = Department::active()->get();
+        $departments = Department::active()->orderBy('name')->get();
 
-        return view('admin.reports.returns-summary', compact('returns', 'statistics', 'users', 'departments'));
+        // Dept-wise totals (using issuedItem price for value)
+        $deptTotals = DB::table('return_items as ri')
+            ->join('returns as ret', 'ri.return_id', '=', 'ret.id')
+            ->join('requisitions as req', 'ret.requisition_id', '=', 'req.id')
+            ->join('departments as d', 'req.department_id', '=', 'd.id')
+            ->leftJoin('requisition_issued_items as rii', 'ri.requisition_issued_item_id', '=', 'rii.id')
+            ->where('ri.status', 'active')
+            ->select(
+                'd.name as dept_name',
+                DB::raw('SUM(ri.quantity) as total_qty'),
+                DB::raw('SUM(COALESCE(rii.unit_price, 0) * ri.quantity) as total_value')
+            );
+
+        if ($request->filled('date_from'))     $deptTotals->whereDate('ret.returned_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))       $deptTotals->whereDate('ret.returned_at', '<=', $request->date_to);
+        if ($request->filled('status'))        $deptTotals->where('ret.status', $request->status);
+        if ($request->filled('user_id'))       $deptTotals->where('ret.returned_by', $request->user_id);
+        if ($request->filled('department_id')) $deptTotals->where('req.department_id', $request->department_id);
+        if ($request->filled('item_name'))     $deptTotals->where('ri.item_name', 'like', '%' . $request->item_name . '%');
+
+        $deptTotals = $deptTotals->groupBy('d.id', 'd.name')->orderBy('d.name')->get();
+
+        return view('admin.reports.returns-summary', compact('returns', 'statistics', 'users', 'departments', 'deptTotals'));
     }
 
     /**

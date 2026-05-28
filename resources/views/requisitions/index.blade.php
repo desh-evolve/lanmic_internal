@@ -88,9 +88,11 @@
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 @if($requisition->approve_status === 'pending')
-                                {{-- <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning btn-sm">
+                                @if(Auth::user()->hasPermission('edit-requisitions'))
+                                <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning btn-sm" title="Edit">
                                     <i class="fas fa-edit"></i>
-                                </a> --}}
+                                </a>
+                                @endif
                                 <form action="{{ route('requisitions.destroy', $requisition->id) }}" method="POST" style="display: inline-block;">
                                     @csrf
                                     @method('DELETE')

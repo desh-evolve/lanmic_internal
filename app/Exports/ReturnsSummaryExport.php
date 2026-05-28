@@ -30,6 +30,8 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
                 'return.returnedBy',
                 'return.requisition.department',
                 'return.requisition.subDepartment',
+                'issuedItem',
+                'approvedBy',
             ])
             ->where('status', 'active');
 
@@ -47,18 +49,20 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
     {
         return [
             '#',
-            'Return Date',
-            'Return No',
-            'Requisition No',
+            'Returned Date',
+            'Return Number',
+            'Requisition Number',
             'Item Code',
             'Item Name',
+            'UOM',
+            'Qty',
+            'Unit Price',
+            'Total Price',
             'Department',
             'Sub-Department',
-            'Qty',
-            'Type',
             'Remarks',
             'Returned By',
-            'Status',
+            'Accepted By',
         ];
     }
 
@@ -75,13 +79,15 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
             $ret?->requisition?->requisition_number ?? '',
             $item->item_code,
             $item->item_name,
+            $item->unit ?? '',
+            $item->quantity,
+            $item->issuedItem ? number_format($item->issuedItem->unit_price, 2) : '',
+            $item->issuedItem ? number_format($item->issuedItem->unit_price * $item->quantity, 2) : '',
             $ret?->requisition?->department?->name ?? '',
             $ret?->requisition?->subDepartment?->name ?? '',
-            $item->quantity,
-            $item->return_type === 'used' ? 'Used' : 'Same Condition',
             $item->notes ?? '',
             $ret?->returnedBy?->name ?? 'N/A',
-            ucfirst($ret?->status ?? ''),
+            $item->approvedBy?->name ?? '',
         ];
     }
 
@@ -101,19 +107,21 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
     public function columnWidths(): array
     {
         return [
-            'A' => 8,
+            'A' => 6,
             'B' => 20,
-            'C' => 20,
-            'D' => 20,
-            'E' => 15,
+            'C' => 18,
+            'D' => 18,
+            'E' => 14,
             'F' => 30,
-            'G' => 25,
-            'H' => 25,
-            'I' => 8,
-            'J' => 18,
-            'K' => 35,
-            'L' => 25,
-            'M' => 12,
+            'G' => 8,
+            'H' => 10,
+            'I' => 12,
+            'J' => 14,
+            'K' => 25,
+            'L' => 22,
+            'M' => 30,
+            'N' => 25,
+            'O' => 25,
         ];
     }
 
@@ -127,7 +135,7 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:M1');
+                $event->sheet->setAutoFilter('A1:O1');
             },
         ];
     }

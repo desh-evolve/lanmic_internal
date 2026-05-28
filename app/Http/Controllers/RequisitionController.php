@@ -165,6 +165,100 @@ class RequisitionController extends Controller
 
 
     /**
+     * Show the form for editing a pending requisition.
+     */
+    public function edit(Requisition $requisition)
+    {
+        if ((int)$requisition->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($requisition->approve_status !== 'pending') {
+            return redirect()->route('requisitions.show', $requisition->id)
+                ->with('error', 'Only pending requisitions can be edited.');
+        }
+
+        $requisition->load(['department', 'subDepartment', 'division', 'items']);
+        $departments = \App\Models\Department::active()->get();
+        $items = $this->sage300->getItems();
+
+        return view('requisitions.edit', compact('requisition', 'departments', 'items'));
+    }
+
+    /**
+     * Update a pending requisition.
+     */
+    public function update(Request $request, Requisition $requisition)
+    {
+        if ((int)$requisition->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($requisition->approve_status !== 'pending') {
+            return redirect()->route('requisitions.show', $requisition->id)
+                ->with('error', 'Only pending requisitions can be edited.');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'department_id'                       => 'required|exists:departments,id',
+            'sub_department_id'                   => 'nullable|exists:sub_departments,id',
+            'division_id'                         => 'nullable|exists:divisions,id',
+            'notes'                               => 'nullable|string',
+            'requisition_items'                   => 'required|array|min:1',
+            'requisition_items.*.item_code'       => 'required|string',
+            'requisition_items.*.item_name'       => 'required|string',
+            'requisition_items.*.quantity'        => ['required', 'numeric', 'min:0.0001', 'regex:/^\d+(\.\d{1,4})?$/'],
+            'requisition_items.*.location_code'   => 'required',
+            'requisition_items.*.specifications'  => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        DB::beginTransaction();
+        try {
+            $requisition->update([
+                'department_id'     => $request->department_id,
+                'sub_department_id' => $request->sub_department_id,
+                'division_id'       => $request->division_id,
+                'notes'             => $request->notes,
+                'updated_by'        => Auth::id(),
+            ]);
+
+            // Remove existing items
+            $requisition->allItems()->update(['status' => 'delete', 'updated_by' => Auth::id()]);
+
+            // Re-create items
+            foreach ($request->requisition_items as $itemData) {
+                RequisitionItem::create([
+                    'requisition_id' => $requisition->id,
+                    'item_code'      => $itemData['item_code'],
+                    'item_name'      => $itemData['item_name'],
+                    'item_category'  => $itemData['item_category'] ?? null,
+                    'unit'           => $itemData['unit'] ?? null,
+                    'quantity'       => $itemData['quantity'],
+                    'location_code'  => $itemData['location_code'],
+                    'specifications' => $itemData['specifications'] ?? null,
+                    'status'         => 'active',
+                    'created_by'     => Auth::id(),
+                    'updated_by'     => Auth::id(),
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->route('requisitions.show', $requisition->id)
+                ->with('success', 'Requisition updated successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->with('error', 'Failed to update requisition: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
      * Remove the specified requisition from storage.
      */
     public function destroy(Requisition $requisition)

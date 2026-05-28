@@ -180,8 +180,17 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Requisition Items</h3>
+                @if($requisition->approve_status === 'pending' && Auth::user()->hasPermission('approve-requisitions'))
+                <div class="card-tools">
+                    <button type="button" class="btn btn-warning btn-sm" id="toggleEditBtn" onclick="toggleEditMode()">
+                        <i class="fas fa-edit"></i> Edit Items
+                    </button>
+                </div>
+                @endif
             </div>
-            <div class="card-body table-responsive p-0">
+
+            {{-- Read-only view --}}
+            <div id="viewItemsSection" class="card-body table-responsive p-0">
                 <table class="table table-hover">
                     <thead>
                         <tr>
@@ -190,12 +199,13 @@
                             <th>Item Name</th>
                             <th>Category</th>
                             <th>Quantity</th>
+                            <th>UOM</th>
                             <th>Issued</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($requisition->items as $index => $item)
-                        @php 
+                        @php
                             $issuedQty = $item->issuedItems->sum('issued_quantity');
                         @endphp
                         <tr>
@@ -208,7 +218,8 @@
                                 @endif
                             </td>
                             <td>{{ $item->item_category ?? '-' }}</td>
-                            <td>{{ $item->quantity }} {{ $item->unit }}</td>
+                            <td>{{ number_format($item->quantity, 4) }}</td>
+                            <td>{{ $item->unit ?? '-' }}</td>
                             <td>
                                 @if($issuedQty > 0)
                                     <span class="badge badge-{{ $item->isFullyIssued() ? 'success' : 'info' }}">
@@ -223,7 +234,133 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Editable form (approver, only when pending) --}}
+            @if($requisition->approve_status === 'pending' && Auth::user()->hasPermission('approve-requisitions'))
+            <div id="editItemsSection" style="display:none;" class="card-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Editing Mode:</strong> You can change quantities, add or remove items. Click <strong>Save Changes</strong> when done.
+                </div>
+                <form action="{{ route('admin.requisitions.update-items', $requisition->id) }}" method="POST" id="editItemsForm">
+                    @csrf
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="editItemsTable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th style="width:20%">Item Code</th>
+                                    <th style="width:30%">Item Name</th>
+                                    <th style="width:10%">Category</th>
+                                    <th style="width:12%">Qty</th>
+                                    <th style="width:8%">UOM</th>
+                                    <th style="width:15%">Location</th>
+                                    <th style="width:5%"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="editItemsBody">
+                                @foreach($requisition->items as $index => $item)
+                                <tr class="edit-item-row">
+                                    <input type="hidden" name="items[{{ $index }}][id]" value="{{ $item->id }}">
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" name="items[{{ $index }}][item_code]" value="{{ $item->item_code }}" readonly style="background:#f4f4f4;">
+                                        <input type="hidden" name="items[{{ $index }}][item_name]" value="{{ $item->item_name }}">
+                                        <input type="hidden" name="items[{{ $index }}][item_category]" value="{{ $item->item_category }}">
+                                        <input type="hidden" name="items[{{ $index }}][unit]" value="{{ $item->unit }}">
+                                        <input type="hidden" name="items[{{ $index }}][location_code]" value="{{ $item->location_code }}">
+                                    </td>
+                                    <td>
+                                        <span class="text-sm">{{ $item->item_name }}</span>
+                                    </td>
+                                    <td><small>{{ $item->item_category ?? '-' }}</small></td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm"
+                                            name="items[{{ $index }}][quantity]"
+                                            value="{{ $item->quantity }}"
+                                            min="0.0001" step="0.0001" required>
+                                    </td>
+                                    <td><small>{{ $item->unit ?? '-' }}</small></td>
+                                    <td><small>{{ $item->location_code }}</small></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-danger btn-xs" onclick="removeEditRow(this)" title="Remove item">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between mt-3">
+                        <button type="button" class="btn btn-success btn-sm" onclick="addNewItemRow()">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                        <div>
+                            <button type="button" class="btn btn-secondary btn-sm mr-2" onclick="toggleEditMode()">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            @endif
         </div>
+
+        {{-- Add Item Modal (for approver edit mode) --}}
+        @if($requisition->approve_status === 'pending' && Auth::user()->hasPermission('approve-requisitions'))
+        <div class="modal fade" id="addItemModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-success">
+                        <h5 class="modal-title">Add Item to Requisition</h5>
+                        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Item Code <span class="text-danger">*</span></label>
+                            <input type="text" id="newItemCode" class="form-control" placeholder="Enter item code">
+                        </div>
+                        <div class="form-group">
+                            <label>Item Name <span class="text-danger">*</span></label>
+                            <input type="text" id="newItemName" class="form-control" placeholder="Enter item name">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Quantity <span class="text-danger">*</span></label>
+                                    <input type="number" id="newItemQty" class="form-control" min="0.0001" step="0.0001" value="1">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>UOM</label>
+                                    <input type="text" id="newItemUnit" class="form-control" placeholder="e.g. EA, PCS">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Category</label>
+                                    <input type="text" id="newItemCategory" class="form-control" placeholder="e.g. LOCAL, IMPORT">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Location Code <span class="text-danger">*</span></label>
+                            <input type="text" id="newItemLocation" class="form-control" placeholder="Enter location code">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-success" onclick="confirmAddItem()">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
 
         @if($requisition->purchaseOrderItems->count() > 0)
         <div class="card card-warning">
@@ -367,6 +504,93 @@
         </div>
     </div>
 </div>
+
+@if($requisition->approve_status === 'pending' && Auth::user()->hasPermission('approve-requisitions'))
+<script>
+let editMode = false;
+let newRowIndex = {{ $requisition->items->count() }};
+
+function toggleEditMode() {
+    editMode = !editMode;
+    document.getElementById('viewItemsSection').style.display = editMode ? 'none' : 'block';
+    document.getElementById('editItemsSection').style.display = editMode ? 'block' : 'none';
+    document.getElementById('toggleEditBtn').innerHTML = editMode
+        ? '<i class="fas fa-eye"></i> View Mode'
+        : '<i class="fas fa-edit"></i> Edit Items';
+}
+
+function removeEditRow(btn) {
+    const row = btn.closest('tr');
+    if (document.querySelectorAll('#editItemsBody tr.edit-item-row').length <= 1) {
+        alert('At least one item is required.');
+        return;
+    }
+    row.remove();
+    reindexEditRows();
+}
+
+function reindexEditRows() {
+    document.querySelectorAll('#editItemsBody tr.edit-item-row').forEach((row, idx) => {
+        row.querySelectorAll('[name]').forEach(el => {
+            el.name = el.name.replace(/items\[\d+\]/, `items[${idx}]`);
+        });
+    });
+    newRowIndex = document.querySelectorAll('#editItemsBody tr.edit-item-row').length;
+}
+
+function addNewItemRow() {
+    $('#addItemModal').modal('show');
+}
+
+function confirmAddItem() {
+    const code     = document.getElementById('newItemCode').value.trim();
+    const name     = document.getElementById('newItemName').value.trim();
+    const qty      = document.getElementById('newItemQty').value;
+    const unit     = document.getElementById('newItemUnit').value.trim();
+    const category = document.getElementById('newItemCategory').value.trim();
+    const location = document.getElementById('newItemLocation').value.trim();
+
+    if (!code || !name || !qty || !location) {
+        alert('Item Code, Item Name, Quantity, and Location Code are required.');
+        return;
+    }
+
+    const idx = newRowIndex++;
+    const row = `
+        <tr class="edit-item-row table-success">
+            <input type="hidden" name="items[${idx}][id]" value="">
+            <td>
+                <input type="text" class="form-control form-control-sm" name="items[${idx}][item_code]" value="${code}" readonly style="background:#f4f4f4;">
+                <input type="hidden" name="items[${idx}][item_name]" value="${name}">
+                <input type="hidden" name="items[${idx}][item_category]" value="${category}">
+                <input type="hidden" name="items[${idx}][unit]" value="${unit}">
+                <input type="hidden" name="items[${idx}][location_code]" value="${location}">
+            </td>
+            <td><span class="text-sm">${name}</span></td>
+            <td><small>${category || '-'}</small></td>
+            <td>
+                <input type="number" class="form-control form-control-sm"
+                    name="items[${idx}][quantity]"
+                    value="${qty}"
+                    min="0.0001" step="0.0001" required>
+            </td>
+            <td><small>${unit || '-'}</small></td>
+            <td><small>${location}</small></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-danger btn-xs" onclick="removeEditRow(this)" title="Remove item">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        </tr>`;
+
+    document.getElementById('editItemsBody').insertAdjacentHTML('beforeend', row);
+    $('#addItemModal').modal('hide');
+    // Clear modal fields
+    ['newItemCode','newItemName','newItemQty','newItemUnit','newItemCategory','newItemLocation']
+        .forEach(id => { const el = document.getElementById(id); if(id==='newItemQty') el.value='1'; else el.value=''; });
+}
+</script>
+@endif
 
 <!-- Approve Modal -->
 <div class="modal fade" id="approveModal" tabindex="-1" role="dialog" aria-labelledby="approveModalLabel" aria-hidden="true">
