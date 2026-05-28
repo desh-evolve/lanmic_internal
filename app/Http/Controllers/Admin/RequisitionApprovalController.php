@@ -149,7 +149,7 @@ class RequisitionApprovalController extends Controller
                 $locations = $this->sage300Service->getItemLocations($item->item_code);
                 $item->locations = $locations;
                 $itemRequestedLocation = $this->sage300Service->getLocation($item->location_code);
-                $item->location_name = $itemRequestedLocation['Name'];
+                $item->location_name = $itemRequestedLocation['Name'] ?? $item->location_code;
                 // Calculate total stock across all locations
                 $totalStock = collect($locations)->sum('quantity');
                 $pendingQuantity = $availabilityService->getPendingQuantity($item->item_code, $requisition->id);

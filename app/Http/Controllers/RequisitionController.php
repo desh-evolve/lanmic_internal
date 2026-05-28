@@ -156,8 +156,8 @@ class RequisitionController extends Controller
         $requisition->load(['department', 'subDepartment', 'division', 'items', 'purchaseOrderItems', 'user', 'approvedBy']);
         
         foreach($requisition->items as $item){
-            $location = $this->sage300->getLocation($item['location_code']);
-            $item['location_name'] = $location['Name'] ?? '-';
+            $location = $this->sage300->getLocation($item->location_code);
+            $item->location_name = $location['Name'] ?? '-';
         }
         
         return view('requisitions.show', compact('requisition'));

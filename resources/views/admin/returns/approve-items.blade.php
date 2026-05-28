@@ -524,7 +524,7 @@ $(document).ready(function() {
     $(document).on('click', '.quick-btn', function() {
         const action = $(this).data('action');
         const card = $(this).closest('.item-card');
-        const maxQty = parseInt(card.find('.grn-quantity').data('max'));
+        const maxQty = parseFloat(card.find('.grn-quantity').data('max'));
         const grnInput = card.find('.grn-quantity');
         const scrapInput = card.find('.scrap-quantity');
         
@@ -560,9 +560,9 @@ $(document).ready(function() {
         
         $('.item-card').each(function() {
             const card = $(this);
-            const grnQty = parseInt(card.find('.grn-quantity').val()) || 0;
-            const scrapQty = parseInt(card.find('.scrap-quantity').val()) || 0;
-            const maxQty = parseInt(card.find('.grn-quantity').data('max'));
+            const grnQty = parseFloat(card.find('.grn-quantity').val()) || 0;
+            const scrapQty = parseFloat(card.find('.scrap-quantity').val()) || 0;
+            const maxQty = parseFloat(card.find('.grn-quantity').data('max'));
             const itemName = card.find('h5').text().trim().split('(')[0].trim();
             
             if (grnQty + scrapQty !== maxQty) {
@@ -717,9 +717,9 @@ function loadItemLocationPrice(itemCode, locationCode, card) {
 }
 
 function validateQuantities(card) {
-    const grnQty = parseInt(card.find('.grn-quantity').val()) || 0;
-    const scrapQty = parseInt(card.find('.scrap-quantity').val()) || 0;
-    const maxQty = parseInt(card.find('.grn-quantity').data('max'));
+    const grnQty = parseFloat(card.find('.grn-quantity').val()) || 0;
+    const scrapQty = parseFloat(card.find('.scrap-quantity').val()) || 0;
+    const maxQty = parseFloat(card.find('.grn-quantity').data('max'));
     const totalQty = grnQty + scrapQty;
     
     const warning = card.find('.quantity-warning');

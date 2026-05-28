@@ -66,11 +66,9 @@
                                 <a href="{{ route('users.show', $user->id) }}" class="btn btn-info btn-sm" title="View">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                @if($user->email !== 'admin@lanmic.com')
                                 <a href="{{ route('users.edit', $user->id) }}" class="btn btn-warning btn-sm" title="Edit">
                                     <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{{ route('users.permissions', $user->id) }}" class="btn btn-primary btn-sm" title="Manage Permissions">
-                                    <i class="fas fa-key"></i>
                                 </a>
                                 @if($user->id !== auth()->id())
                                 <form action="{{ route('users.destroy', $user->id) }}" method="POST" style="display: inline-block;">
@@ -80,6 +78,11 @@
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </form>
+                                @endif
+                                @else
+                                <span class="badge badge-secondary" title="System administrator — protected">
+                                    <i class="fas fa-shield-alt"></i> Protected
+                                </span>
                                 @endif
                             </td>
                         </tr>

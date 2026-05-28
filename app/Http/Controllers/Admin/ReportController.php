@@ -162,7 +162,7 @@ class ReportController extends Controller
                 'requisition.user', 'requisition.department',
                 'requisition.subDepartment', 'requisitionItem', 'issuedBy',
             ])
-            ->where('status', '!=', 'delete');
+            ->where('requisition_issued_items.status', '!=', 'delete');
 
         if ($request->filled('date_from'))    $query->whereDate('issued_at', '>=', $request->date_from);
         if ($request->filled('date_to'))      $query->whereDate('issued_at', '<=', $request->date_to);
@@ -198,7 +198,7 @@ class ReportController extends Controller
         if ($request->filled('department_id')) $query->where('r.department_id', $request->department_id);
         if ($request->filled('category'))      $query->where('rii.item_category', 'like', '%' . $request->category . '%');
 
-        return $query->groupBy('d.id', 'd.name')->orderBy('d.name')->get();
+        return $query->groupByRaw('d.id, d.name')->orderByRaw('d.name ASC')->get();
     }
 
     /**
@@ -215,11 +215,8 @@ class ReportController extends Controller
 
         $query       = $this->buildIssuedQuery($request);
         $issuedItems = (clone $query)
-            ->leftJoin('requisitions as rq_sort', 'requisition_issued_items.requisition_id', '=', 'rq_sort.id')
-            ->leftJoin('departments as d_sort', 'rq_sort.department_id', '=', 'd_sort.id')
-            ->select('requisition_issued_items.*')
-            ->orderBy('d_sort.name', 'asc')
-            ->orderBy('requisition_issued_items.issued_at', 'desc')
+            ->orderByRaw('(SELECT d.name FROM departments d JOIN requisitions r ON r.department_id = d.id WHERE r.id = requisition_issued_items.requisition_id LIMIT 1) ASC')
+            ->orderBy('issued_at', 'desc')
             ->paginate(50)->appends($request->query());
         $statistics  = [
             'total_issued'   => $query->count(),
@@ -248,11 +245,8 @@ class ReportController extends Controller
 
         $query       = $this->buildIssuedQuery($request);
         $issuedItems = (clone $query)
-            ->leftJoin('requisitions as rq_sort', 'requisition_issued_items.requisition_id', '=', 'rq_sort.id')
-            ->leftJoin('departments as d_sort', 'rq_sort.department_id', '=', 'd_sort.id')
-            ->select('requisition_issued_items.*')
-            ->orderBy('d_sort.name', 'asc')
-            ->orderBy('requisition_issued_items.issued_at', 'desc')
+            ->orderByRaw('(SELECT d.name FROM departments d JOIN requisitions r ON r.department_id = d.id WHERE r.id = requisition_issued_items.requisition_id LIMIT 1) ASC')
+            ->orderBy('issued_at', 'desc')
             ->paginate(50)->appends($request->query());
         $statistics  = [
             'total_issued'   => $query->count(),
@@ -281,11 +275,8 @@ class ReportController extends Controller
 
         $query       = $this->buildIssuedQuery($request);
         $issuedItems = (clone $query)
-            ->leftJoin('requisitions as rq_sort', 'requisition_issued_items.requisition_id', '=', 'rq_sort.id')
-            ->leftJoin('departments as d_sort', 'rq_sort.department_id', '=', 'd_sort.id')
-            ->select('requisition_issued_items.*')
-            ->orderBy('d_sort.name', 'asc')
-            ->orderBy('requisition_issued_items.issued_at', 'desc')
+            ->orderByRaw('(SELECT d.name FROM departments d JOIN requisitions r ON r.department_id = d.id WHERE r.id = requisition_issued_items.requisition_id LIMIT 1) ASC')
+            ->orderBy('issued_at', 'desc')
             ->paginate(50)->appends($request->query());
         $statistics  = [
             'total_issued'   => $query->count(),
@@ -422,7 +413,7 @@ class ReportController extends Controller
         if ($request->filled('department_id')) $deptTotals->where('req.department_id', $request->department_id);
         if ($request->filled('item_name'))     $deptTotals->where('ri.item_name', 'like', '%' . $request->item_name . '%');
 
-        $deptTotals = $deptTotals->groupBy('d.id', 'd.name')->orderBy('d.name')->get();
+        $deptTotals = $deptTotals->groupByRaw('d.id, d.name')->orderByRaw('d.name ASC')->get();
 
         return view('admin.reports.returns-summary', compact('returns', 'statistics', 'users', 'departments', 'deptTotals'));
     }

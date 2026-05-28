@@ -98,8 +98,8 @@ class ReturnApprovalController extends Controller
             'items.*.item_code' => 'required|string',
             'items.*.location_code' => 'required|string',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.grn_quantity' => 'required|integer|min:0',
-            'items.*.scrap_quantity' => 'required|integer|min:0',
+            'items.*.grn_quantity' => 'required|numeric|min:0',
+            'items.*.scrap_quantity' => 'required|numeric|min:0',
             'items.*.admin_note' => 'nullable|string',
         ]);
 
@@ -120,133 +120,123 @@ class ReturnApprovalController extends Controller
                     continue; // Skip already processed items
                 }
                 
-                $grnQty = (int)($itemData['grn_quantity'] ?? 0);
-                $scrapQty = (int)($itemData['scrap_quantity'] ?? 0);
-                $unitPrice = (float)($itemData['unit_price'] ?? 0);
-                
-                // Validate total quantity
-                if (($grnQty + $scrapQty) != $returnItem->quantity) {
+                $grnQty    = (float)($itemData['grn_quantity']  ?? 0);
+                $scrapQty  = (float)($itemData['scrap_quantity'] ?? 0);
+                $unitPrice = (float)($itemData['unit_price']     ?? 0);
+
+                // Validate total quantity matches the return item quantity (float-safe comparison)
+                if (round($grnQty + $scrapQty, 4) !== round((float)$returnItem->quantity, 4)) {
                     throw new \Exception("Total of GRN and Scrap quantities must equal the return quantity for item: {$returnItem->item_name}");
                 }
 
-                // Validate at least one quantity is greater than 0
+                // At least one quantity must be > 0
                 if ($grnQty == 0 && $scrapQty == 0) {
                     throw new \Exception("At least one quantity (GRN or Scrap) must be greater than 0 for item: {$returnItem->item_name}");
                 }
 
-                // Determine overall status
+                // Determine the final status we intend for this item
                 if ($grnQty > 0 && $scrapQty == 0) {
                     $approveStatus = 'approved';
                 } elseif ($scrapQty > 0 && $grnQty == 0) {
                     $approveStatus = 'rejected';
                 } else {
-                    $approveStatus = 'partial'; // Partial approval
+                    $approveStatus = 'partial';
                 }
 
-                // Update return item with admin's changes
-                $returnItem->update([
-                    'approve_status' => $approveStatus,
-                    'approved_by' => Auth::id(),
-                    'approved_at' => now(),
-                    'return_type' => $itemData['return_type'],
-                    'location_code' => $itemData['location_code'],
-                    'item_code' => $itemData['item_code'], // Allow admin to change item
-                    'updated_by' => Auth::id(),
-                    'admin_note' => $itemData['admin_note'] ?? null,
-                ]);
+                // ── Process GRN (SAGE call) FIRST ─────────────────────────────
+                $itemGrnSuccess = ($grnQty == 0); // trivially true when no GRN needed
 
-                // Process GRN if quantity > 0
                 if ($grnQty > 0) {
                     try {
-                        // Post to SAGE300 API for GRN (BothIncrease)
                         $sage300Response = $this->sage300->postGrnAdjustment([
-                            'reference' => "Return #{$return->id} - GRN",
-                            'description' => "GRN for {$returnItem->item_name}",
-                            'item_code' => $itemData['item_code'],
-                            'location_code' => $itemData['location_code'],
-                            'quantity' => $grnQty,
-                            'unit_price' => $unitPrice,
-                            'notes' => $itemData['admin_note'] ?? '',
+                            'reference'    => "Return #{$return->id} - GRN",
+                            'description'  => "GRN for {$returnItem->item_name}",
+                            'item_code'    => $itemData['item_code'],
+                            'location_code'=> $itemData['location_code'],
+                            'quantity'     => $grnQty,
+                            'unit_price'   => $unitPrice,
+                            'notes'        => $itemData['admin_note'] ?? '',
                         ]);
-                        
-                        // Only create DB record if SAGE300 post was successful
-                        if ($sage300Response['success']) {
 
+                        if ($sage300Response['success']) {
                             GrnItem::create([
-                                'return_id' => $return->id,
-                                'return_item_id' => $returnItem->id,
-                                'item_code' => $itemData['item_code'],
-                                'item_name' => $returnItem->item_name,
-                                'item_category' => $returnItem->item_category,
-                                'unit' => $returnItem->unit,
-                                'location_code' => $itemData['location_code'],
-                                'unit_price' => $sage300Response['unit_price'],
-                                'total_price' => $sage300Response['cost_adjustment'],
-                                'grn_quantity' => $grnQty,
+                                'return_id'          => $return->id,
+                                'return_item_id'     => $returnItem->id,
+                                'item_code'          => $itemData['item_code'],
+                                'item_name'          => $returnItem->item_name,
+                                'item_category'      => $returnItem->item_category,
+                                'unit'               => $returnItem->unit,
+                                'location_code'      => $itemData['location_code'],
+                                'unit_price'         => $sage300Response['unit_price'],
+                                'total_price'        => $sage300Response['cost_adjustment'],
+                                'grn_quantity'       => $grnQty,
                                 'reference_number_1' => $sage300Response['reference_number_1'],
                                 'reference_number_2' => $sage300Response['reference_number_2'],
-                                'processed_by' => Auth::id(),
-                                'processed_at' => now(),
-                                'status' => 'active',
-                                'created_by' => Auth::id(),
-                                'updated_by' => Auth::id(),
+                                'processed_by'       => Auth::id(),
+                                'processed_at'       => now(),
+                                'status'             => 'active',
+                                'created_by'         => Auth::id(),
+                                'updated_by'         => Auth::id(),
                             ]);
-                            
-                            $processedItems[] = [
-                                'type' => 'GRN',
-                                'item' => $returnItem->item_name,
-                                'quantity' => $grnQty,
-                            ];
+
+                            $itemGrnSuccess = true;
+                            $processedItems[] = ['type' => 'GRN', 'item' => $returnItem->item_name, 'quantity' => $grnQty];
                         } else {
                             $failedItems[] = [
-                                'type' => 'GRN',
-                                'item' => $returnItem->item_name,
+                                'type'     => 'GRN',
+                                'item'     => $returnItem->item_name,
                                 'quantity' => $grnQty,
-                                'error' => $sage300Response['error'] ?? 'Unknown error',
+                                'error'    => $sage300Response['error'] ?? 'Unknown error',
                             ];
                         }
                     } catch (\Exception $e) {
                         Log::error("Failed to process GRN for item {$returnItem->item_code}: " . $e->getMessage());
-                        $failedItems[] = [
-                            'type' => 'GRN',
-                            'item' => $returnItem->item_name,
-                            'quantity' => $grnQty,
-                            'error' => $e->getMessage(),
-                        ];
+                        $failedItems[] = ['type' => 'GRN', 'item' => $returnItem->item_name, 'quantity' => $grnQty, 'error' => $e->getMessage()];
                     }
                 }
 
-                // Process Scrap if quantity > 0 (only DB record, no SAGE API)
-                if ($scrapQty > 0) {
-                    $scrapTotalPrice = $unitPrice * $scrapQty;
+                // ── Process Scrap ONLY if GRN succeeded (keeps the pair atomic) ─
+                // Scrap has no SAGE call, so it always succeeds once we reach here.
+                $itemScrapSuccess = ($scrapQty == 0);
 
+                if ($scrapQty > 0 && $itemGrnSuccess) {
                     ScrapItem::create([
-                        'return_id' => $return->id,
+                        'return_id'      => $return->id,
                         'return_item_id' => $returnItem->id,
-                        'item_code' => $itemData['item_code'],
-                        'item_name' => $returnItem->item_name,
-                        'item_category' => $returnItem->item_category,
-                        'unit' => $returnItem->unit,
-                        'location_code' => $itemData['location_code'],
-                        'unit_price' => $unitPrice,
-                        'total_price' => $scrapTotalPrice,
+                        'item_code'      => $itemData['item_code'],
+                        'item_name'      => $returnItem->item_name,
+                        'item_category'  => $returnItem->item_category,
+                        'unit'           => $returnItem->unit,
+                        'location_code'  => $itemData['location_code'],
+                        'unit_price'     => $unitPrice,
+                        'total_price'    => $unitPrice * $scrapQty,
                         'scrap_quantity' => $scrapQty,
-                        'processed_by' => Auth::id(),
-                        'processed_at' => now(),
-                        'status' => 'active',
-                        'created_by' => Auth::id(),
-                        'updated_by' => Auth::id(),
+                        'processed_by'   => Auth::id(),
+                        'processed_at'   => now(),
+                        'status'         => 'active',
+                        'created_by'     => Auth::id(),
+                        'updated_by'     => Auth::id(),
                     ]);
-                    
-                    $processedItems[] = [
-                        'type' => 'Scrap',
-                        'item' => $returnItem->item_name,
-                        'quantity' => $scrapQty,
-                    ];
+                    $itemScrapSuccess = true;
+                    $processedItems[] = ['type' => 'Scrap', 'item' => $returnItem->item_name, 'quantity' => $scrapQty];
+                }
+
+                // ── Update approve_status ONLY after all operations succeeded ──
+                if ($itemGrnSuccess && $itemScrapSuccess) {
+                    $returnItem->update([
+                        'approve_status' => $approveStatus,
+                        'approved_by'    => Auth::id(),
+                        'approved_at'    => now(),
+                        'return_type'    => $itemData['return_type'],
+                        'location_code'  => $itemData['location_code'],
+                        'item_code'      => $itemData['item_code'],
+                        'updated_by'     => Auth::id(),
+                        'admin_note'     => $itemData['admin_note'] ?? null,
+                    ]);
                 }
             }
 
-            // If all failed, rollback
+            // If nothing was processed at all, rollback
             if (empty($processedItems)) {
                 DB::rollBack();
                 return redirect()->back()
@@ -254,7 +244,8 @@ class ReturnApprovalController extends Controller
                     ->withInput();
             }
 
-            // Check if all items are processed
+            // Return is cleared once no items remain in pending state.
+            // Items with approve_status of 'approved', 'rejected', or 'partial' are all fully processed.
             $allProcessed = $return->items()->where('approve_status', 'pending')->count() === 0;
             
             if ($allProcessed) {

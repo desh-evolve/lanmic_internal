@@ -31,7 +31,7 @@ class RequisitionIssuedItem extends Model
     ];
 
     protected $casts = [
-        'issued_quantity' => 'integer',
+        'issued_quantity' => 'float',
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
         'issued_at' => 'datetime',

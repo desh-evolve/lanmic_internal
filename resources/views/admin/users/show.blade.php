@@ -16,9 +16,15 @@
             <div class="card-header">
                 <h3 class="card-title">User Information</h3>
                 <div class="card-tools">
+                    @if($user->email !== 'admin@lanmic.com')
                     <a href="{{ route('users.edit', $user->id) }}" class="btn btn-warning btn-sm">
                         <i class="fas fa-edit"></i> Edit
                     </a>
+                    @else
+                    <span class="badge badge-secondary badge-lg">
+                        <i class="fas fa-shield-alt"></i> System Administrator — View Only
+                    </span>
+                    @endif
                 </div>
             </div>
             <div class="card-body">

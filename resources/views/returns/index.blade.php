@@ -70,10 +70,8 @@
                                 <td>
                                     @if($return->status === 'pending')
                                         <span class="badge badge-warning">Pending Approval</span>
-                                    @elseif($return->status === 'approved')
-                                        <span class="badge badge-success">Approved</span>
-                                    @elseif($return->status === 'rejected')
-                                        <span class="badge badge-danger">Rejected</span>
+                                    @elseif($return->status === 'cleared')
+                                        <span class="badge badge-success">Cleared</span>
                                     @else
                                         <span class="badge badge-secondary">{{ ucfirst($return->status) }}</span>
                                     @endif

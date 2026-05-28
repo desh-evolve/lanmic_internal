@@ -186,7 +186,6 @@ class User extends Authenticatable
         return $this->getAllPermissions()->contains('name', $permission);
     }
 
-    // Also update hasAnyPermission to only check direct permissions
     public function hasAnyPermission($permissions)
     {
         foreach ($permissions as $permission) {
@@ -197,22 +196,25 @@ class User extends Authenticatable
         return false;
     }
 
-    // Update hasAllPermissions to only check direct permissions
     public function hasAllPermissions($permissions)
     {
         foreach ($permissions as $permission) {
-            if (!$this->permissions()->where('name', $permission)->exists()) {
+            if (!$this->hasPermission($permission)) {
                 return false;
             }
         }
         return true;
     }
 
-    // Update getAllPermissions to only return direct permissions
+    /**
+     * Get all effective permissions for the user — sourced from their roles.
+     * Checking via roles means any role permission change is reflected immediately
+     * for every user who has that role, without needing a separate sync.
+     */
     public function getAllPermissions()
     {
-        // Return ONLY direct permissions
-        return $this->permissions;
+        $this->loadMissing('roles.permissions');
+        return $this->roles->flatMap(fn($role) => $role->permissions)->unique('id');
     }
     /**
      * Assign a permission directly to the user.

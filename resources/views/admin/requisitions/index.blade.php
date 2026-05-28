@@ -67,7 +67,7 @@
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-info">
                     <div class="inner">
-                        <h3>{{ \App\Models\Requisition::count() }}</h3>
+                        <h3>{{ \App\Models\Requisition::where('status', 'active')->count() }}</h3>
                         <p>Total Requisitions</p>
                     </div>
                     <div class="icon">

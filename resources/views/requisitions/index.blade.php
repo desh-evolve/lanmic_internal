@@ -93,6 +93,7 @@
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 @endif
+                                @if(Auth::user()->hasPermission('delete-requisitions'))
                                 <form action="{{ route('requisitions.destroy', $requisition->id) }}" method="POST" style="display: inline-block;">
                                     @csrf
                                     @method('DELETE')
@@ -100,6 +101,7 @@
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </form>
+                                @endif
                                 @endif
                             </td>
                         </tr>

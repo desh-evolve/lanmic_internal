@@ -65,7 +65,6 @@ Route::middleware(['auth'])->group(function () {
 
     // Returns supporting API endpoints
     Route::middleware(['permission:view-returns,create-returns'])->group(function () {
-        Route::get('api/returns/items-by-type/{type}', [ReturnController::class, 'getItemsByType']);
         Route::get('api/requisitions/{requisition}/issued-items', [ReturnController::class, 'getIssuedItems']);
     });
 

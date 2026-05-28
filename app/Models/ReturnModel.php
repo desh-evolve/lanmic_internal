@@ -16,9 +16,7 @@ class ReturnModel extends Model
         'returned_by',
         'returned_at',
         'status',
-        'created_at',
         'created_by',
-        'updated_at',
         'updated_by',
     ];
 
@@ -83,11 +81,12 @@ class ReturnModel extends Model
     }
 
     /**
-     * Check if all items are approved
+     * Check if all items have been fully processed (no items remaining in pending state).
+     * Processed states are: approved, rejected, partial.
      */
     public function allItemsApproved()
     {
-        return $this->items()->where('approve_status', '!=', 'approved')->count() === 0;
+        return $this->items()->where('approve_status', 'pending')->count() === 0;
     }
 
     /**

@@ -3,6 +3,13 @@
 @section('title', 'Requisition Details')
 @section('page-title', 'Requisition Details - Admin View')
 
+@if($requisition->approve_status === 'pending' && Auth::user()->hasPermission('approve-requisitions'))
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-theme@0.1.0-beta.10/dist/select2-bootstrap.min.css" rel="stylesheet" />
+@endpush
+@endif
+
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
     <li class="breadcrumb-item"><a href="{{ route('admin.requisitions.index') }}">Requisition Approvals</a></li>
@@ -34,14 +41,14 @@
             <div class="card-header">
                 <h3 class="card-title">Requisition Information</h3>
                 <div class="card-tools">
-                    @if($requisition->approve_status === 'pending')
+                    @if($requisition->approve_status === 'pending' && Auth::user()->hasPermission('approve-requisitions'))
                         <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#approveModal">
                             <i class="fas fa-check"></i> Approve
                         </button>
                         <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#rejectModal">
                             <i class="fas fa-times"></i> Reject
                         </button>
-                    @elseif($requisition->approve_status === 'approved' && $requisition->clear_status !== 'cleared')
+                    @elseif($requisition->approve_status === 'approved' && $requisition->clear_status !== 'cleared' && Auth::user()->hasPermission('issue-requisitions'))
                         <a href="{{ route('admin.requisitions.issue-items', $requisition->id) }}" class="btn btn-primary btn-sm">
                             <i class="fas fa-box"></i> Issue Items
                         </a>
@@ -132,10 +139,6 @@
                     </div>
                 </div>
                 @endif
-                <div class="row mb-3">
-                    <div class="col-md-4"><strong>Purpose:</strong></div>
-                    <div class="col-md-8">{{ $requisition->purpose }}</div>
-                </div>
                 @if($requisition->notes)
                 <div class="row mb-3">
                     <div class="col-md-4"><strong>Notes:</strong></div>
@@ -194,13 +197,13 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Item Code</th>
-                            <th>Item Name</th>
-                            <th>Category</th>
-                            <th>Quantity</th>
-                            <th>UOM</th>
-                            <th>Issued</th>
+                            <th style="width:40px">#</th>
+                            <th style="min-width:110px">Item Code</th>
+                            <th style="min-width:200px; white-space:normal; word-break:break-word;">Item Name</th>
+                            <th style="width:90px">Category</th>
+                            <th style="width:80px">Quantity</th>
+                            <th style="width:60px">UOM</th>
+                            <th style="width:110px">Issued</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -211,7 +214,7 @@
                         <tr>
                             <td>{{ $index + 1 }}</td>
                             <td><strong>{{ $item->item_code }}</strong></td>
-                            <td>
+                            <td style="white-space:normal; word-break:break-word; min-width:200px;">
                                 {{ $item->item_name }}
                                 @if($item->specifications)
                                     <br><small class="text-muted"><i class="fas fa-info-circle"></i> {{ $item->specifications }}</small>
@@ -314,46 +317,74 @@
             <div class="modal-dialog modal-lg" role="document">
                 <div class="modal-content">
                     <div class="modal-header bg-success">
-                        <h5 class="modal-title">Add Item to Requisition</h5>
+                        <h5 class="modal-title"><i class="fas fa-plus-circle mr-2"></i>Add Item to Requisition</h5>
                         <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
                     </div>
                     <div class="modal-body">
+                        {{-- Item Search (Select2, same as Create Requisition) --}}
                         <div class="form-group">
-                            <label>Item Code <span class="text-danger">*</span></label>
-                            <input type="text" id="newItemCode" class="form-control" placeholder="Enter item code">
+                            <label>Search Item <span class="text-danger">*</span></label>
+                            <select id="addItemSelect" class="form-control" style="width:100%">
+                                <option value="">Type item code or description...</option>
+                            </select>
+                            <small class="text-muted">Search by item code or name from Sage 300</small>
                         </div>
-                        <div class="form-group">
-                            <label>Item Name <span class="text-danger">*</span></label>
-                            <input type="text" id="newItemName" class="form-control" placeholder="Enter item name">
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Quantity <span class="text-danger">*</span></label>
-                                    <input type="number" id="newItemQty" class="form-control" min="0.0001" step="0.0001" value="1">
+
+                        {{-- Item Details (auto-filled after selection) --}}
+                        <div id="addItemDetails" style="display:none;">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Item Code</label>
+                                        <input type="text" id="addItemCode" class="form-control" readonly style="background:#f4f4f4;">
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="form-group">
+                                        <label>Item Name</label>
+                                        <input type="text" id="addItemName" class="form-control" readonly style="background:#f4f4f4;">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>UOM</label>
+                                        <input type="text" id="addItemUnit" class="form-control" readonly style="background:#f4f4f4;">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>Category</label>
+                                        <input type="text" id="addItemCategory" class="form-control" readonly style="background:#f4f4f4;">
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>UOM</label>
-                                    <input type="text" id="newItemUnit" class="form-control" placeholder="e.g. EA, PCS">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Location <span class="text-danger">*</span></label>
+                                        <select id="addItemLocation" class="form-control">
+                                            <option value="">Loading locations...</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Quantity <span class="text-danger">*</span></label>
+                                        <input type="number" id="addItemQty" class="form-control" value="1" min="0.0001" step="0.0001">
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="form-group">
+                                        <label>Specifications</label>
+                                        <input type="text" id="addItemSpec" class="form-control" placeholder="Optional specifications">
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Category</label>
-                                    <input type="text" id="newItemCategory" class="form-control" placeholder="e.g. LOCAL, IMPORT">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Location Code <span class="text-danger">*</span></label>
-                            <input type="text" id="newItemLocation" class="form-control" placeholder="Enter location code">
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-success" onclick="confirmAddItem()">
+                        <button type="button" class="btn btn-success" onclick="confirmAddItem()" id="confirmAddBtn" disabled>
                             <i class="fas fa-plus"></i> Add Item
                         </button>
                     </div>
@@ -437,14 +468,14 @@
             <a href="{{ route('admin.requisitions.index') }}" class="btn btn-default">
                 <i class="fas fa-arrow-left"></i> Back to List
             </a>
-            @if($requisition->approve_status === 'pending')
+            @if($requisition->approve_status === 'pending' && Auth::user()->hasPermission('approve-requisitions'))
                 <button type="button" class="btn btn-success" data-toggle="modal" data-target="#approveModal">
                     <i class="fas fa-check"></i> Approve
                 </button>
                 <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#rejectModal">
                     <i class="fas fa-times"></i> Reject
                 </button>
-            @elseif($requisition->approve_status === 'approved' && $requisition->clear_status !== 'cleared')
+            @elseif($requisition->approve_status === 'approved' && $requisition->clear_status !== 'cleared' && Auth::user()->hasPermission('issue-requisitions'))
                 <a href="{{ route('admin.requisitions.issue-items', $requisition->id) }}" class="btn btn-primary">
                     <i class="fas fa-box"></i> Issue Items
                 </a>
@@ -506,19 +537,31 @@
 </div>
 
 @if($requisition->approve_status === 'pending' && Auth::user()->hasPermission('approve-requisitions'))
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{{ asset('js/sage300.js') }}"></script>
 <script>
-let editMode = false;
-let newRowIndex = {{ $requisition->items->count() }};
+let editMode        = false;
+let newRowIndex     = {{ $requisition->items->count() }};
+let addModalItems   = [];   // cached Sage300 items for the add-item modal
+let addModalReady   = false;
 
+/* ── Toggle edit / view mode ─────────────────────────────────────── */
 function toggleEditMode() {
     editMode = !editMode;
-    document.getElementById('viewItemsSection').style.display = editMode ? 'none' : 'block';
+    document.getElementById('viewItemsSection').style.display = editMode ? 'none'  : 'block';
     document.getElementById('editItemsSection').style.display = editMode ? 'block' : 'none';
     document.getElementById('toggleEditBtn').innerHTML = editMode
         ? '<i class="fas fa-eye"></i> View Mode'
         : '<i class="fas fa-edit"></i> Edit Items';
+
+    // Pre-load items the first time edit mode is entered
+    if (editMode && !addModalReady) {
+        loadAddModalItems();
+    }
 }
 
+/* ── Remove a row from the editable table ────────────────────────── */
 function removeEditRow(btn) {
     const row = btn.closest('tr');
     if (document.querySelectorAll('#editItemsBody tr.edit-item-row').length <= 1) {
@@ -529,6 +572,7 @@ function removeEditRow(btn) {
     reindexEditRows();
 }
 
+/* ── Keep items[0], items[1], … indices contiguous ───────────────── */
 function reindexEditRows() {
     document.querySelectorAll('#editItemsBody tr.edit-item-row').forEach((row, idx) => {
         row.querySelectorAll('[name]').forEach(el => {
@@ -538,46 +582,182 @@ function reindexEditRows() {
     newRowIndex = document.querySelectorAll('#editItemsBody tr.edit-item-row').length;
 }
 
+/* ── Open the "Add Item" modal ───────────────────────────────────── */
 function addNewItemRow() {
+    if (!addModalReady) {
+        loadAddModalItems();
+    }
     $('#addItemModal').modal('show');
 }
 
+/* ── Load item catalogue from Sage 300 ───────────────────────────── */
+function loadAddModalItems() {
+    $('#addItemSelect').html('<option value="">Loading items from Sage 300…</option>');
+
+    Sage300.getItems()
+        .done(function (response) {
+            if (response.success && response.data && response.data.length > 0) {
+                addModalItems = response.data.map(item => ({
+                    code    : item.UnformattedItemNumber,
+                    name    : item.Description,
+                    category: item.Category || 'N/A',
+                    unit    : item.StockingUnitOfMeasure
+                })).filter(i => i.code && i.name);
+
+                initAddItemSelect2();
+                addModalReady = true;
+            } else {
+                $('#addItemSelect').html('<option value="">No items available</option>');
+            }
+        })
+        .fail(function () {
+            $('#addItemSelect').html('<option value="">Failed to load items — please retry</option>');
+        });
+}
+
+/* ── Matcher: search by code, name, or category ──────────────────── */
+function addItemMatcher(params, data) {
+    if ($.trim(params.term) === '') return data;
+    if (!data.item) return null;
+    const term = params.term.toLowerCase();
+    const item = data.item;
+    if (item.code     && item.code.toString().toLowerCase().includes(term)) return data;
+    if (item.name     && item.name.toLowerCase().includes(term))             return data;
+    if (item.category && item.category.toLowerCase().includes(term))         return data;
+    return null;
+}
+
+/* ── Initialise Select2 on the modal dropdown ────────────────────── */
+function initAddItemSelect2() {
+    const selectData = addModalItems.map(item => ({
+        id  : item.code,
+        text: `${item.code} — ${item.name} (${item.category})`,
+        item: item
+    }));
+
+    // Destroy existing instance if any
+    if ($('#addItemSelect').hasClass('select2-hidden-accessible')) {
+        $('#addItemSelect').select2('destroy');
+    }
+
+    $('#addItemSelect').select2({
+        theme         : 'bootstrap',
+        placeholder   : 'Type item code or description…',
+        allowClear    : true,
+        dropdownParent: $('#addItemModal'),
+        data          : selectData,
+        matcher       : addItemMatcher
+    });
+
+    /* When an item is chosen: fill details and load locations */
+    $('#addItemSelect').off('select2:select').on('select2:select', function (e) {
+        const item = e.params.data.item;
+        if (!item) return;
+        $('#addItemCode').val(item.code);
+        $('#addItemName').val(item.name);
+        $('#addItemUnit').val(item.unit || '-');
+        $('#addItemCategory').val(item.category || '-');
+        $('#addItemDetails').show();
+        $('#confirmAddBtn').prop('disabled', true);
+        loadAddModalLocations(item.code);
+    });
+
+    /* When selection is cleared */
+    $('#addItemSelect').off('select2:clear').on('select2:clear', function () {
+        $('#addItemDetails').hide();
+        $('#addItemCode, #addItemName, #addItemUnit, #addItemCategory').val('');
+        $('#addItemLocation').html('<option value="">Loading locations…</option>');
+        $('#confirmAddBtn').prop('disabled', true);
+    });
+}
+
+/* ── Load warehouse locations for the selected item ──────────────── */
+function loadAddModalLocations(itemCode) {
+    const $loc = $('#addItemLocation');
+    $loc.html('<option value="">Loading locations…</option>').prop('disabled', true);
+    $('#confirmAddBtn').prop('disabled', true);
+
+    Sage300.getItemLocations(itemCode)
+        .done(function (response) {
+            if (response.success && response.data && response.data.length > 0) {
+                $loc.html('<option value="">— Select Location —</option>').prop('disabled', false);
+                response.data.forEach(function (loc) {
+                    $loc.append(
+                        `<option value="${loc.location_code}" data-location='${JSON.stringify(loc)}'>`
+                        + `${loc.location_code} — ${loc.location_name} (Available: ${loc.quantity})`
+                        + `</option>`
+                    );
+                });
+                $loc.off('change').on('change', function () {
+                    $('#confirmAddBtn').prop('disabled', !$(this).val());
+                });
+            } else {
+                $loc.html('<option value="">No locations available</option>');
+            }
+        })
+        .fail(function () {
+            $loc.html('<option value="">Error loading locations</option>');
+        });
+}
+
+/* ── Reset modal state when it's closed ──────────────────────────── */
+$('#addItemModal').on('hidden.bs.modal', function () {
+    if ($('#addItemSelect').hasClass('select2-hidden-accessible')) {
+        $('#addItemSelect').val(null).trigger('change');
+    }
+    $('#addItemDetails').hide();
+    $('#addItemCode, #addItemName, #addItemUnit, #addItemCategory').val('');
+    $('#addItemLocation').html('<option value="">Loading locations…</option>');
+    $('#addItemQty').val('1');
+    $('#addItemSpec').val('');
+    $('#confirmAddBtn').prop('disabled', true);
+});
+
+/* ── Confirm: insert a new row into the edit table ───────────────── */
 function confirmAddItem() {
-    const code     = document.getElementById('newItemCode').value.trim();
-    const name     = document.getElementById('newItemName').value.trim();
-    const qty      = document.getElementById('newItemQty').value;
-    const unit     = document.getElementById('newItemUnit').value.trim();
-    const category = document.getElementById('newItemCategory').value.trim();
-    const location = document.getElementById('newItemLocation').value.trim();
+    const code     = $('#addItemCode').val().trim();
+    const name     = $('#addItemName').val().trim();
+    const qty      = $('#addItemQty').val();
+    const unit     = $('#addItemUnit').val().trim();
+    const category = $('#addItemCategory').val().trim();
+    const location = $('#addItemLocation').val().trim();
+    const spec     = $('#addItemSpec').val().trim();
 
     if (!code || !name || !qty || !location) {
-        alert('Item Code, Item Name, Quantity, and Location Code are required.');
+        alert('Please select an item, a location, and enter a quantity.');
         return;
     }
 
     const idx = newRowIndex++;
+    const specHtml = spec
+        ? `<br><small class="text-muted"><i class="fas fa-info-circle"></i> ${spec}</small>`
+        : '';
+
     const row = `
         <tr class="edit-item-row table-success">
-            <input type="hidden" name="items[${idx}][id]" value="">
+            <input type="hidden" name="items[${idx}][id]"            value="">
             <td>
-                <input type="text" class="form-control form-control-sm" name="items[${idx}][item_code]" value="${code}" readonly style="background:#f4f4f4;">
-                <input type="hidden" name="items[${idx}][item_name]" value="${name}">
+                <input type="text"   class="form-control form-control-sm"
+                       name="items[${idx}][item_code]"    value="${code}"
+                       readonly style="background:#f4f4f4;">
+                <input type="hidden" name="items[${idx}][item_name]"     value="${name}">
                 <input type="hidden" name="items[${idx}][item_category]" value="${category}">
-                <input type="hidden" name="items[${idx}][unit]" value="${unit}">
+                <input type="hidden" name="items[${idx}][unit]"          value="${unit}">
                 <input type="hidden" name="items[${idx}][location_code]" value="${location}">
+                <input type="hidden" name="items[${idx}][specifications]" value="${spec}">
             </td>
-            <td><span class="text-sm">${name}</span></td>
+            <td><span class="text-sm">${name}${specHtml}</span></td>
             <td><small>${category || '-'}</small></td>
             <td>
                 <input type="number" class="form-control form-control-sm"
-                    name="items[${idx}][quantity]"
-                    value="${qty}"
-                    min="0.0001" step="0.0001" required>
+                       name="items[${idx}][quantity]"
+                       value="${qty}" min="0.0001" step="0.0001" required>
             </td>
             <td><small>${unit || '-'}</small></td>
             <td><small>${location}</small></td>
             <td class="text-center">
-                <button type="button" class="btn btn-danger btn-xs" onclick="removeEditRow(this)" title="Remove item">
+                <button type="button" class="btn btn-danger btn-xs"
+                        onclick="removeEditRow(this)" title="Remove item">
                     <i class="fas fa-times"></i>
                 </button>
             </td>
@@ -585,11 +765,9 @@ function confirmAddItem() {
 
     document.getElementById('editItemsBody').insertAdjacentHTML('beforeend', row);
     $('#addItemModal').modal('hide');
-    // Clear modal fields
-    ['newItemCode','newItemName','newItemQty','newItemUnit','newItemCategory','newItemLocation']
-        .forEach(id => { const el = document.getElementById(id); if(id==='newItemQty') el.value='1'; else el.value=''; });
 }
 </script>
+@endpush
 @endif
 
 <!-- Approve Modal -->

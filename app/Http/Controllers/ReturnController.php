@@ -81,7 +81,7 @@ class ReturnController extends Controller
                     'issued_quantity' => $item->issued_quantity,
                     'location_code' => $item->location_code,
                     'location_name' => $location['Name'] ?? $item->location_code,
-                    'issued_at' => $item->issued_at->format('Y-m-d'),
+                    'issued_at' => $item->issued_at?->format('Y-m-d'),
                 ];
             });
 
@@ -101,7 +101,7 @@ class ReturnController extends Controller
             'items.*.item_code' => 'required|string',
             'items.*.item_name' => 'required|string',
             'items.*.location_code' => 'required|string',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.quantity' => 'required|numeric|min:0.0001',
             'items.*.notes' => 'nullable|string',
         ]);
 
@@ -121,12 +121,17 @@ class ReturnController extends Controller
 
         DB::beginTransaction();
         try {
-            // Validate quantities
+            // Validate quantities and ownership
             foreach ($request->items as $itemData) {
                 $issuedItem = RequisitionIssuedItem::find($itemData['requisition_issued_item_id']);
-                
+
                 if (!$issuedItem) {
                     throw new \Exception("Issued item not found");
+                }
+
+                // Ensure the issued item belongs to the submitted requisition
+                if ((int)$issuedItem->requisition_id !== (int)$request->requisition_id) {
+                    throw new \Exception("Issued item does not belong to the selected requisition.");
                 }
 
                 // Get already returned quantity for this issued item
@@ -209,6 +214,29 @@ class ReturnController extends Controller
         }
         
         return view('returns.show', compact('return'));
+    }
+
+    /**
+     * Show the form for editing a pending return.
+     * Returns are immutable once submitted — editing is not supported.
+     */
+    public function edit(ReturnModel $return)
+    {
+        if ((int)$return->returned_by !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return redirect()->route('returns.show', $return->id)
+            ->with('error', 'Returns cannot be edited after submission. Delete and re-create if needed.');
+    }
+
+    /**
+     * Update a return — not supported; returns are immutable after submission.
+     */
+    public function update(Request $request, ReturnModel $return)
+    {
+        return redirect()->route('returns.show', $return->id)
+            ->with('error', 'Returns cannot be edited after submission.');
     }
 
     /**

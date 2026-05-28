@@ -67,7 +67,7 @@
                             <tr>
                                 <th>Requisition:</th>
                                 <td>
-                                    <a href="{{ route('requisitions.show', $return->requisition->id) }}" target="_blank">
+                                    <a href="{{ route('admin.requisitions.show', $return->requisition->id) }}" target="_blank">
                                         {{ $return->requisition->requisition_number }}
                                     </a>
                                 </td>
@@ -324,7 +324,7 @@
             <div class="card-body">
                 <strong>Number:</strong>
                 <p>
-                    <a href="{{ route('requisitions.show', $return->requisition->id) }}" target="_blank">
+                    <a href="{{ route('admin.requisitions.show', $return->requisition->id) }}" target="_blank">
                         {{ $return->requisition->requisition_number }}
                     </a>
                 </p>

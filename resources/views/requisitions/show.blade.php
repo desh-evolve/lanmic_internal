@@ -139,9 +139,9 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Item Code</th>
-                            <th>Item Name</th>
-                            <th>Location</th>
+                            <th style="min-width:110px">Item Code</th>
+                            <th style="min-width:200px; white-space:normal; word-break:break-word;">Item Name</th>
+                            <th style="min-width:120px">Location</th>
                             <th>Category</th>
                             <th>Quantity</th>
                         </tr>
@@ -150,7 +150,7 @@
                         @foreach($requisition->items as $item)
                         <tr>
                             <td><strong>{{ $item->item_code }}</strong></td>
-                            <td>
+                            <td style="white-space:normal; word-break:break-word; min-width:200px;">
                                 {{ $item->item_name }}
                                 @if($item->specifications)
                                     <br><small class="text-muted">{{ $item->specifications }}</small>

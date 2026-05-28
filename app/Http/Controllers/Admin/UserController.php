@@ -79,11 +79,8 @@ class UserController extends Controller
             'updated_by' => Auth::id(),
         ]);
 
-        // Attach roles
+        // Attach roles (permissions are derived from roles automatically)
         $user->roles()->attach($request->roles);
-
-        // Auto-assign permissions from roles
-        $this->autoAssignPermissionsFromRoles($user);
 
         return redirect()->route('users.index')
             ->with('success', 'User created successfully.');
@@ -103,6 +100,11 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account cannot be edited.');
+        }
+
         $roles = Role::all();
         $userRoles = $user->roles->pluck('id')->toArray();
         return view('admin.users.edit', compact('user', 'roles', 'userRoles'));
@@ -113,6 +115,11 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account cannot be edited.');
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
@@ -136,11 +143,8 @@ class UserController extends Controller
         
         $user->save();
 
-        // Sync roles
+        // Sync roles (permissions are derived from roles automatically)
         $user->roles()->sync($request->roles);
-
-        // Auto-assign permissions from updated roles
-        $this->autoAssignPermissionsFromRoles($user);
 
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');
@@ -148,6 +152,11 @@ class UserController extends Controller
 
    public function userPermission(Request $request, User $user)
 {
+    if ($user->email === 'admin@lanmic.com') {
+        return redirect()->route('users.show', $user->id)
+            ->with('error', 'The system administrator account permissions cannot be changed.');
+    }
+
     // Group permissions by module
     $permissions = Permission::orderBy('module')->orderBy('name')->get()->groupBy('module');
 
@@ -163,6 +172,11 @@ class UserController extends Controller
 
     public function updateUserPermission(Request $request, User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account permissions cannot be changed.');
+        }
+
         $permissions = $request->input('permissions', []);
 
         if (empty($permissions)) {
@@ -211,6 +225,11 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.index')
+                ->with('error', 'The system administrator account cannot be deleted.');
+        }
+
         if ($user->id === auth()->id()) {
             return redirect()->route('users.index')
                 ->with('error', 'You cannot delete yourself.');
@@ -229,6 +248,11 @@ class UserController extends Controller
      */
     public function permissions(User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account permissions cannot be changed.');
+        }
+
         // Get all permissions grouped by module
         $permissions = Permission::orderBy('module')->orderBy('name')->get()->groupBy('module');
 
@@ -250,6 +274,11 @@ class UserController extends Controller
      */
     public function updatePermissions(Request $request, User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account permissions cannot be changed.');
+        }
+
         $validated = $request->validate([
             'permissions' => 'nullable|array',
             'permissions.*' => 'exists:permissions,id'
