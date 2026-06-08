@@ -37,19 +37,46 @@ class ReturnController extends Controller
     }
 
     /**
+     * Determine whether the current user may access a requisition for return creation.
+     * Access is granted if:
+     *   (a) the user created the requisition, OR
+     *   (b) the requisition's department is in the user's assigned departments.
+     */
+    private function canAccessRequisition(Requisition $requisition): bool
+    {
+        $user = Auth::user();
+
+        if ((int) $requisition->user_id === (int) $user->id) {
+            return true;
+        }
+
+        $user->loadMissing('departments');
+        return $user->departments->pluck('id')->contains($requisition->department_id);
+    }
+
+    /**
      * Show the form for creating a new return.
      */
     public function create()
     {
-        // Get user's cleared requisitions with issued items
-        $requisitions = Requisition::where('user_id', Auth::id())
+        $user = Auth::user();
+        $user->loadMissing('departments');
+        $departmentIds = $user->departments->pluck('id');
+
+        // Show requisitions the user created OR that belong to any of their assigned departments
+        $requisitions = Requisition::where(function ($q) use ($user, $departmentIds) {
+                $q->where('user_id', $user->id);
+                if ($departmentIds->isNotEmpty()) {
+                    $q->orWhereIn('department_id', $departmentIds);
+                }
+            })
             ->where('approve_status', 'approved')
             ->where('status', 'active')
             ->whereHas('issuedItems')
-            ->with(['department', 'subDepartment', 'division', 'issuedItems'])
+            ->with(['department', 'subDepartment', 'division', 'issuedItems', 'user'])
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         return view('returns.create', compact('requisitions'));
     }
 
@@ -59,9 +86,8 @@ class ReturnController extends Controller
     public function getIssuedItems($requisitionId)
     {
         $requisition = Requisition::findOrFail($requisitionId);
-        
-        // Check if user owns this requisition
-        if ((int)$requisition->user_id !== Auth::id()) {
+
+        if (! $this->canAccessRequisition($requisition)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -111,9 +137,9 @@ class ReturnController extends Controller
                 ->withInput();
         }
 
-        // Verify requisition belongs to user
+        // Verify the current user is allowed to create a return for this requisition
         $requisition = Requisition::findOrFail($request->requisition_id);
-        if ((int)$requisition->user_id !== Auth::id()) {
+        if (! $this->canAccessRequisition($requisition)) {
             return redirect()->back()
                 ->with('error', 'Unauthorized action.')
                 ->withInput();

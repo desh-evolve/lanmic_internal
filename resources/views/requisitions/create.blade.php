@@ -93,7 +93,7 @@
                 <div class="card-body">
                     <!-- Item Entry Form -->
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-12">
                             <div class="form-group">
                                 <label>Select Item <span class="text-danger">*</span></label>
                                 <select class="form-control select2" id="itemSelect" style="width: 100%;">
@@ -104,7 +104,9 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-5">
                             <div class="form-group">
                                 <label>Location <span class="text-danger">*</span></label>
                                 <select class="form-control" id="locationSelect" disabled>
@@ -115,14 +117,14 @@
                                 </small>
                             </div>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <div class="form-group">
                                 <label>Quantity <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="itemQuantity" min="0.0001" step="0.0001" value="1" disabled>
+                                <input type="text" inputmode="decimal" class="form-control qty-text-input" id="itemQuantity" value="1" disabled>
                             </div>
                         </div>
-                        <div class="col-md-3 d-flex align-items-center pb-2">
-                            <button type="button" class="btn btn-success" id="addItemBtn">
+                        <div class="col-md-4 d-flex align-items-center pb-2">
+                            <button type="button" class="btn btn-success btn-block" id="addItemBtn" disabled>
                                 <i class="fas fa-plus"></i> Add Item
                             </button>
                         </div>
@@ -263,7 +265,7 @@
                 </div>
                 <div class="form-group">
                     <label>Quantity <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control" id="editQuantity" min="0.0001" step="0.0001" required>
+                    <input type="text" inputmode="decimal" class="form-control qty-text-input" id="editQuantity" required>
                 </div>
             </div>
             <div class="modal-footer">
@@ -335,31 +337,40 @@ $(document).ready(function() {
         }
     });
 
+    $('#itemSelect').on('select2:clear', function() {
+        $('#locationSelect').html('<option value="">Select item first</option>').prop('disabled', true);
+        $('#locationAvailableQty').text('-');
+        $('#itemQuantity').prop('disabled', true).val(1);
+        $('#addItemBtn').prop('disabled', true);
+    });
+
     $('#locationSelect').change(function() {
         const selectedLocation = $(this).val();
         const selectedItem = $('#itemSelect').select2('data')[0];
-        
+
         if (selectedLocation && selectedItem) {
             const locationData = JSON.parse($(this).find('option:selected').attr('data-location'));
             const itemCode = selectedItem.item.code;
             const locationCode = locationData.location_code;
-            
+
             // Get pending quantity for this item-location combination
             const pendingKey = `${itemCode}_${locationCode}`;
             const pendingQty = pendingApprovals[pendingKey] || 0;
-            
+
             // Calculate actual available quantity
             const stockQty = locationData.quantity;
             const actualAvailable = Math.max(0, stockQty - pendingQty);
-            
+
             $('#locationAvailableQty').html(`
                 <span class="text-success">${actualAvailable}</span>
                 ${pendingQty > 0 ? `<br><small class="text-warning">(${pendingQty} pending approval)</small>` : ''}
             `);
             $('#itemQuantity').prop('disabled', false).val(1);
+            $('#addItemBtn').prop('disabled', false);
         } else {
             $('#locationAvailableQty').text('-');
             $('#itemQuantity').prop('disabled', true).val(1);
+            $('#addItemBtn').prop('disabled', true);
         }
     });
 
@@ -410,7 +421,7 @@ $(document).ready(function() {
     $('#refreshItemsBtn').click(function() {
         const $btn = $(this);
         $btn.prop('disabled', true).find('i').addClass('fa-spin');
-        loadItems();
+        refreshItemsFromApi();
         loadPendingApprovals();
         setTimeout(function() {
             $btn.prop('disabled', false).find('i').removeClass('fa-spin');
@@ -419,9 +430,27 @@ $(document).ready(function() {
 });
 
 function loadItems() {
-    $('#itemSelect').html('<option value="">Loading items from Sage300...</option>');
+    // Use server-injected data — same DB source as the AJAX route, zero round-trip cost.
+    const raw = @json($items);
     $('#itemReloadBtn').hide();
+    if (raw && raw.length > 0) {
+        allItems = raw.map(item => ({
+            code: item.UnformattedItemNumber,
+            name: item.Description,
+            category: item.Category || 'N/A',
+            unit: item.StockingUnitOfMeasure
+        })).filter(item => item.code && item.name);
+        initializeSelect2();
+    } else {
+        $('#itemSelect').html('<option value="">No items found — ask an admin to sync items.</option>');
+        $('#itemReloadBtn').show();
+    }
+}
 
+// Manual refresh: fetches fresh data from the API (used by the Refresh button only).
+function refreshItemsFromApi() {
+    $('#itemSelect').html('<option value="">Refreshing items...</option>');
+    $('#itemReloadBtn').hide();
     Sage300.getItems()
         .done(function(response) {
             if (response.success && response.data && response.data.length > 0) {
@@ -430,15 +459,14 @@ function loadItems() {
                     name: item.Description,
                     category: item.Category || 'N/A',
                     unit: item.StockingUnitOfMeasure
-                }));
+                })).filter(item => item.code && item.name);
                 initializeSelect2();
             } else {
                 $('#itemSelect').html('<option value="">Item catalogue not ready yet.</option>');
                 $('#itemReloadBtn').show();
             }
         })
-        .fail(function(xhr, status, error) {
-            console.error('Failed to load items from Sage300:', error);
+        .fail(function() {
             $('#itemSelect').html('<option value="">Failed to load items.</option>');
             $('#itemReloadBtn').show();
         });
@@ -479,15 +507,16 @@ function initializeSelect2() {
 
     const selectData = normalizedItems.map(item => ({
         id: item.code,
-        text: `${item.code} - ${item.name} (${item.category})`,
+        text: `${item.code} - ${item.name}`,
         item: item
     }));
 
     // Main item select
     $('#itemSelect').select2({
         theme: 'bootstrap',
-        placeholder: 'Search for an item by code or name',
+        placeholder: 'Type 2+ characters to search by code or name...',
         allowClear: true,
+        minimumInputLength: 2,
         data: selectData,
         matcher: itemMatcher
     });
@@ -495,8 +524,9 @@ function initializeSelect2() {
     // Edit modal item select
     $('#editItemSelect').select2({
         theme: 'bootstrap',
-        placeholder: 'Search for an item...',
+        placeholder: 'Type 2+ characters to search...',
         allowClear: true,
+        minimumInputLength: 2,
         dropdownParent: $('#editModal'),
         data: selectData,
         matcher: itemMatcher
@@ -507,6 +537,7 @@ function loadItemLocations(itemCode) {
     $('#locationSelect').html('<option value="">Loading locations...</option>').prop('disabled', true);
     $('#locationAvailableQty').text('-');
     $('#itemQuantity').prop('disabled', true).val(1);
+    $('#addItemBtn').prop('disabled', true);
 
     Sage300.getItemLocations(itemCode)
         .done(function(response) {
@@ -833,6 +864,19 @@ function clearForm() {
     $('#itemQuantity').val(1).prop('disabled', true);
     $('#locationAvailableQty').text('-');
 }
+
+// ── Qty text-input: block non-numeric keystrokes ─────────────────────
+$(document).on('keydown', '.qty-text-input', function(e) {
+    if ([8,9,13,27,46,35,36,37,38,39,40].includes(e.keyCode)) return;
+    if ((e.ctrlKey||e.metaKey) && [65,67,86,88,90].includes(e.keyCode)) return;
+    if ((e.keyCode===190||e.keyCode===110) && !$(this).val().includes('.')) return;
+    if ((e.keyCode>=48&&e.keyCode<=57)||(e.keyCode>=96&&e.keyCode<=105)) return;
+    e.preventDefault();
+});
+$(document).on('paste', '.qty-text-input', function(e) {
+    const text = (e.originalEvent.clipboardData||window.clipboardData).getData('text');
+    if (!/^\d*\.?\d*$/.test(text)) e.preventDefault();
+});
 
 function updateSummary() {
     const totalItems = allRequestedItems.length;

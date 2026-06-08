@@ -27,18 +27,22 @@ class IssuedItemsExport implements FromCollection, WithHeadings, WithMapping, Wi
     public function collection()
     {
         $query = RequisitionIssuedItem::with(['requisition.user', 'requisition.department', 'requisition.subDepartment', 'requisitionItem', 'issuedBy'])
-            ->where('status', '!=', 'delete');
+            ->join('requisitions as r_sort', 'requisition_issued_items.requisition_id', '=', 'r_sort.id')
+            ->join('departments as d_sort', 'r_sort.department_id', '=', 'd_sort.id')
+            ->select('requisition_issued_items.*')
+            ->where('requisition_issued_items.status', '!=', 'delete');
 
-        if (!empty($this->filters['date_from']))     $query->whereDate('issued_at', '>=', $this->filters['date_from']);
-        if (!empty($this->filters['date_to']))       $query->whereDate('issued_at', '<=', $this->filters['date_to']);
-        if (!empty($this->filters['item_code']))     $query->where('item_code', 'like', '%' . $this->filters['item_code'] . '%');
-        if (!empty($this->filters['item_name']))     $query->where('item_name', 'like', '%' . $this->filters['item_name'] . '%');
-        if (!empty($this->filters['department_id'])) {
-            $query->whereHas('requisition', fn($q) => $q->where('department_id', $this->filters['department_id']));
-        }
-        if (!empty($this->filters['category']))      $query->where('item_category', 'like', '%' . $this->filters['category'] . '%');
+        if (!empty($this->filters['date_from']))     $query->whereDate('requisition_issued_items.issued_at', '>=', $this->filters['date_from']);
+        if (!empty($this->filters['date_to']))       $query->whereDate('requisition_issued_items.issued_at', '<=', $this->filters['date_to']);
+        if (!empty($this->filters['item_code']))     $query->where('requisition_issued_items.item_code', 'like', '%' . $this->filters['item_code'] . '%');
+        if (!empty($this->filters['item_name']))     $query->where('requisition_issued_items.item_name', 'like', '%' . $this->filters['item_name'] . '%');
+        if (!empty($this->filters['department_id'])) $query->where('r_sort.department_id', $this->filters['department_id']);
+        if (!empty($this->filters['category']))      $query->where('requisition_issued_items.item_category', 'like', '%' . $this->filters['category'] . '%');
 
-        return $query->orderBy('issued_at', 'desc')->get();
+        return $query
+            ->orderBy('d_sort.name', 'asc')
+            ->orderBy('requisition_issued_items.issued_at', 'asc')
+            ->get();
     }
 
     public function headings(): array

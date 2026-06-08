@@ -14,6 +14,7 @@ use App\Models\GrnItem;
 use App\Models\ScrapItem;
 use App\Models\User;
 use App\Models\Department;
+use App\Models\Sage300Item;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -155,6 +156,7 @@ class ReportController extends Controller
 
     /**
      * Build a base issued-items query with all common filters applied.
+     * Joins requisitions + departments so callers can ORDER BY d_sort.name without a subquery.
      */
     private function buildIssuedQuery(Request $request)
     {
@@ -162,16 +164,17 @@ class ReportController extends Controller
                 'requisition.user', 'requisition.department',
                 'requisition.subDepartment', 'requisitionItem', 'issuedBy',
             ])
+            ->join('requisitions as r_sort', 'requisition_issued_items.requisition_id', '=', 'r_sort.id')
+            ->join('departments as d_sort', 'r_sort.department_id', '=', 'd_sort.id')
+            ->select('requisition_issued_items.*')
             ->where('requisition_issued_items.status', '!=', 'delete');
 
-        if ($request->filled('date_from'))    $query->whereDate('issued_at', '>=', $request->date_from);
-        if ($request->filled('date_to'))      $query->whereDate('issued_at', '<=', $request->date_to);
-        if ($request->filled('item_code'))    $query->where('item_code',  'like', '%' . $request->item_code  . '%');
-        if ($request->filled('item_name'))    $query->where('item_name',  'like', '%' . $request->item_name  . '%');
-        if ($request->filled('department_id')) {
-            $query->whereHas('requisition', fn($q) => $q->where('department_id', $request->department_id));
-        }
-        if ($request->filled('category'))     $query->where('item_category', 'like', '%' . $request->category . '%');
+        if ($request->filled('date_from'))    $query->whereDate('requisition_issued_items.issued_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))      $query->whereDate('requisition_issued_items.issued_at', '<=', $request->date_to);
+        if ($request->filled('item_code'))    $query->where('requisition_issued_items.item_code',  'like', '%' . $request->item_code  . '%');
+        if ($request->filled('item_name'))    $query->where('requisition_issued_items.item_name',  'like', '%' . $request->item_name  . '%');
+        if ($request->filled('department_id')) $query->where('r_sort.department_id', $request->department_id);
+        if ($request->filled('category'))     $query->where('requisition_issued_items.item_category', 'like', '%' . $request->category . '%');
 
         return $query;
     }
@@ -215,8 +218,8 @@ class ReportController extends Controller
 
         $query       = $this->buildIssuedQuery($request);
         $issuedItems = (clone $query)
-            ->orderByRaw('(SELECT d.name FROM departments d JOIN requisitions r ON r.department_id = d.id WHERE r.id = requisition_issued_items.requisition_id LIMIT 1) ASC')
-            ->orderBy('issued_at', 'desc')
+            ->orderBy('d_sort.name', 'asc')
+            ->orderBy('requisition_issued_items.issued_at', 'asc')
             ->paginate(50)->appends($request->query());
         $statistics  = [
             'total_issued'   => $query->count(),
@@ -245,8 +248,8 @@ class ReportController extends Controller
 
         $query       = $this->buildIssuedQuery($request);
         $issuedItems = (clone $query)
-            ->orderByRaw('(SELECT d.name FROM departments d JOIN requisitions r ON r.department_id = d.id WHERE r.id = requisition_issued_items.requisition_id LIMIT 1) ASC')
-            ->orderBy('issued_at', 'desc')
+            ->orderBy('d_sort.name', 'asc')
+            ->orderBy('requisition_issued_items.issued_at', 'asc')
             ->paginate(50)->appends($request->query());
         $statistics  = [
             'total_issued'   => $query->count(),
@@ -275,8 +278,8 @@ class ReportController extends Controller
 
         $query       = $this->buildIssuedQuery($request);
         $issuedItems = (clone $query)
-            ->orderByRaw('(SELECT d.name FROM departments d JOIN requisitions r ON r.department_id = d.id WHERE r.id = requisition_issued_items.requisition_id LIMIT 1) ASC')
-            ->orderBy('issued_at', 'desc')
+            ->orderBy('d_sort.name', 'asc')
+            ->orderBy('requisition_issued_items.issued_at', 'asc')
             ->paginate(50)->appends($request->query());
         $statistics  = [
             'total_issued'   => $query->count(),
@@ -680,7 +683,7 @@ class ReportController extends Controller
                 'invoice_no'   => $grn->reference_number_2 ?? '—',
                 'vendor_no'    => '—',
                 'vendor_name'  => '—',
-                'type'         => 'GRN',
+                'type'         => 'RETURN GRN',
                 'unit'         => $grn->unit ?? '—',
                 'department'   => $grn->return?->requisition?->department?->name ?? '—',
                 'sub_dept'     => '',
@@ -701,9 +704,13 @@ class ReportController extends Controller
             ->sortKeys();
 
         $departments = Department::active()->get();
+        $items       = Sage300Item::active()
+                            ->orderBy('item_code')
+                            ->get(['item_code', 'description'])
+                            ->map(fn($i) => ['code' => $i->item_code, 'name' => $i->description]);
 
         return view('admin.reports.inventory-movement', compact(
-            'grouped', 'dateFrom', 'dateTo', 'itemCode', 'deptId', 'departments'
+            'grouped', 'dateFrom', 'dateTo', 'itemCode', 'deptId', 'departments', 'items'
         ));
     }
 

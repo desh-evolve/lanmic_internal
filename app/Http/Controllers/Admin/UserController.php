@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -48,7 +49,8 @@ class UserController extends Controller
     public function create()
     {
         $roles = Role::all();
-        return view('admin.users.create', compact('roles'));
+        $departments = Department::active()->orderBy('name')->get();
+        return view('admin.users.create', compact('roles', 'departments'));
     }
 
     /**
@@ -82,6 +84,11 @@ class UserController extends Controller
         // Attach roles (permissions are derived from roles automatically)
         $user->roles()->attach($request->roles);
 
+        // Attach departments (optional)
+        if ($request->filled('departments')) {
+            $user->departments()->sync($request->departments);
+        }
+
         return redirect()->route('users.index')
             ->with('success', 'User created successfully.');
     }
@@ -107,7 +114,9 @@ class UserController extends Controller
 
         $roles = Role::all();
         $userRoles = $user->roles->pluck('id')->toArray();
-        return view('admin.users.edit', compact('user', 'roles', 'userRoles'));
+        $departments = Department::active()->orderBy('name')->get();
+        $userDepartments = $user->departments->pluck('id')->toArray();
+        return view('admin.users.edit', compact('user', 'roles', 'userRoles', 'departments', 'userDepartments'));
     }
 
     /**
@@ -145,6 +154,9 @@ class UserController extends Controller
 
         // Sync roles (permissions are derived from roles automatically)
         $user->roles()->sync($request->roles);
+
+        // Sync departments (empty array clears all assignments)
+        $user->departments()->sync($request->input('departments', []));
 
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');

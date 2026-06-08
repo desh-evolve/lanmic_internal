@@ -120,10 +120,10 @@
                                     <td>{{ $item->item_name }}</td>
                                     <td><small>{{ $item->item_category ?? '-' }}</small></td>
                                     <td>
-                                        <input type="number" class="form-control form-control-sm"
+                                        <input type="text" inputmode="decimal" class="form-control form-control-sm qty-text-input"
                                             name="requisition_items[{{ $index }}][quantity]"
                                             value="{{ old('requisition_items.'.$index.'.quantity', $item->quantity) }}"
-                                            min="0.0001" step="0.0001" required>
+                                            required>
                                     </td>
                                     <td><small>{{ $item->unit ?? '-' }}</small></td>
                                     <td>
@@ -147,7 +147,7 @@
                     <div class="mt-3 p-3 border rounded bg-light">
                         <h6><i class="fas fa-plus-circle text-success"></i> Add New Item</h6>
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-12">
                                 <div class="form-group mb-2">
                                     <label class="small">Item</label>
                                     <select id="newItemSelect" class="form-control form-control-sm" style="width:100%">
@@ -155,13 +155,9 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-2">
-                                <div class="form-group mb-2">
-                                    <label class="small">Qty</label>
-                                    <input type="number" id="newItemQty" class="form-control form-control-sm" value="1" min="0.0001" step="0.0001">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
                                 <div class="form-group mb-2">
                                     <label class="small">Location</label>
                                     <select id="newItemLocation" class="form-control form-control-sm">
@@ -169,8 +165,14 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-2 d-flex align-items-end pb-2">
-                                <button type="button" class="btn btn-success btn-sm w-100" onclick="addNewItem()">
+                            <div class="col-md-3">
+                                <div class="form-group mb-2">
+                                    <label class="small">Qty</label>
+                                    <input type="text" inputmode="decimal" id="newItemQty" class="form-control form-control-sm qty-text-input" value="1">
+                                </div>
+                            </div>
+                            <div class="col-md-5 d-flex align-items-end pb-2">
+                                <button type="button" class="btn btn-success btn-sm w-100" id="newAddItemBtn" onclick="addNewItem()" disabled>
                                     <i class="fas fa-plus"></i> Add
                                 </button>
                             </div>
@@ -232,8 +234,13 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-// All items from Sage 300
-const allItems = @json($items);
+// All items from Sage 300 — normalised to a consistent shape
+const allItems = @json($items).map(i => ({
+    code    : i.UnformattedItemNumber,
+    name    : i.Description,
+    category: i.Category             || '',
+    unit    : i.StockingUnitOfMeasure || ''
+})).filter(i => i.code && i.name);
 let rowIndex = {{ $requisition->items->count() }};
 
 // Pre-load sub-departments and divisions based on current selection
@@ -245,26 +252,35 @@ $(document).ready(function () {
 
     // Init Select2 for new item search
     $('#newItemSelect').select2({
-        placeholder: 'Search by code or name...',
+        placeholder: 'Type 2+ characters to search...',
         allowClear: true,
+        minimumInputLength: 2,
         data: allItems.map(i => ({
-            id: i.ItemNumber,
-            text: i.ItemNumber + ' — ' + i.Description,
+            id  : i.code,
+            text: i.code + ' — ' + i.name,
             item: i
         })),
         matcher: function(params, data) {
             if (!params.term) return data;
-            const t = params.term.toUpperCase();
-            if (data.text && data.text.toUpperCase().includes(t)) return data;
+            const t = params.term.toLowerCase();
+            if (!data.item) return null;
+            if (data.item.code.toLowerCase().includes(t)) return data;
+            if (data.item.name.toLowerCase().includes(t)) return data;
             return null;
         }
-    }).on('change', function () {
+    }).on('select2:select', function () {
         const selected = $(this).select2('data')[0];
         if (selected && selected.item) {
-            loadNewItemLocations(selected.item.ItemNumber);
-        } else {
-            $('#newItemLocation').html('<option value="">Select location</option>');
+            loadNewItemLocations(selected.item.code);
         }
+    }).on('select2:clear', function () {
+        $('#newItemLocation').html('<option value="">Select location</option>').prop('disabled', true);
+        $('#newAddItemBtn').prop('disabled', true);
+    });
+
+    // Enable / disable Add button based on location selection
+    $('#newItemLocation').on('change', function () {
+        $('#newAddItemBtn').prop('disabled', !$(this).val());
     });
 
     // Load sub-departments on dept change
@@ -305,17 +321,33 @@ function loadDivisions(subDeptId, preselectId) {
 }
 
 function loadNewItemLocations(itemCode) {
-    $('#newItemLocation').html('<option value="">Loading...</option>');
-    $.get('/admin/sage300/api/items/' + encodeURIComponent(itemCode) + '/locations', function(data) {
+    $('#newItemLocation').html('<option value="">Loading...</option>').prop('disabled', true);
+    $('#newAddItemBtn').prop('disabled', true);
+    $.get('/admin/sage300/api/items/' + encodeURIComponent(itemCode) + '/locations', function(response) {
+        const locs = (response && response.success) ? (response.data || []) : [];
         let opts = '<option value="">Select location</option>';
-        (data || []).forEach(loc => {
-            opts += `<option value="${loc.location}">${loc.location} (Qty: ${loc.quantity})</option>`;
+        locs.forEach(loc => {
+            opts += `<option value="${loc.location_code}">${loc.location_code} — ${loc.location_name} (Qty: ${loc.quantity})</option>`;
         });
-        $('#newItemLocation').html(opts);
+        $('#newItemLocation').html(opts).prop('disabled', false);
+        // Add button stays disabled until user picks a location
     }).fail(function() {
-        $('#newItemLocation').html('<option value="">No locations found</option>');
+        $('#newItemLocation').html('<option value="">Failed to load locations</option>').prop('disabled', false);
     });
 }
+
+// ── Qty text-input: block non-numeric keystrokes ─────────────────────
+$(document).on('keydown', '.qty-text-input', function(e) {
+    if ([8,9,13,27,46,35,36,37,38,39,40].includes(e.keyCode)) return;
+    if ((e.ctrlKey||e.metaKey) && [65,67,86,88,90].includes(e.keyCode)) return;
+    if ((e.keyCode===190||e.keyCode===110) && !$(this).val().includes('.')) return;
+    if ((e.keyCode>=48&&e.keyCode<=57)||(e.keyCode>=96&&e.keyCode<=105)) return;
+    e.preventDefault();
+});
+$(document).on('paste', '.qty-text-input', function(e) {
+    const text = (e.originalEvent.clipboardData||window.clipboardData).getData('text');
+    if (!/^\d*\.?\d*$/.test(text)) e.preventDefault();
+});
 
 function removeRow(btn) {
     if (document.querySelectorAll('#itemsBody tr.item-row').length <= 1) {
@@ -353,20 +385,20 @@ function addNewItem() {
     const idx = rowIndex++;
     const row = `
         <tr class="item-row table-success">
-            <input type="hidden" name="requisition_items[${idx}][item_code]"     value="${item.ItemNumber}">
-            <input type="hidden" name="requisition_items[${idx}][item_name]"     value="${item.Description}">
-            <input type="hidden" name="requisition_items[${idx}][item_category]" value="${item.CategoryCode || ''}">
-            <input type="hidden" name="requisition_items[${idx}][unit]"          value="${item.UnitOfMeasure || ''}">
+            <input type="hidden" name="requisition_items[${idx}][item_code]"     value="${item.code}">
+            <input type="hidden" name="requisition_items[${idx}][item_name]"     value="${item.name}">
+            <input type="hidden" name="requisition_items[${idx}][item_category]" value="${item.category || ''}">
+            <input type="hidden" name="requisition_items[${idx}][unit]"          value="${item.unit || ''}">
             <input type="hidden" name="requisition_items[${idx}][location_code]" value="${location}">
-            <td><code>${item.ItemNumber}</code></td>
-            <td>${item.Description}</td>
-            <td><small>${item.CategoryCode || '-'}</small></td>
+            <td><code>${item.code}</code></td>
+            <td>${item.name}</td>
+            <td><small>${item.category || '-'}</small></td>
             <td>
-                <input type="number" class="form-control form-control-sm"
+                <input type="text" inputmode="decimal" class="form-control form-control-sm qty-text-input"
                     name="requisition_items[${idx}][quantity]"
-                    value="${qty}" min="0.0001" step="0.0001" required>
+                    value="${qty}" required>
             </td>
-            <td><small>${item.UnitOfMeasure || '-'}</small></td>
+            <td><small>${item.unit || '-'}</small></td>
             <td>
                 <input type="text" class="form-control form-control-sm"
                     name="requisition_items[${idx}][specifications]"
@@ -386,7 +418,8 @@ function addNewItem() {
     $('#newItemSelect').val(null).trigger('change');
     document.getElementById('newItemQty').value = '1';
     document.getElementById('newItemSpec').value = '';
-    $('#newItemLocation').html('<option value="">Select location</option>');
+    $('#newItemLocation').html('<option value="">Select location</option>').prop('disabled', true);
+    $('#newAddItemBtn').prop('disabled', true);
 }
 
 function updateItemCount() {

@@ -4,6 +4,8 @@
 @section('title', 'Inventory Movement Report')
 
 @push('styles')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-theme@0.1.0-beta.10/dist/select2-bootstrap.min.css" rel="stylesheet" />
 <style>
     /* ── Screen styles ─────────────────────────────────────────────── */
     .report-header-box {
@@ -120,8 +122,16 @@
                     <input type="date" name="date_to" class="form-control" value="{{ $dateTo }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Item Code</label>
-                    <input type="text" name="item_code" class="form-control" placeholder="e.g. ENI-LNS..." value="{{ $itemCode }}">
+                    <label class="form-label">Item</label>
+                    <select name="item_code" id="itemCodeSelect" class="form-control" style="width:100%">
+                        <option value="">All Items</option>
+                        @foreach($items as $item)
+                            <option value="{{ $item['code'] }}"
+                                {{ $itemCode === $item['code'] ? 'selected' : '' }}>
+                                {{ $item['code'] }} — {{ $item['name'] }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Department</label>
@@ -155,7 +165,10 @@
         </div>
         <table style="font-size:9pt; margin-bottom:8px;">
             <tr><td class="label">From Date</td><td>{{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }} To {{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}</td></tr>
-            @if($itemCode)<tr><td class="label">Item Code Filter</td><td>{{ $itemCode }}</td></tr>@endif
+            @if($itemCode)
+                @php $selectedItem = collect($items)->firstWhere('code', $itemCode); @endphp
+                <tr><td class="label">Item Filter</td><td>{{ $itemCode }}{{ $selectedItem ? ' — ' . $selectedItem['name'] : '' }}</td></tr>
+            @endif
         </table>
     </div>
 
@@ -166,8 +179,15 @@
                 <td class="label">From Date</td>
                 <td>{{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }} &nbsp;To&nbsp; {{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}</td>
                 <td width="40"></td>
-                <td class="label">Item Code Filter</td>
-                <td>{{ $itemCode ?: 'All Items' }}</td>
+                <td class="label">Item Filter</td>
+                <td>
+                    @if($itemCode)
+                        @php $selectedItem = collect($items)->firstWhere('code', $itemCode); @endphp
+                        {{ $itemCode }}{{ $selectedItem ? ' — ' . $selectedItem['name'] : '' }}
+                    @else
+                        All Items
+                    @endif
+                </td>
             </tr>
             <tr>
                 <td class="label">Department Filter</td>
@@ -224,12 +244,12 @@
                         </thead>
                         <tbody>
                             @foreach($rows as $row)
-                                <tr class="{{ $row['type'] === 'GRN' ? 'grn-row' : 'issue-row' }}">
+                                <tr class="{{ $row['type'] === 'RETURN GRN' ? 'grn-row' : 'issue-row' }}">
                                     <td>{{ \Carbon\Carbon::parse($row['date'])->format('d/m/Y') }}</td>
                                     <td><strong>{{ $row['document_no'] }}</strong></td>
                                     <td>
-                                        @if($row['type'] === 'GRN')
-                                            <span class="badge" style="background:#28a745;">GRN</span>
+                                        @if($row['type'] === 'RETURN GRN')
+                                            <span class="badge" style="background:#28a745;">RETURN GRN</span>
                                         @else
                                             <span class="badge" style="background:#6c757d;">{{ $row['type'] }}</span>
                                         @endif
@@ -324,7 +344,23 @@
     @endif
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
+    $(document).ready(function () {
+        $('#itemCodeSelect').select2({
+            theme: 'bootstrap',
+            placeholder: 'Type to search by code or name...',
+            allowClear: true,
+            minimumInputLength: 1,
+            matcher: function (params, data) {
+                if (!params.term || params.term.trim() === '') return data;
+                const term = params.term.toLowerCase();
+                if (data.text && data.text.toLowerCase().includes(term)) return data;
+                return null;
+            }
+        });
+    });
+
     function exportToExcel() {
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.set('export', 'excel');

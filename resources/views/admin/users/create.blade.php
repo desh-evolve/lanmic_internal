@@ -59,7 +59,7 @@
                         @enderror
                         @foreach($roles as $role)
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="roles[]" 
+                            <input class="form-check-input" type="checkbox" name="roles[]"
                                    value="{{ $role->id }}" id="role{{ $role->id }}"
                                    {{ in_array($role->id, old('roles', [])) ? 'checked' : '' }}>
                             <label class="form-check-label" for="role{{ $role->id }}">
@@ -70,6 +70,28 @@
                             </label>
                         </div>
                         @endforeach
+                    </div>
+
+                    <div class="form-group">
+                        <label>Departments <small class="text-muted">(Access to department requisitions for returns)</small></label>
+                        @error('departments')
+                            <div class="text-danger">{{ $message }}</div>
+                        @enderror
+                        @forelse($departments as $department)
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="departments[]"
+                                   value="{{ $department->id }}" id="dept{{ $department->id }}"
+                                   {{ in_array($department->id, old('departments', [])) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="dept{{ $department->id }}">
+                                {{ $department->name }}
+                                @if($department->short_code)
+                                    <small class="text-muted">({{ $department->short_code }})</small>
+                                @endif
+                            </label>
+                        </div>
+                        @empty
+                            <p class="text-muted mb-0">No active departments found.</p>
+                        @endforelse
                     </div>
                 </div>
 

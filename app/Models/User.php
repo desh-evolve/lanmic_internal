@@ -273,4 +273,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(Requisition::class);
     }
+
+    /**
+     * The departments this user is assigned to (for return access).
+     */
+    public function departments()
+    {
+        return $this->belongsToMany(Department::class, 'user_department');
+    }
 }

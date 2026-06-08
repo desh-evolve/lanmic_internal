@@ -90,8 +90,7 @@
                                     <div class="col-md-2">
                                         <div class="form-group">
                                             <label>Quantity <span class="text-danger">*</span></label>
-                                            <input type="number" class="form-control" id="quantityInput" 
-                                                   min="1" value="1">
+                                            <input type="text" inputmode="decimal" class="form-control qty-text-input" id="quantityInput" value="1">
                                             <small class="text-muted">
                                                 Max: <span id="maxQty">0</span>
                                             </small>
@@ -565,5 +564,18 @@ function updateSummary() {
     $('#usedItemsCount').text(used);
     $('#totalQuantity').text(totalQty);
 }
+
+// ── Qty text-input: block non-numeric keystrokes ─────────────────────
+$(document).on('keydown', '.qty-text-input', function(e) {
+    if ([8,9,13,27,46,35,36,37,38,39,40].includes(e.keyCode)) return;
+    if ((e.ctrlKey||e.metaKey) && [65,67,86,88,90].includes(e.keyCode)) return;
+    if ((e.keyCode===190||e.keyCode===110) && !$(this).val().includes('.')) return;
+    if ((e.keyCode>=48&&e.keyCode<=57)||(e.keyCode>=96&&e.keyCode<=105)) return;
+    e.preventDefault();
+});
+$(document).on('paste', '.qty-text-input', function(e) {
+    const text = (e.originalEvent.clipboardData||window.clipboardData).getData('text');
+    if (!/^\d*\.?\d*$/.test(text)) e.preventDefault();
+});
 </script>
 @endpush

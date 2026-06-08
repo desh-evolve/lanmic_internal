@@ -464,7 +464,7 @@ function initializeSelect2() {
         allowClear: true,
         data: normalizedItems.map(item => ({
             id: item.code,
-            text: `${item.code} - ${item.name} (${item.category})`,
+            text: `${item.code} - ${item.name}`,
             item: item
         })),
         matcher: function(params, data) {

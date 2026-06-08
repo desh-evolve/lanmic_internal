@@ -201,10 +201,9 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Unit Price <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" class="form-control unit-price-input" 
-                                           name="items[{{ $index }}][unit_price]" 
-                                           value="0" 
-                                           min="0"
+                                    <input type="text" inputmode="decimal" class="form-control unit-price-input"
+                                           name="items[{{ $index }}][unit_price]"
+                                           value="0"
                                            readonly
                                            required>
                                     <small class="text-muted">Auto-calculated from item average cost</small>
@@ -216,10 +215,8 @@
                                         <i class="fas fa-check-circle text-success"></i>
                                         GRN Quantity <span class="text-danger">*</span>
                                     </label>
-                                    <input type="number" class="form-control grn-quantity" 
-                                           name="items[{{ $index }}][grn_quantity]" 
-                                           min="0" 
-                                           max="{{ $item->quantity }}" 
+                                    <input type="text" inputmode="decimal" class="form-control grn-quantity qty-text-input"
+                                           name="items[{{ $index }}][grn_quantity]"
                                            value="{{ $item->quantity }}"
                                            data-max="{{ $item->quantity }}"
                                            required>
@@ -232,10 +229,8 @@
                                         <i class="fas fa-times-circle text-danger"></i>
                                         Scrap Quantity <span class="text-danger">*</span>
                                     </label>
-                                    <input type="number" class="form-control scrap-quantity" 
-                                           name="items[{{ $index }}][scrap_quantity]" 
-                                           min="0" 
-                                           max="{{ $item->quantity }}" 
+                                    <input type="text" inputmode="decimal" class="form-control scrap-quantity qty-text-input"
+                                           name="items[{{ $index }}][scrap_quantity]"
                                            value="0"
                                            data-max="{{ $item->quantity }}"
                                            required>
@@ -611,7 +606,7 @@ function loadItems() {
                         const selected = item.code === originalCode ? 'selected' : '';
                         select.append(
                             `<option value="${item.code}" ${selected}>
-                                ${item.code} - ${item.name} (${item.category})
+                                ${item.code} - ${item.name}
                             </option>`
                         );
                     });
@@ -740,6 +735,19 @@ function updateCheckedCount() {
     const count = $('.item-checkbox:checked').length;
     $('#checkedCount').text(count);
 }
+
+// ── Qty text-input: block non-numeric keystrokes ─────────────────────
+$(document).on('keydown', '.qty-text-input', function(e) {
+    if ([8,9,13,27,46,35,36,37,38,39,40].includes(e.keyCode)) return;
+    if ((e.ctrlKey||e.metaKey) && [65,67,86,88,90].includes(e.keyCode)) return;
+    if ((e.keyCode===190||e.keyCode===110) && !$(this).val().includes('.')) return;
+    if ((e.keyCode>=48&&e.keyCode<=57)||(e.keyCode>=96&&e.keyCode<=105)) return;
+    e.preventDefault();
+});
+$(document).on('paste', '.qty-text-input', function(e) {
+    const text = (e.originalEvent.clipboardData||window.clipboardData).getData('text');
+    if (!/^\d*\.?\d*$/.test(text)) e.preventDefault();
+});
 </script>
 
 <style>

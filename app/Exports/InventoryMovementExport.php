@@ -75,7 +75,7 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithStyles, Wi
                 $grn->item_name,
                 $grn->processed_at ? Carbon::parse($grn->processed_at)->format('d M Y') : '',
                 $grn->reference_number_1 ?? '',
-                'GRN',
+                'RETURN GRN',
                 $grn->unit ?? '',
                 $grn->grn_quantity,
                 number_format($grn->total_price, 2),

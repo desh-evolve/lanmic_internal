@@ -276,10 +276,10 @@
                                     </td>
                                     <td><small>{{ $item->item_category ?? '-' }}</small></td>
                                     <td>
-                                        <input type="number" class="form-control form-control-sm"
+                                        <input type="text" inputmode="decimal" class="form-control form-control-sm qty-text-input"
                                             name="items[{{ $index }}][quantity]"
                                             value="{{ $item->quantity }}"
-                                            min="0.0001" step="0.0001" required>
+                                            required>
                                     </td>
                                     <td><small>{{ $item->unit ?? '-' }}</small></td>
                                     <td><small>{{ $item->location_code }}</small></td>
@@ -370,7 +370,7 @@
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Quantity <span class="text-danger">*</span></label>
-                                        <input type="number" id="addItemQty" class="form-control" value="1" min="0.0001" step="0.0001">
+                                        <input type="text" inputmode="decimal" id="addItemQty" class="form-control qty-text-input" value="1">
                                     </div>
                                 </div>
                                 <div class="col-md-5">
@@ -631,7 +631,7 @@ function addItemMatcher(params, data) {
 function initAddItemSelect2() {
     const selectData = addModalItems.map(item => ({
         id  : item.code,
-        text: `${item.code} — ${item.name} (${item.category})`,
+        text: `${item.code} — ${item.name}`,
         item: item
     }));
 
@@ -749,9 +749,9 @@ function confirmAddItem() {
             <td><span class="text-sm">${name}${specHtml}</span></td>
             <td><small>${category || '-'}</small></td>
             <td>
-                <input type="number" class="form-control form-control-sm"
+                <input type="text" inputmode="decimal" class="form-control form-control-sm qty-text-input"
                        name="items[${idx}][quantity]"
-                       value="${qty}" min="0.0001" step="0.0001" required>
+                       value="${qty}" required>
             </td>
             <td><small>${unit || '-'}</small></td>
             <td><small>${location}</small></td>
@@ -766,6 +766,19 @@ function confirmAddItem() {
     document.getElementById('editItemsBody').insertAdjacentHTML('beforeend', row);
     $('#addItemModal').modal('hide');
 }
+
+// ── Qty text-input: block non-numeric keystrokes ─────────────────────
+$(document).on('keydown', '.qty-text-input', function(e) {
+    if ([8,9,13,27,46,35,36,37,38,39,40].includes(e.keyCode)) return;
+    if ((e.ctrlKey||e.metaKey) && [65,67,86,88,90].includes(e.keyCode)) return;
+    if ((e.keyCode===190||e.keyCode===110) && !$(this).val().includes('.')) return;
+    if ((e.keyCode>=48&&e.keyCode<=57)||(e.keyCode>=96&&e.keyCode<=105)) return;
+    e.preventDefault();
+});
+$(document).on('paste', '.qty-text-input', function(e) {
+    const text = (e.originalEvent.clipboardData||window.clipboardData).getData('text');
+    if (!/^\d*\.?\d*$/.test(text)) e.preventDefault();
+});
 </script>
 @endpush
 @endif
