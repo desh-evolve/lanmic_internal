@@ -216,20 +216,19 @@ class ReportController extends Controller
             );
         }
 
-        $query       = $this->buildIssuedQuery($request);
-        $issuedItems = (clone $query)
+        $allItems    = $this->buildIssuedQuery($request)
             ->orderBy('d_sort.name', 'asc')
             ->orderBy('requisition_issued_items.issued_at', 'asc')
-            ->paginate(50)->appends($request->query());
+            ->get();
+        $groupedItems = $allItems->groupBy(fn($i) => $i->requisition->department->name ?? 'Unknown');
         $statistics  = [
-            'total_issued'   => $query->count(),
-            'total_quantity' => $query->sum('issued_quantity'),
-            'total_value'    => $query->sum('total_price'),
+            'total_issued'   => $allItems->count(),
+            'total_quantity' => $allItems->sum('issued_quantity'),
+            'total_value'    => $allItems->sum('total_price'),
         ];
         $departments = Department::active()->orderBy('name')->get();
-        $deptTotals  = $this->buildIssuedDeptTotals($request);
 
-        return view('admin.reports.issued-items', compact('issuedItems', 'statistics', 'departments', 'deptTotals'));
+        return view('admin.reports.issued-items', compact('groupedItems', 'statistics', 'departments'));
     }
 
     /**
@@ -246,20 +245,19 @@ class ReportController extends Controller
             );
         }
 
-        $query       = $this->buildIssuedQuery($request);
-        $issuedItems = (clone $query)
+        $allItems    = $this->buildIssuedQuery($request)
             ->orderBy('d_sort.name', 'asc')
             ->orderBy('requisition_issued_items.issued_at', 'asc')
-            ->paginate(50)->appends($request->query());
+            ->get();
+        $groupedItems = $allItems->groupBy(fn($i) => $i->requisition->department->name ?? 'Unknown');
         $statistics  = [
-            'total_issued'   => $query->count(),
-            'total_quantity' => $query->sum('issued_quantity'),
-            'total_value'    => $query->sum('total_price'),
+            'total_issued'   => $allItems->count(),
+            'total_quantity' => $allItems->sum('issued_quantity'),
+            'total_value'    => $allItems->sum('total_price'),
         ];
         $departments = Department::active()->orderBy('name')->get();
-        $deptTotals  = $this->buildIssuedDeptTotals($request);
 
-        return view('admin.reports.local-issued-items', compact('issuedItems', 'statistics', 'departments', 'deptTotals'));
+        return view('admin.reports.local-issued-items', compact('groupedItems', 'statistics', 'departments'));
     }
 
     /**
@@ -276,20 +274,19 @@ class ReportController extends Controller
             );
         }
 
-        $query       = $this->buildIssuedQuery($request);
-        $issuedItems = (clone $query)
+        $allItems    = $this->buildIssuedQuery($request)
             ->orderBy('d_sort.name', 'asc')
             ->orderBy('requisition_issued_items.issued_at', 'asc')
-            ->paginate(50)->appends($request->query());
+            ->get();
+        $groupedItems = $allItems->groupBy(fn($i) => $i->requisition->department->name ?? 'Unknown');
         $statistics  = [
-            'total_issued'   => $query->count(),
-            'total_quantity' => $query->sum('issued_quantity'),
-            'total_value'    => $query->sum('total_price'),
+            'total_issued'   => $allItems->count(),
+            'total_quantity' => $allItems->sum('issued_quantity'),
+            'total_value'    => $allItems->sum('total_price'),
         ];
         $departments = Department::active()->orderBy('name')->get();
-        $deptTotals  = $this->buildIssuedDeptTotals($request);
 
-        return view('admin.reports.import-issued-items', compact('issuedItems', 'statistics', 'departments', 'deptTotals'));
+        return view('admin.reports.import-issued-items', compact('groupedItems', 'statistics', 'departments'));
     }
 
     /**
