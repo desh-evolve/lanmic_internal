@@ -51,8 +51,14 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
             $query->where('requisition_issued_items.item_name', 'like', '%' . $this->filters['item_name'] . '%');
         if (!empty($this->filters['department_id']))
             $query->where('r_sort.department_id', $this->filters['department_id']);
-        if (!empty($this->filters['category']))
-            $query->where('requisition_issued_items.item_category', 'like', '%' . $this->filters['category'] . '%');
+        // Import = item code starts with 'ENI-'; local = everything else
+        if (!empty($this->filters['item_type'])) {
+            if ($this->filters['item_type'] === 'import') {
+                $query->where('requisition_issued_items.item_code', 'like', 'ENI-%');
+            } elseif ($this->filters['item_type'] === 'local') {
+                $query->where('requisition_issued_items.item_code', 'not like', 'ENI-%');
+            }
+        }
 
         $items = $query
             ->orderBy('d_sort.name', 'asc')

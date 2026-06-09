@@ -157,8 +157,12 @@ class ReportController extends Controller
     /**
      * Build a base issued-items query with all common filters applied.
      * Joins requisitions + departments so callers can ORDER BY d_sort.name without a subquery.
+     *
+     * @param  string|null  $itemType  'import' → item_code LIKE 'ENI-%'
+     *                                 'local'  → item_code NOT LIKE 'ENI-%'
+     *                                 null     → no restriction (all items)
      */
-    private function buildIssuedQuery(Request $request)
+    private function buildIssuedQuery(Request $request, ?string $itemType = null)
     {
         $query = RequisitionIssuedItem::with([
                 'requisition.user', 'requisition.department',
@@ -169,12 +173,18 @@ class ReportController extends Controller
             ->select('requisition_issued_items.*')
             ->where('requisition_issued_items.status', '!=', 'delete');
 
-        if ($request->filled('date_from'))    $query->whereDate('requisition_issued_items.issued_at', '>=', $request->date_from);
-        if ($request->filled('date_to'))      $query->whereDate('requisition_issued_items.issued_at', '<=', $request->date_to);
-        if ($request->filled('item_code'))    $query->where('requisition_issued_items.item_code',  'like', '%' . $request->item_code  . '%');
-        if ($request->filled('item_name'))    $query->where('requisition_issued_items.item_name',  'like', '%' . $request->item_name  . '%');
+        // Import = item code starts with 'ENI-'; local = everything else
+        if ($itemType === 'import') {
+            $query->where('requisition_issued_items.item_code', 'like', 'ENI-%');
+        } elseif ($itemType === 'local') {
+            $query->where('requisition_issued_items.item_code', 'not like', 'ENI-%');
+        }
+
+        if ($request->filled('date_from'))     $query->whereDate('requisition_issued_items.issued_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))       $query->whereDate('requisition_issued_items.issued_at', '<=', $request->date_to);
+        if ($request->filled('item_code'))     $query->where('requisition_issued_items.item_code',  'like', '%' . $request->item_code  . '%');
+        if ($request->filled('item_name'))     $query->where('requisition_issued_items.item_name',  'like', '%' . $request->item_name  . '%');
         if ($request->filled('department_id')) $query->where('r_sort.department_id', $request->department_id);
-        if ($request->filled('category'))     $query->where('requisition_issued_items.item_category', 'like', '%' . $request->category . '%');
 
         return $query;
     }
@@ -236,16 +246,14 @@ class ReportController extends Controller
      */
     public function localIssuedItems(Request $request)
     {
-        if (!$request->filled('category')) $request->merge(['category' => 'LOCAL']);
-
         if ($request->has('export') && $request->export === 'excel') {
             return Excel::download(
-                new IssuedItemsExport($request->all()),
+                new IssuedItemsExport(array_merge($request->all(), ['item_type' => 'local'])),
                 'local_issued_items_' . date('Y-m-d_H-i-s') . '.xlsx'
             );
         }
 
-        $allItems    = $this->buildIssuedQuery($request)
+        $allItems    = $this->buildIssuedQuery($request, 'local')
             ->orderBy('d_sort.name', 'asc')
             ->orderBy('requisition_issued_items.issued_at', 'asc')
             ->get();
@@ -265,16 +273,14 @@ class ReportController extends Controller
      */
     public function importIssuedItems(Request $request)
     {
-        if (!$request->filled('category')) $request->merge(['category' => 'IMPORT']);
-
         if ($request->has('export') && $request->export === 'excel') {
             return Excel::download(
-                new IssuedItemsExport($request->all()),
+                new IssuedItemsExport(array_merge($request->all(), ['item_type' => 'import'])),
                 'import_issued_items_' . date('Y-m-d_H-i-s') . '.xlsx'
             );
         }
 
-        $allItems    = $this->buildIssuedQuery($request)
+        $allItems    = $this->buildIssuedQuery($request, 'import')
             ->orderBy('d_sort.name', 'asc')
             ->orderBy('requisition_issued_items.issued_at', 'asc')
             ->get();
