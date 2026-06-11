@@ -392,6 +392,9 @@
     @endif
 </div>
 
+@endsection
+
+@push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function () {
@@ -399,7 +402,7 @@
             theme: 'bootstrap',
             placeholder: 'Type to search by code or name...',
             allowClear: true,
-            minimumInputLength: 1,
+            minimumInputLength: 0,
             matcher: function (params, data) {
                 if (!params.term || params.term.trim() === '') return data;
                 const term = params.term.toLowerCase();
@@ -415,4 +418,4 @@
         window.location.href = window.location.pathname + '?' + urlParams.toString();
     }
 </script>
-@endsection
+@endpush
