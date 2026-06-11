@@ -2,8 +2,6 @@
 
 namespace App\Exports;
 
-use App\Models\RequisitionIssuedItem;
-use App\Models\GrnItem;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -12,86 +10,102 @@ use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use Carbon\Carbon;
 
 class InventoryMovementExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithColumnWidths, WithEvents
 {
-    protected $dateFrom;
-    protected $dateTo;
-    protected $itemCode;
-    protected $deptId;
+    protected $grouped;
+    protected array $openingBalances;
+    protected string $dateFrom;
+    protected string $dateTo;
 
-    public function __construct($dateFrom, $dateTo, $itemCode = null, $deptId = null)
+    public function __construct($grouped, array $openingBalances, string $dateFrom, string $dateTo)
     {
-        $this->dateFrom = $dateFrom;
-        $this->dateTo   = $dateTo;
-        $this->itemCode = $itemCode;
-        $this->deptId   = $deptId;
+        $this->grouped         = $grouped;
+        $this->openingBalances = $openingBalances;
+        $this->dateFrom        = $dateFrom;
+        $this->dateTo          = $dateTo;
     }
 
     public function array(): array
     {
-        $issuesQuery = RequisitionIssuedItem::with(['requisition.department', 'requisition.subDepartment'])
-            ->where('status', '!=', 'delete')
-            ->whereDate('issued_at', '>=', $this->dateFrom)
-            ->whereDate('issued_at', '<=', $this->dateTo);
-
-        if ($this->itemCode) $issuesQuery->where('item_code', 'like', '%' . $this->itemCode . '%');
-        if ($this->deptId)   $issuesQuery->whereHas('requisition', fn($q) => $q->where('department_id', $this->deptId));
-
-        $grnQuery = GrnItem::with(['return.requisition.department'])
-            ->where('status', '!=', 'delete')
-            ->whereDate('processed_at', '>=', $this->dateFrom)
-            ->whereDate('processed_at', '<=', $this->dateTo);
-
-        if ($this->itemCode) $grnQuery->where('item_code', 'like', '%' . $this->itemCode . '%');
-
         $rows = [];
 
-        foreach ($issuesQuery->orderBy('issued_at')->get() as $issue) {
-            $rows[] = [
-                $issue->item_code,
-                $issue->item_name,
-                Carbon::parse($issue->issued_at)->format('d M Y'),
-                $issue->reference_number_1 ?? $issue->requisition?->requisition_number ?? '',
-                'Internal Usage',
-                $issue->unit ?? '',
-                '',   // Qty In
-                '',   // Cost In
-                $issue->issued_quantity,
-                number_format($issue->total_price, 2),
-                $issue->reference_number_2 ?? '',
-                '',   // Vendor No
-                '',   // Vendor Name
-                $issue->requisition?->department?->name ?? '',
-                $issue->requisition?->subDepartment?->name ?? '',
-                $issue->notes ?? '',
-            ];
-        }
+        foreach ($this->grouped as $itemCode => $movements) {
+            $firstRow   = $movements->first();
+            $openingQty = $this->openingBalances[$itemCode] ?? null;
 
-        foreach ($grnQuery->orderBy('processed_at')->get() as $grn) {
+            // Item header row
             $rows[] = [
-                $grn->item_code,
-                $grn->item_name,
-                $grn->processed_at ? Carbon::parse($grn->processed_at)->format('d M Y') : '',
-                $grn->reference_number_1 ?? '',
-                'RETURN GRN',
-                $grn->unit ?? '',
-                $grn->grn_quantity,
-                number_format($grn->total_price, 2),
-                '',   // Qty Out
-                '',   // Cost Out
-                $grn->reference_number_2 ?? '',
-                '',   // Vendor No
-                '',   // Vendor Name
-                $grn->return?->requisition?->department?->name ?? '',
-                '',
-                '',
+                '── ' . $itemCode . ' — ' . ($firstRow['item_name'] ?? ''),
+                '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
             ];
-        }
 
-        // Sort by item code then date
-        usort($rows, fn($a, $b) => $a[0] <=> $b[0] ?: $a[2] <=> $b[2]);
+            // Opening balance row
+            if ($openingQty !== null) {
+                $rows[] = [
+                    Carbon::parse($this->dateFrom)->format('d M Y'),
+                    'Opening Balance',
+                    '—', '—', '—', '—',
+                    number_format($openingQty, 4),   // Qty In col (used as balance)
+                    '',
+                    '', '',
+                    '', '', '', '', '', '',
+                ];
+            }
+
+            // Movement rows
+            foreach ($movements->sortBy('date') as $row) {
+                $rows[] = [
+                    $row['date'] ? Carbon::parse($row['date'])->format('d M Y') : '',
+                    $row['document_no'],
+                    $row['type'],
+                    $row['unit'],
+                    $row['invoice_no'],
+                    $row['vendor_no'],
+                    $row['qty_in']  > 0 ? $row['qty_in']  : '',
+                    $row['cost_in'] > 0 ? number_format($row['cost_in'],  2) : '',
+                    $row['qty_out']  > 0 ? $row['qty_out']  : '',
+                    $row['cost_out'] > 0 ? number_format($row['cost_out'], 2) : '',
+                    $row['vendor_name'],
+                    $row['department'],
+                    $row['sub_dept'],
+                    $row['remarks'],
+                ];
+            }
+
+            // Subtotals
+            $totalQtyIn   = $movements->sum('qty_in');
+            $totalCostIn  = $movements->sum('cost_in');
+            $totalQtyOut  = $movements->sum('qty_out');
+            $totalCostOut = $movements->sum('cost_out');
+
+            $rows[] = [
+                '', 'Item Total', '', '', '', '',
+                $totalQtyIn  > 0 ? number_format($totalQtyIn,  4) : '',
+                $totalCostIn > 0 ? number_format($totalCostIn, 2) : '',
+                $totalQtyOut  > 0 ? number_format($totalQtyOut,  4) : '',
+                $totalCostOut > 0 ? number_format($totalCostOut, 2) : '',
+                '', '', '', '',
+            ];
+
+            // Closing balance
+            if ($openingQty !== null) {
+                $closingQty = $openingQty + $totalQtyIn - $totalQtyOut;
+                $rows[] = [
+                    Carbon::parse($this->dateTo)->format('d M Y'),
+                    'Closing Balance', '', '', '', '',
+                    number_format($closingQty, 4),
+                    '', '', '',
+                    '', '', '', '',
+                ];
+            }
+
+            // Blank spacer between items
+            $rows[] = array_fill(0, 14, '');
+        }
 
         return $rows;
     }
@@ -99,18 +113,16 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithStyles, Wi
     public function headings(): array
     {
         return [
-            'Item Code',
-            'Item Name',
             'Date',
             'Document No',
             'Type',
             'Unit',
+            'Invoice No',
+            'Vendor No',
             'Qty In',
             'Cost In',
             'Qty Out',
             'Cost Out',
-            'Invoice No',
-            'Vendor No',
             'Vendor Name',
             'Department',
             'Sub-Department',
@@ -124,7 +136,7 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithStyles, Wi
             1 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType'   => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '343A40'],
                 ],
             ],
@@ -134,9 +146,10 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithStyles, Wi
     public function columnWidths(): array
     {
         return [
-            'A' => 18, 'B' => 35, 'C' => 14, 'D' => 20, 'E' => 16,
-            'F' => 8,  'G' => 10, 'H' => 14, 'I' => 10, 'J' => 14,
-            'K' => 18, 'L' => 14, 'M' => 25, 'N' => 25, 'O' => 25, 'P' => 35,
+            'A' => 14, 'B' => 25, 'C' => 16, 'D' => 8,
+            'E' => 18, 'F' => 14, 'G' => 12, 'H' => 14,
+            'I' => 12, 'J' => 14, 'K' => 28, 'L' => 25,
+            'M' => 25, 'N' => 35,
         ];
     }
 
@@ -149,8 +162,42 @@ class InventoryMovementExport implements FromArray, WithHeadings, WithStyles, Wi
     {
         return [
             AfterSheet::class => function (AfterSheet $event) {
+                $sheet     = $event->sheet->getDelegate();
+                $highestRow = $sheet->getHighestRow();
+
+                for ($r = 2; $r <= $highestRow; $r++) {
+                    $cellA = $sheet->getCell("A{$r}")->getValue();
+                    $cellB = $sheet->getCell("B{$r}")->getValue();
+
+                    if (str_starts_with((string) $cellA, '──')) {
+                        // Item header
+                        $sheet->mergeCells("A{$r}:N{$r}");
+                        $sheet->getStyle("A{$r}:N{$r}")->applyFromArray([
+                            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '495057']],
+                        ]);
+                    } elseif ($cellB === 'Opening Balance') {
+                        $sheet->getStyle("A{$r}:N{$r}")->applyFromArray([
+                            'font' => ['bold' => true, 'italic' => true, 'color' => ['rgb' => '5D4037']],
+                            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFDE7']],
+                        ]);
+                    } elseif ($cellB === 'Closing Balance') {
+                        $sheet->getStyle("A{$r}:N{$r}")->applyFromArray([
+                            'font'    => ['bold' => true, 'color' => ['rgb' => '1565C0']],
+                            'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E3F2FD']],
+                            'borders' => ['top' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '1565C0']]],
+                        ]);
+                    } elseif ($cellB === 'Item Total') {
+                        $sheet->getStyle("A{$r}:N{$r}")->applyFromArray([
+                            'font'    => ['bold' => true],
+                            'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8F9FA']],
+                            'borders' => ['top' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '495057']]],
+                        ]);
+                    }
+                }
+
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:P1');
+                $event->sheet->setAutoFilter('A1:N1');
             },
         ];
     }

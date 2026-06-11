@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Sage300Item;
+use Carbon\Carbon;
 use Exception;
 
 class Sage300Service
@@ -284,6 +285,146 @@ class Sage300Service
             Log::error('Sage300 fetchUrl error: ' . $e->getMessage(), ['url' => $url]);
             return ['success' => false, 'message' => 'Connection error', 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Fetch all IC adjustments with AdjustmentDate >= $dateFrom (paginated).
+     * Returns flat array of detail lines keyed by item_number.
+     * Used to back-calculate opening balance: opening = currentQty + decreases_since - increases_since
+     */
+    public function getAdjustmentsSince(string $dateFrom): array
+    {
+        $pageSize = 500;
+        $skip     = 0;
+        $results  = [];
+        $dateIso  = Carbon::parse($dateFrom)->startOfDay()->format('Y-m-d\TH:i:s\Z');
+
+        $increaseTypes = ['BothIncrease', 'QuantityIncrease', 'CostIncrease'];
+        $decreaseTypes = ['BothDecrease', 'QuantityDecrease', 'CostDecrease'];
+
+        do {
+            $url = $this->baseUrl
+                . '/IC/ICAdjustments'
+                . '?%24filter=' . rawurlencode("AdjustmentDate ge {$dateIso}")
+                . '&%24top=' . $pageSize
+                . '&%24skip=' . $skip;
+
+            $result = $this->fetchUrl($url);
+
+            if (!$result['success']) {
+                Log::error('Sage300 getAdjustmentsSince failed', [
+                    'skip'  => $skip,
+                    'error' => $result['error'] ?? $result['message'] ?? '',
+                ]);
+                break;
+            }
+
+            $batch = $result['data']['value'] ?? [];
+
+            foreach ($batch as $adjustment) {
+                foreach ($adjustment['AdjustmentDetails'] ?? [] as $detail) {
+                    $code = $detail['UnformattedItemNumber'] ?? $detail['ItemNumber'] ?? '';
+                    if (!$code) continue;
+
+                    $qty  = (float) ($detail['Quantity'] ?? 0);
+                    $type = $detail['TransactionType'] ?? '';
+
+                    if (!isset($results[$code])) {
+                        $results[$code] = ['increases' => 0.0, 'decreases' => 0.0];
+                    }
+
+                    if (in_array($type, $increaseTypes)) {
+                        $results[$code]['increases'] += $qty;
+                    } elseif (in_array($type, $decreaseTypes)) {
+                        $results[$code]['decreases'] += $qty;
+                    }
+                }
+            }
+
+            $skip += $pageSize;
+        } while (count($batch) === $pageSize);
+
+        return $results; // [ 'ITEM-CODE' => ['increases' => n, 'decreases' => n], ... ]
+    }
+
+    /**
+     * Get total QuantityOnHand for an item across all locations (including zero-qty locations).
+     */
+    public function getItemTotalQuantity(string $code): float
+    {
+        $result = $this->get('IC/ICLocationDetails', [
+            '$filter' => "ItemNumber eq '{$code}'",
+        ]);
+
+        if (!$result['success']) {
+            return 0.0;
+        }
+
+        return (float) collect($result['data']['value'] ?? [])->sum('QuantityOnHand');
+    }
+
+    /**
+     * Fetch all PO receipts where ReceiptDate is within [$dateFrom, $dateTo] (paginated).
+     * Returns flat array of receipt line items for merging into the movement report.
+     */
+    public function getPOReceiptsByDateRange(string $dateFrom, string $dateTo): array
+    {
+        $pageSize    = 200;
+        $skip        = 0;
+        $results     = [];
+        $dateFromIso = Carbon::parse($dateFrom)->startOfDay()->format('Y-m-d\TH:i:s\Z');
+        $dateToIso   = Carbon::parse($dateTo)->endOfDay()->format('Y-m-d\TH:i:s\Z');
+
+        $filter = "ReceiptDate ge {$dateFromIso} and ReceiptDate le {$dateToIso}";
+
+        do {
+            $url = $this->baseUrl
+                . '/PO/POGetReceipts'
+                . '?%24filter=' . rawurlencode($filter)
+                . '&%24top=' . $pageSize
+                . '&%24skip=' . $skip;
+
+            $result = $this->fetchUrl($url);
+
+            if (!$result['success']) {
+                Log::error('Sage300 getPOReceiptsByDateRange failed', [
+                    'skip'  => $skip,
+                    'error' => $result['error'] ?? $result['message'] ?? '',
+                ]);
+                break;
+            }
+
+            $batch = $result['data']['value'] ?? [];
+
+            foreach ($batch as $receipt) {
+                $header = [
+                    'receipt_number' => $receipt['ReceiptNumber']      ?? '',
+                    'receipt_date'   => $receipt['ReceiptDate']        ?? null,
+                    'po_number'      => $receipt['PurchaseOrderNumber'] ?? '',
+                    'vendor'         => $receipt['Vendor']             ?? '',
+                    'vendor_name'    => $receipt['Name']               ?? '',
+                    'invoice_no'     => $receipt['InvoiceNumber']      ?? '',
+                ];
+
+                foreach ($receipt['GetReceiptLine2s'] ?? [] as $line) {
+                    $qty = (float) ($line['QuantityReceived'] ?? 0);
+                    if ($qty <= 0) continue;
+
+                    $results[] = array_merge($header, [
+                        'item_number'      => $line['ItemNumber']      ?? '',
+                        'item_description' => $line['ItemDescription'] ?? '',
+                        'location'         => $line['Location']        ?? '',
+                        'quantity_received'=> $qty,
+                        'unit_cost'        => (float) ($line['UnitCost'] ?? 0),
+                        'unit'             => $line['UnitOfMeasure']   ?? '',
+                    ]);
+                }
+            }
+
+            $skip += $pageSize;
+        } while (count($batch) === $pageSize);
+
+        return $results;
     }
 
     /**

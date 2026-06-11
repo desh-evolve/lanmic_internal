@@ -55,8 +55,21 @@
         text-align: center;
         border: 1px solid #dee2e6;
     }
-    .movement-table tr.issue-row  { background: #fff8f0; }
-    .movement-table tr.grn-row    { background: #f0fff4; }
+    .movement-table tr.issue-row    { background: #fff8f0; }
+    .movement-table tr.grn-row     { background: #f0fff4; }
+    .movement-table tr.po-grn-row  { background: #e8f4fd; }
+    .movement-table tr.balance-row {
+        background: #fffde7;
+        font-weight: 600;
+        font-style: italic;
+        color: #5d4037;
+    }
+    .movement-table tr.closing-row {
+        background: #e3f2fd;
+        font-weight: 700;
+        color: #1565c0;
+        border-top: 2px solid #1565c0;
+    }
     .movement-table tr.total-row  {
         background: #f8f9fa;
         font-weight: 700;
@@ -203,12 +216,14 @@
     @else
         @foreach($grouped as $itemCode => $rows)
             @php
-                $firstRow    = $rows->first();
-                $totalQtyIn  = $rows->sum('qty_in');
-                $totalCostIn = $rows->sum('cost_in');
-                $totalQtyOut = $rows->sum('qty_out');
-                $totalCostOut= $rows->sum('cost_out');
-                $netQty      = $totalQtyIn - $totalQtyOut;
+                $firstRow     = $rows->first();
+                $totalQtyIn   = $rows->sum('qty_in');
+                $totalCostIn  = $rows->sum('cost_in');
+                $totalQtyOut  = $rows->sum('qty_out');
+                $totalCostOut = $rows->sum('cost_out');
+                $netQty       = $totalQtyIn - $totalQtyOut;
+                $openingQty   = $openingBalances[$itemCode] ?? null;
+                $closingQty   = $openingQty !== null ? $openingQty + $totalQtyIn - $totalQtyOut : null;
             @endphp
 
             <div class="item-block">
@@ -243,13 +258,34 @@
                             </tr>
                         </thead>
                         <tbody>
+                            {{-- Opening Balance row --}}
+                            @if($openingQty !== null)
+                            <tr class="balance-row">
+                                <td><small>{{ \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') }}</small></td>
+                                <td colspan="8"><em>Opening Balance</em></td>
+                                <td class="text-right" style="color:#5d4037;">
+                                    <strong>{{ number_format($openingQty, 4) }}</strong>
+                                </td>
+                                <td colspan="4"></td>
+                            </tr>
+                            @endif
+
                             @foreach($rows as $row)
-                                <tr class="{{ $row['type'] === 'RETURN GRN' ? 'grn-row' : 'issue-row' }}">
+                                @php
+                                    $rowClass = match($row['type']) {
+                                        'RETURN GRN'   => 'grn-row',
+                                        'Purchase GRN' => 'po-grn-row',
+                                        default        => 'issue-row',
+                                    };
+                                @endphp
+                                <tr class="{{ $rowClass }}">
                                     <td>{{ \Carbon\Carbon::parse($row['date'])->format('d/m/Y') }}</td>
                                     <td><strong>{{ $row['document_no'] }}</strong></td>
                                     <td>
                                         @if($row['type'] === 'RETURN GRN')
                                             <span class="badge" style="background:#28a745;">RETURN GRN</span>
+                                        @elseif($row['type'] === 'Purchase GRN')
+                                            <span class="badge" style="background:#0d6efd;">Purchase GRN</span>
                                         @else
                                             <span class="badge" style="background:#6c757d;">{{ $row['type'] }}</span>
                                         @endif
@@ -301,6 +337,18 @@
                                 </td>
                                 <td></td>
                             </tr>
+
+                            {{-- Closing Balance row --}}
+                            @if($closingQty !== null)
+                            <tr class="closing-row">
+                                <td><small>{{ \Carbon\Carbon::parse($dateTo)->format('d/m/Y') }}</small></td>
+                                <td colspan="8"><em>Closing Balance</em></td>
+                                <td class="text-right">
+                                    <strong>{{ number_format($closingQty, 4) }}</strong>
+                                </td>
+                                <td colspan="4"></td>
+                            </tr>
+                            @endif
                         </tbody>
                     </table>
                 </div>

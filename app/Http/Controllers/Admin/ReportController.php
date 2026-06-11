@@ -17,6 +17,7 @@ use App\Models\Department;
 use App\Models\Sage300Item;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\RequisitionSummaryExport;
@@ -29,6 +30,7 @@ use App\Exports\ScrapExport;
 use App\Exports\DepartmentActivityExport;
 use App\Exports\UserActivityExport;
 use App\Exports\MonthlySummaryExport;
+use App\Services\Sage300Service;
 
 class ReportController extends Controller
 {
@@ -624,15 +626,10 @@ class ReportController extends Controller
      */
     public function inventoryMovement(Request $request)
     {
-        $dateFrom    = $request->input('date_from', Carbon::now()->startOfMonth()->toDateString());
-        $dateTo      = $request->input('date_to',   Carbon::now()->toDateString());
-        $itemCode    = $request->input('item_code');
-        $deptId      = $request->input('department_id');
-
-        if ($request->has('export') && $request->export === 'excel') {
-            $filename = 'inventory_movement_' . $dateFrom . '_to_' . $dateTo . '.xlsx';
-            return Excel::download(new InventoryMovementExport($dateFrom, $dateTo, $itemCode, $deptId), $filename);
-        }
+        $dateFrom = $request->input('date_from', Carbon::now()->startOfMonth()->toDateString());
+        $dateTo   = $request->input('date_to',   Carbon::now()->toDateString());
+        $itemCode = $request->input('item_code');
+        $deptId   = $request->input('department_id');
 
         // ── Inventory OUT — Issued Items ──────────────────────────────────
         $issuesQuery = RequisitionIssuedItem::with(['requisition.department', 'requisition.subDepartment', 'issuedBy'])
@@ -645,7 +642,7 @@ class ReportController extends Controller
 
         $issues = $issuesQuery->orderBy('issued_at')->get();
 
-        // ── Inventory IN — GRN Items ──────────────────────────────────────
+        // ── Inventory IN — Return GRN Items ───────────────────────────────
         $grnQuery = GrnItem::with(['return.requisition.department', 'processedBy'])
             ->where('status', '!=', 'delete')
             ->whereDate('processed_at', '>=', $dateFrom)
@@ -655,56 +652,105 @@ class ReportController extends Controller
 
         $grns = $grnQuery->orderBy('processed_at')->get();
 
-        // ── Merge into item-grouped movements ────────────────────────────
+        // ── Merge into movements collection ───────────────────────────────
         $movements = collect();
 
         foreach ($issues as $issue) {
             $movements->push([
-                'date'         => $issue->issued_at,
-                'document_no'  => $issue->reference_number_1 ?? $issue->requisition?->requisition_number ?? '—',
-                'invoice_no'   => $issue->reference_number_2 ?? '—',
-                'vendor_no'    => '—',
-                'vendor_name'  => '—',
-                'type'         => 'Internal Usage',
-                'unit'         => $issue->unit ?? '—',
-                'department'   => $issue->requisition?->department?->name ?? '—',
-                'sub_dept'     => $issue->requisition?->subDepartment?->name ?? '',
-                'remarks'      => $issue->notes ?? '—',
-                'qty_in'       => 0,
-                'cost_in'      => 0,
-                'qty_out'      => (float) $issue->issued_quantity,
-                'cost_out'     => (float) $issue->total_price,
-                'item_code'    => $issue->item_code,
-                'item_name'    => $issue->item_name,
+                'date'        => $issue->issued_at,
+                'document_no' => $issue->reference_number_1 ?? $issue->requisition?->requisition_number ?? '—',
+                'invoice_no'  => $issue->reference_number_2 ?? '—',
+                'vendor_no'   => '—',
+                'vendor_name' => '—',
+                'type'        => 'Internal Usage',
+                'unit'        => $issue->unit ?? '—',
+                'department'  => $issue->requisition?->department?->name ?? '—',
+                'sub_dept'    => $issue->requisition?->subDepartment?->name ?? '',
+                'remarks'     => $issue->notes ?? '—',
+                'qty_in'      => 0,
+                'cost_in'     => 0,
+                'qty_out'     => (float) $issue->issued_quantity,
+                'cost_out'    => (float) $issue->total_price,
+                'item_code'   => $issue->item_code,
+                'item_name'   => $issue->item_name,
             ]);
         }
 
         foreach ($grns as $grn) {
             $movements->push([
-                'date'         => $grn->processed_at,
-                'document_no'  => $grn->reference_number_1 ?? '—',
-                'invoice_no'   => $grn->reference_number_2 ?? '—',
-                'vendor_no'    => '—',
-                'vendor_name'  => '—',
-                'type'         => 'RETURN GRN',
-                'unit'         => $grn->unit ?? '—',
-                'department'   => $grn->return?->requisition?->department?->name ?? '—',
-                'sub_dept'     => '',
-                'remarks'      => '—',
-                'qty_in'       => (float) $grn->grn_quantity,
-                'cost_in'      => (float) $grn->total_price,
-                'qty_out'      => 0,
-                'cost_out'     => 0,
-                'item_code'    => $grn->item_code,
-                'item_name'    => $grn->item_name,
+                'date'        => $grn->processed_at,
+                'document_no' => $grn->reference_number_1 ?? '—',
+                'invoice_no'  => $grn->reference_number_2 ?? '—',
+                'vendor_no'   => '—',
+                'vendor_name' => '—',
+                'type'        => 'RETURN GRN',
+                'unit'        => $grn->unit ?? '—',
+                'department'  => $grn->return?->requisition?->department?->name ?? '—',
+                'sub_dept'    => '',
+                'remarks'     => '—',
+                'qty_in'      => (float) $grn->grn_quantity,
+                'cost_in'     => (float) $grn->total_price,
+                'qty_out'     => 0,
+                'cost_out'    => 0,
+                'item_code'   => $grn->item_code,
+                'item_name'   => $grn->item_name,
             ]);
         }
 
-        // Group by item code, sorted by date within each group
+        // ── Inventory IN — Purchase GRNs from Sage 300 ────────────────────
+        $sage = app(Sage300Service::class);
+        try {
+            $poReceipts = $sage->getPOReceiptsByDateRange($dateFrom, $dateTo);
+        } catch (\Exception $e) {
+            Log::warning('Sage300 getPOReceiptsByDateRange failed: ' . $e->getMessage());
+            $poReceipts = [];
+        }
+
+        foreach ($poReceipts as $line) {
+            if (!$line['item_number']) continue;
+            if ($itemCode && stripos($line['item_number'], $itemCode) === false) continue;
+
+            $movements->push([
+                'date'        => $line['receipt_date'],
+                'document_no' => $line['receipt_number'],
+                'invoice_no'  => $line['invoice_no'] ?: '—',
+                'vendor_no'   => $line['vendor'],
+                'vendor_name' => $line['vendor_name'],
+                'type'        => 'Purchase GRN',
+                'unit'        => $line['unit'],
+                'department'  => '—',
+                'sub_dept'    => '',
+                'remarks'     => $line['po_number'] ? 'PO: ' . $line['po_number'] : '—',
+                'qty_in'      => $line['quantity_received'],
+                'cost_in'     => round($line['quantity_received'] * $line['unit_cost'], 2),
+                'qty_out'     => 0,
+                'cost_out'    => 0,
+                'item_code'   => $line['item_number'],
+                'item_name'   => $line['item_description'],
+            ]);
+        }
+
+        // ── Group by item code ────────────────────────────────────────────
         $grouped = $movements
             ->sortBy('date')
             ->groupBy('item_code')
             ->sortKeys();
+
+        // ── Opening balances from Sage 300 ────────────────────────────────
+        // opening = currentQty + all_decreases_since_dateFrom - all_increases_since_dateFrom
+        $openingBalances = [];
+        try {
+            $adjByItem = $sage->getAdjustmentsSince($dateFrom);
+
+            foreach ($grouped->keys() as $code) {
+                $currentQty = $sage->getItemTotalQuantity($code);
+                $increases  = $adjByItem[$code]['increases'] ?? 0.0;
+                $decreases  = $adjByItem[$code]['decreases'] ?? 0.0;
+                $openingBalances[$code] = $currentQty + $decreases - $increases;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Sage300 opening balance calculation failed: ' . $e->getMessage());
+        }
 
         $departments = Department::active()->get();
         $items       = Sage300Item::active()
@@ -712,8 +758,16 @@ class ReportController extends Controller
                             ->get(['item_code', 'description'])
                             ->map(fn($i) => ['code' => $i->item_code, 'name' => $i->description]);
 
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'inventory_movement_' . $dateFrom . '_to_' . $dateTo . '.xlsx';
+            return Excel::download(
+                new InventoryMovementExport($grouped, $openingBalances, $dateFrom, $dateTo),
+                $filename
+            );
+        }
+
         return view('admin.reports.inventory-movement', compact(
-            'grouped', 'dateFrom', 'dateTo', 'itemCode', 'deptId', 'departments', 'items'
+            'grouped', 'openingBalances', 'dateFrom', 'dateTo', 'itemCode', 'deptId', 'departments', 'items'
         ));
     }
 
