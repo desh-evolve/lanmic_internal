@@ -47,30 +47,30 @@
         border: 1px solid #dee2e6;
         vertical-align: middle;
     }
-    .movement-table .section-header {
-        background: #e9ecef;
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: #495057;
-        text-align: center;
-        border: 1px solid #dee2e6;
-    }
+    /* Group header cells */
+    .th-in   { background: #1a6634 !important; color: #fff !important; }
+    .th-out  { background: #7b1a23 !important; color: #fff !important; }
+    .th-bal  { background: #0d3d6b !important; color: #fff !important; }
+    .th-in-sub  { background: #d4edda !important; color: #155724 !important; }
+    .th-out-sub { background: #f8d7da !important; color: #721c24 !important; }
+    .th-bal-sub { background: #cce5ff !important; color: #004085 !important; }
+
     .movement-table tr.issue-row    { background: #fff8f0; }
-    .movement-table tr.grn-row     { background: #f0fff4; }
-    .movement-table tr.po-grn-row  { background: #e8f4fd; }
+    .movement-table tr.grn-row      { background: #f0fff4; }
+    .movement-table tr.po-grn-row   { background: #e8f4fd; }
     .movement-table tr.balance-row {
         background: #fffde7;
         font-weight: 600;
         font-style: italic;
         color: #5d4037;
     }
-    .movement-table tr.closing-row {
+    .movement-table tr.ending-row {
         background: #e3f2fd;
         font-weight: 700;
         color: #1565c0;
         border-top: 2px solid #1565c0;
     }
-    .movement-table tr.total-row  {
+    .movement-table tr.total-row {
         background: #f8f9fa;
         font-weight: 700;
         border-top: 2px solid #495057;
@@ -79,15 +79,23 @@
     .qty-out  { color: #721c24; font-weight: 600; }
     .cost-in  { color: #155724; }
     .cost-out { color: #721c24; }
+    .bal-qty  { color: #004085; font-weight: 600; }
+    .bal-cost { color: #004085; }
 
     /* ── Print styles ──────────────────────────────────────────────── */
     @media print {
         .no-print { display: none !important; }
-        body { font-size: 10pt; }
+        body { font-size: 9pt; }
         .container-fluid { padding: 0; }
         .print-header { display: block !important; }
         .item-heading { background: #000 !important; -webkit-print-color-adjust: exact; }
-        .movement-table th { background: #000 !important; -webkit-print-color-adjust: exact; }
+        .movement-table th { -webkit-print-color-adjust: exact; }
+        .th-in   { background: #1a6634 !important; }
+        .th-out  { background: #7b1a23 !important; }
+        .th-bal  { background: #0d3d6b !important; }
+        .th-in-sub  { background: #d4edda !important; }
+        .th-out-sub { background: #f8d7da !important; }
+        .th-bal-sub { background: #cce5ff !important; }
         .item-block { page-break-inside: avoid; }
     }
     .print-header { display: none; }
@@ -171,16 +179,26 @@
     <div class="print-header mb-3">
         <div style="display:flex; justify-content:space-between; font-size:10pt;">
             <div><strong>Lanka Minerals &amp; Chemicals (Pvt) Ltd.</strong></div>
-            <div>{{ now()->format('d/m/Y H:i') }}</div>
+            <div>{{ now()->format('d/m/Y H:i:s') }}</div>
         </div>
         <div style="font-size:12pt; font-weight:bold; text-align:center; margin:6px 0;">
-            I/C Inventory Movement Report
+            I/C Inventory Movement (ICMVMT02)
         </div>
         <table style="font-size:9pt; margin-bottom:8px;">
-            <tr><td class="label">From Date</td><td>{{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }} To {{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}</td></tr>
+            <tr>
+                <td style="font-weight:600; padding-right:12px;">Select Transaction By</td>
+                <td>[Date]</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600; padding-right:12px;">From Date</td>
+                <td>[{{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }}] To [{{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}]</td>
+            </tr>
             @if($itemCode)
                 @php $selectedItem = collect($items)->firstWhere('code', $itemCode); @endphp
-                <tr><td class="label">Item Filter</td><td>{{ $itemCode }}{{ $selectedItem ? ' — ' . $selectedItem['name'] : '' }}</td></tr>
+                <tr>
+                    <td style="font-weight:600; padding-right:12px;">Item Filter</td>
+                    <td>{{ $itemCode }}{{ $selectedItem ? ' — ' . $selectedItem['name'] : '' }}</td>
+                </tr>
             @endif
         </table>
     </div>
@@ -189,16 +207,20 @@
     <div class="report-header-box no-print">
         <table>
             <tr>
-                <td class="label">From Date</td>
-                <td>{{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }} &nbsp;To&nbsp; {{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}</td>
+                <td class="label">Select Transaction By</td>
+                <td>[Date]</td>
                 <td width="40"></td>
+                <td class="label">From Date</td>
+                <td>[{{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }}] To [{{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}]</td>
+            </tr>
+            <tr>
                 <td class="label">Item Filter</td>
-                <td>
+                <td colspan="4">
                     @if($itemCode)
                         @php $selectedItem = collect($items)->firstWhere('code', $itemCode); @endphp
-                        {{ $itemCode }}{{ $selectedItem ? ' — ' . $selectedItem['name'] : '' }}
+                        [{{ $itemCode }}{{ $selectedItem ? ' — ' . $selectedItem['name'] : '' }}]
                     @else
-                        All Items
+                        [] To [ZZZZZZZZZZZZZZZZZZZZZZZ]
                     @endif
                 </td>
             </tr>
@@ -221,16 +243,16 @@
                 $totalCostIn  = $rows->sum('cost_in');
                 $totalQtyOut  = $rows->sum('qty_out');
                 $totalCostOut = $rows->sum('cost_out');
-                $netQty       = $totalQtyIn - $totalQtyOut;
                 $openingQty   = $openingBalances[$itemCode] ?? null;
-                $closingQty   = $openingQty !== null ? $openingQty + $totalQtyIn - $totalQtyOut : null;
+                $endingQty    = $openingQty !== null ? $openingQty + $totalQtyIn - $totalQtyOut : null;
+                $endingCost   = $totalCostIn - $totalCostOut;
             @endphp
 
             <div class="item-block">
-                {{-- Item heading --}}
+                {{-- Item heading (matches Sage ICMVMT02 style) --}}
                 <div class="item-heading">
-                    <span>{{ $itemCode }} &nbsp; {{ $firstRow['item_name'] }}</span>
-                    <span class="costing">Unit: {{ $firstRow['unit'] }}</span>
+                    <span>{{ $itemCode }} &nbsp; ({{ $firstRow['item_name'] }})</span>
+                    <span class="costing">Costing Method: ELS &nbsp;|&nbsp; Unit: {{ $firstRow['unit'] }}</span>
                 </div>
 
                 <div class="table-responsive">
@@ -239,62 +261,75 @@
                             <tr>
                                 <th rowspan="2">Date</th>
                                 <th rowspan="2">Document Number</th>
+                                <th rowspan="2">Srce.<br>Appl.</th>
                                 <th rowspan="2">Type</th>
-                                <th rowspan="2">Invoice No</th>
-                                <th rowspan="2">Vendor No</th>
-                                <th rowspan="2">Vendor Name</th>
-                                <th rowspan="2">Department</th>
-                                <th rowspan="2">Sub-Dept</th>
                                 <th rowspan="2">Unit</th>
-                                <th colspan="2" class="section-header" style="background:#d4edda;color:#155724;">&#9650; Inventory In</th>
-                                <th colspan="2" class="section-header" style="background:#f8d7da;color:#721c24;">&#9660; Inventory Out</th>
+                                <th colspan="2" class="th-in">&#9650; Inventory In</th>
+                                <th colspan="2" class="th-out">&#9660; Inventory Out</th>
+                                <th colspan="2" class="th-bal">Balance</th>
+                                <th rowspan="2">Invoice No</th>
+                                <th rowspan="2">Vendor</th>
+                                <th rowspan="2">Department</th>
                                 <th rowspan="2">Remarks</th>
                             </tr>
                             <tr>
-                                <th style="background:#d4edda;color:#155724;">Quantity</th>
-                                <th style="background:#d4edda;color:#155724;">Extended Cost</th>
-                                <th style="background:#f8d7da;color:#721c24;">Quantity</th>
-                                <th style="background:#f8d7da;color:#721c24;">Extended Cost</th>
+                                <th class="th-in-sub">Quantity</th>
+                                <th class="th-in-sub">Extended Cost</th>
+                                <th class="th-out-sub">Quantity</th>
+                                <th class="th-out-sub">Extended Cost</th>
+                                <th class="th-bal-sub">Quantity</th>
+                                <th class="th-bal-sub">Actual Cost</th>
                             </tr>
                         </thead>
                         <tbody>
                             {{-- Opening Balance row --}}
-                            @if($openingQty !== null)
                             <tr class="balance-row">
                                 <td><small>{{ \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') }}</small></td>
-                                <td colspan="8"><em>Opening Balance</em></td>
-                                <td class="text-right" style="color:#5d4037;">
-                                    <strong>{{ number_format($openingQty, 4) }}</strong>
+                                <td colspan="4"><em>Opening Balance</em></td>
+                                <td class="text-right">—</td>{{-- Inv In Qty --}}
+                                <td class="text-right">—</td>{{-- Inv In Cost --}}
+                                <td class="text-right">—</td>{{-- Inv Out Qty --}}
+                                <td class="text-right">—</td>{{-- Inv Out Cost --}}
+                                <td class="text-right bal-qty">
+                                    @if($openingQty !== null)
+                                        {{ number_format($openingQty, 4) }}
+                                    @else
+                                        <span class="text-muted" style="font-size:0.75rem;">N/A</span>
+                                    @endif
                                 </td>
+                                <td class="text-right bal-cost">0.00</td>
                                 <td colspan="4"></td>
                             </tr>
-                            @endif
 
-                            @foreach($rows as $row)
+                            {{-- Movement rows with running balance --}}
+                            @php $runningQty = $openingQty ?? 0; $runningCost = 0; @endphp
+                            @foreach($rows->sortBy('date') as $row)
                                 @php
+                                    $runningQty  += $row['qty_in'] - $row['qty_out'];
+                                    $runningCost += $row['cost_in'] - $row['cost_out'];
                                     $rowClass = match($row['type']) {
                                         'RETURN GRN'   => 'grn-row',
                                         'Purchase GRN' => 'po-grn-row',
                                         default        => 'issue-row',
                                     };
+                                    $srcAppl = match($row['type']) {
+                                        'Purchase GRN' => 'PO',
+                                        default        => 'IC',
+                                    };
                                 @endphp
                                 <tr class="{{ $rowClass }}">
                                     <td>{{ \Carbon\Carbon::parse($row['date'])->format('d/m/Y') }}</td>
                                     <td><strong>{{ $row['document_no'] }}</strong></td>
+                                    <td class="text-center"><small>{{ $srcAppl }}</small></td>
                                     <td>
                                         @if($row['type'] === 'RETURN GRN')
-                                            <span class="badge" style="background:#28a745;">RETURN GRN</span>
+                                            <span class="badge" style="background:#28a745;font-size:0.75rem;">RETURN GRN</span>
                                         @elseif($row['type'] === 'Purchase GRN')
-                                            <span class="badge" style="background:#0d6efd;">Purchase GRN</span>
+                                            <span class="badge" style="background:#0d6efd;font-size:0.75rem;">Purchase GRN</span>
                                         @else
-                                            <span class="badge" style="background:#6c757d;">{{ $row['type'] }}</span>
+                                            <span class="badge" style="background:#6c757d;font-size:0.75rem;">{{ $row['type'] }}</span>
                                         @endif
                                     </td>
-                                    <td>{{ $row['invoice_no'] }}</td>
-                                    <td>{{ $row['vendor_no'] }}</td>
-                                    <td>{{ $row['vendor_name'] }}</td>
-                                    <td>{{ $row['department'] }}</td>
-                                    <td>{{ $row['sub_dept'] ?: '—' }}</td>
                                     <td class="text-center">{{ $row['unit'] }}</td>
                                     <td class="text-right qty-in">
                                         {{ $row['qty_in'] > 0 ? number_format($row['qty_in'], 4) : '' }}
@@ -308,47 +343,50 @@
                                     <td class="text-right cost-out">
                                         {{ $row['cost_out'] > 0 ? number_format($row['cost_out'], 2) : '' }}
                                     </td>
+                                    <td class="text-right bal-qty">{{ number_format($runningQty, 4) }}</td>
+                                    <td class="text-right bal-cost">{{ number_format($runningCost, 2) }}</td>
+                                    <td>{{ $row['invoice_no'] }}</td>
+                                    <td>
+                                        @if($row['vendor_no'])
+                                            <small>{{ $row['vendor_no'] }}</small><br>
+                                            <small class="text-muted">{{ $row['vendor_name'] }}</small>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        {{ $row['department'] }}
+                                        @if($row['sub_dept'])
+                                            <br><small class="text-muted">{{ $row['sub_dept'] }}</small>
+                                        @endif
+                                    </td>
                                     <td>{{ $row['remarks'] }}</td>
                                 </tr>
                             @endforeach
 
                             {{-- Item Total --}}
                             <tr class="total-row">
-                                <td colspan="9" class="text-right pr-2" style="font-size:0.8rem;">Item Total:</td>
+                                <td colspan="5" class="text-right pr-2" style="font-size:0.8rem;"><strong>Item Total:</strong></td>
                                 <td class="text-right qty-in">{{ $totalQtyIn > 0 ? number_format($totalQtyIn, 4) : '' }}</td>
                                 <td class="text-right cost-in">{{ $totalCostIn > 0 ? number_format($totalCostIn, 2) : '' }}</td>
                                 <td class="text-right qty-out">{{ $totalQtyOut > 0 ? number_format($totalQtyOut, 4) : '' }}</td>
                                 <td class="text-right cost-out">{{ $totalCostOut > 0 ? number_format($totalCostOut, 2) : '' }}</td>
-                                <td></td>
-                            </tr>
-                            {{-- Net Movement --}}
-                            <tr class="total-row" style="background:#e2e8f0;">
-                                <td colspan="9" class="text-right pr-2" style="font-size:0.8rem;">Net Movement (In − Out):</td>
-                                <td class="text-right" colspan="2">
-                                    <span class="{{ $netQty >= 0 ? 'qty-in' : 'qty-out' }}">
-                                        {{ number_format(abs($netQty), 4) }} {{ $netQty >= 0 ? '▲' : '▼' }}
-                                    </span>
-                                </td>
-                                <td class="text-right" colspan="2">
-                                    @php $netCost = $totalCostIn - $totalCostOut; @endphp
-                                    <span class="{{ $netCost >= 0 ? 'cost-in' : 'cost-out' }}">
-                                        {{ number_format(abs($netCost), 2) }} {{ $netCost >= 0 ? '▲' : '▼' }}
-                                    </span>
-                                </td>
-                                <td></td>
+                                <td colspan="6"></td>
                             </tr>
 
-                            {{-- Closing Balance row --}}
-                            @if($closingQty !== null)
-                            <tr class="closing-row">
+                            {{-- Ending Balance --}}
+                            <tr class="ending-row">
                                 <td><small>{{ \Carbon\Carbon::parse($dateTo)->format('d/m/Y') }}</small></td>
-                                <td colspan="8"><em>Closing Balance</em></td>
+                                <td colspan="4"><strong>Ending Balance:</strong></td>
+                                <td colspan="4"></td>
                                 <td class="text-right">
-                                    <strong>{{ number_format($closingQty, 4) }}</strong>
+                                    @if($endingQty !== null)
+                                        <strong>{{ number_format($endingQty, 4) }}</strong>
+                                    @else
+                                        <span class="text-muted" style="font-size:0.75rem;">N/A</span>
+                                    @endif
                                 </td>
+                                <td class="text-right"><strong>{{ number_format($endingCost, 2) }}</strong></td>
                                 <td colspan="4"></td>
                             </tr>
-                            @endif
                         </tbody>
                     </table>
                 </div>
@@ -364,7 +402,7 @@
         @endphp
         <div class="card mt-2">
             <div class="card-header bg-dark text-white">
-                <strong><i class="fas fa-sigma"></i> Grand Total — {{ $grouped->count() }} item(s), {{ $grouped->flatten(1)->count() }} movement(s)</strong>
+                <strong><i class="fas fa-calculator"></i> Grand Total — {{ $grouped->count() }} item(s), {{ $grouped->flatten(1)->count() }} movement(s)</strong>
             </div>
             <div class="card-body p-0">
                 <table class="table table-bordered mb-0 text-center" style="font-size:0.9rem;">
@@ -391,7 +429,6 @@
         </div>
     @endif
 </div>
-
 @endsection
 
 @push('scripts')
