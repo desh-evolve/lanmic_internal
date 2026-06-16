@@ -266,8 +266,12 @@ class ReportController extends Controller
             'total_value'    => $allItems->sum('total_price'),
         ];
         $departments = Department::active()->orderBy('name')->get();
+        $items = Sage300Item::active()
+            ->where('item_code', 'not like', 'ENI-%')
+            ->orderBy('item_code')
+            ->get(['item_code', 'description']);
 
-        return view('admin.reports.local-issued-items', compact('groupedItems', 'statistics', 'departments'));
+        return view('admin.reports.local-issued-items', compact('groupedItems', 'statistics', 'departments', 'items'));
     }
 
     /**
@@ -293,8 +297,12 @@ class ReportController extends Controller
             'total_value'    => $allItems->sum('total_price'),
         ];
         $departments = Department::active()->orderBy('name')->get();
+        $items = Sage300Item::active()
+            ->where('item_code', 'like', 'ENI-%')
+            ->orderBy('item_code')
+            ->get(['item_code', 'description']);
 
-        return view('admin.reports.import-issued-items', compact('groupedItems', 'statistics', 'departments'));
+        return view('admin.reports.import-issued-items', compact('groupedItems', 'statistics', 'departments', 'items'));
     }
 
     /**

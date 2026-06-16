@@ -27,6 +27,20 @@
                     <input type="date" name="date_to" class="form-control form-control-sm"
                            value="{{ request('date_to') }}">
                 </div>
+                @if(isset($items) && $items->isNotEmpty())
+                <div class="col-md-4">
+                    <label class="small mb-1">Item</label>
+                    <select name="item_code" id="issuedItemSelect" class="form-control form-control-sm" style="width:100%">
+                        <option value="">All Items</option>
+                        @foreach($items as $item)
+                            <option value="{{ $item->item_code }}"
+                                {{ request('item_code') === $item->item_code ? 'selected' : '' }}>
+                                {{ $item->item_code }} — {{ $item->description }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @else
                 <div class="col-md-2">
                     <label class="small mb-1">Item Code</label>
                     <input type="text" name="item_code" class="form-control form-control-sm"
@@ -37,6 +51,7 @@
                     <input type="text" name="item_name" class="form-control form-control-sm"
                            placeholder="Item name…" value="{{ request('item_name') }}">
                 </div>
+                @endif
                 <div class="col-md-2">
                     <label class="small mb-1">Department</label>
                     <select name="department_id" class="form-control form-control-sm">
