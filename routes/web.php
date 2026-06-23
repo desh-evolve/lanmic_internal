@@ -152,6 +152,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('requisitions/{requisition}/issue-items', [RequisitionApprovalController::class, 'issueItemsForm'])->middleware('permission:issue-requisitions')->name('admin.requisitions.issue-items');
         Route::post('requisitions/{requisition}/issue-items', [RequisitionApprovalController::class, 'issueItems'])->middleware('permission:issue-requisitions')->name('admin.requisitions.issue-items.store');
         Route::post('requisitions/{requisition}/update-items', [RequisitionApprovalController::class, 'updateItems'])->middleware('permission:approve-requisitions')->name('admin.requisitions.update-items');
+        Route::post('requisitions/{requisition}/force-clear', [RequisitionApprovalController::class, 'forceClear'])->middleware('permission:clear-requisitions')->name('admin.requisitions.force-clear');
 
         // Return approval routes — permission-gated, no role:admin required
         Route::get('returns', [ReturnApprovalController::class, 'index'])->middleware('permission:view-returns')->name('admin.returns.index');
@@ -172,8 +173,6 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/requisition-summary', [ReportController::class, 'requisitionSummary'])->name('requisition-summary');
             Route::get('/item-requisition', [ReportController::class, 'itemRequisition'])->name('item-requisition');
             Route::get('/issued-items', [ReportController::class, 'issuedItems'])->name('issued-items');
-            Route::get('/local-issued-items', [ReportController::class, 'localIssuedItems'])->name('local-issued-items');
-            Route::get('/import-issued-items', [ReportController::class, 'importIssuedItems'])->name('import-issued-items');
             Route::get('/purchase-order', [ReportController::class, 'purchaseOrder'])->name('purchase-order');
             Route::get('/returns-summary', [ReportController::class, 'returnsSummary'])->name('returns-summary');
             Route::get('/grn', [ReportController::class, 'grn'])->name('grn');

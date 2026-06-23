@@ -53,6 +53,11 @@
                             <i class="fas fa-box"></i> Issue Items
                         </a>
                     @endif
+                    @if($requisition->approve_status === 'approved' && $requisition->clear_status !== 'cleared' && Auth::user()->hasPermission('clear-requisitions'))
+                        <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#forceClearModal">
+                            <i class="fas fa-check-double"></i> Force Clear
+                        </button>
+                    @endif
                 </div>
             </div>
             <div class="card-body">
@@ -480,6 +485,11 @@
                     <i class="fas fa-box"></i> Issue Items
                 </a>
             @endif
+            @if($requisition->approve_status === 'approved' && $requisition->clear_status !== 'cleared' && Auth::user()->hasPermission('clear-requisitions'))
+                <button type="button" class="btn btn-warning ml-2" data-toggle="modal" data-target="#forceClearModal">
+                    <i class="fas fa-check-double"></i> Force Clear
+                </button>
+            @endif
         </div>
     </div>
 
@@ -541,6 +551,16 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{{ asset('js/sage300.js') }}"></script>
 <script>
+function escHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 let editMode        = false;
 let newRowIndex     = {{ $requisition->items->count() }};
 let addModalItems   = [];   // cached Sage300 items for the add-item modal
@@ -730,7 +750,7 @@ function confirmAddItem() {
 
     const idx = newRowIndex++;
     const specHtml = spec
-        ? `<br><small class="text-muted"><i class="fas fa-info-circle"></i> ${spec}</small>`
+        ? `<br><small class="text-muted"><i class="fas fa-info-circle"></i> ${escHtml(spec)}</small>`
         : '';
 
     const row = `
@@ -738,23 +758,23 @@ function confirmAddItem() {
             <input type="hidden" name="items[${idx}][id]"            value="">
             <td>
                 <input type="text"   class="form-control form-control-sm"
-                       name="items[${idx}][item_code]"    value="${code}"
+                       name="items[${idx}][item_code]"    value="${escHtml(code)}"
                        readonly style="background:#f4f4f4;">
-                <input type="hidden" name="items[${idx}][item_name]"     value="${name}">
-                <input type="hidden" name="items[${idx}][item_category]" value="${category}">
-                <input type="hidden" name="items[${idx}][unit]"          value="${unit}">
-                <input type="hidden" name="items[${idx}][location_code]" value="${location}">
-                <input type="hidden" name="items[${idx}][specifications]" value="${spec}">
+                <input type="hidden" name="items[${idx}][item_name]"     value="${escHtml(name)}">
+                <input type="hidden" name="items[${idx}][item_category]" value="${escHtml(category)}">
+                <input type="hidden" name="items[${idx}][unit]"          value="${escHtml(unit)}">
+                <input type="hidden" name="items[${idx}][location_code]" value="${escHtml(location)}">
+                <input type="hidden" name="items[${idx}][specifications]" value="${escHtml(spec)}">
             </td>
-            <td><span class="text-sm">${name}${specHtml}</span></td>
-            <td><small>${category || '-'}</small></td>
+            <td><span class="text-sm">${escHtml(name)}${specHtml}</span></td>
+            <td><small>${escHtml(category) || '-'}</small></td>
             <td>
                 <input type="text" inputmode="decimal" class="form-control form-control-sm qty-text-input"
                        name="items[${idx}][quantity]"
-                       value="${qty}" required>
+                       value="${escHtml(qty)}" required>
             </td>
-            <td><small>${unit || '-'}</small></td>
-            <td><small>${location}</small></td>
+            <td><small>${escHtml(unit) || '-'}</small></td>
+            <td><small>${escHtml(location)}</small></td>
             <td class="text-center">
                 <button type="button" class="btn btn-danger btn-xs"
                         onclick="removeEditRow(this)" title="Remove item">
@@ -781,6 +801,53 @@ $(document).on('paste', '.qty-text-input', function(e) {
 });
 </script>
 @endpush
+@endif
+
+@if($requisition->approve_status === 'approved' && $requisition->clear_status !== 'cleared' && Auth::user()->hasPermission('clear-requisitions'))
+<!-- Force Clear Modal -->
+<div class="modal fade" id="forceClearModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form action="{{ route('admin.requisitions.force-clear', $requisition->id) }}" method="POST">
+                @csrf
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="fas fa-check-double mr-2"></i>Force Clear Requisition
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> This will mark the requisition as <strong>Cleared</strong> even if not all items have been issued. This action cannot be undone.
+                    </div>
+                    <p><strong>Requisition #:</strong> {{ $requisition->requisition_number }}</p>
+                    @php
+                        $issuedCount  = $requisition->items->filter(fn($i) => $i->isFullyIssued())->count();
+                        $totalCount   = $requisition->items->count();
+                    @endphp
+                    @if($issuedCount < $totalCount)
+                    <p class="text-danger">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <strong>{{ $issuedCount }} of {{ $totalCount }}</strong> item(s) have been fully issued.
+                    </p>
+                    @endif
+                    <div class="form-group mt-3">
+                        <label for="clear_reason">Reason for Force Clear <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="clear_reason" name="clear_reason" rows="3"
+                                  required placeholder="Explain why this requisition is being force-cleared…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-check-double"></i> Confirm Force Clear
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endif
 
 <!-- Approve Modal -->

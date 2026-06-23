@@ -217,10 +217,12 @@ class ReportController extends Controller
     }
 
     /**
-     * Issued Items Report.
+     * Issued Items Report (all / local / import via item_type filter).
      */
     public function issuedItems(Request $request)
     {
+        $itemType = $request->input('item_type', 'all');
+
         if ($request->has('export') && $request->export === 'excel') {
             return Excel::download(
                 new IssuedItemsExport($request->all()),
@@ -228,81 +230,23 @@ class ReportController extends Controller
             );
         }
 
-        $allItems    = $this->buildIssuedQuery($request)
+        $allItems = $this->buildIssuedQuery($request, $itemType === 'all' ? null : $itemType)
             ->orderBy('d_sort.name', 'asc')
             ->orderBy('requisition_issued_items.issued_at', 'asc')
             ->get();
+
         $groupedItems = $allItems->groupBy(fn($i) => $i->requisition->department->name ?? 'Unknown');
-        $statistics  = [
+        $statistics   = [
             'total_issued'   => $allItems->count(),
             'total_quantity' => $allItems->sum('issued_quantity'),
             'total_value'    => $allItems->sum('total_price'),
         ];
         $departments = Department::active()->orderBy('name')->get();
+        $items       = Sage300Item::active()->orderBy('item_code')->get(['item_code', 'description']);
 
-        return view('admin.reports.issued-items', compact('groupedItems', 'statistics', 'departments'));
-    }
-
-    /**
-     * Local Item Issuing Report.
-     */
-    public function localIssuedItems(Request $request)
-    {
-        if ($request->has('export') && $request->export === 'excel') {
-            return Excel::download(
-                new IssuedItemsExport(array_merge($request->all(), ['item_type' => 'local'])),
-                'local_issued_items_' . date('Y-m-d_H-i-s') . '.xlsx'
-            );
-        }
-
-        $allItems    = $this->buildIssuedQuery($request, 'local')
-            ->orderBy('d_sort.name', 'asc')
-            ->orderBy('requisition_issued_items.issued_at', 'asc')
-            ->get();
-        $groupedItems = $allItems->groupBy(fn($i) => $i->requisition->department->name ?? 'Unknown');
-        $statistics  = [
-            'total_issued'   => $allItems->count(),
-            'total_quantity' => $allItems->sum('issued_quantity'),
-            'total_value'    => $allItems->sum('total_price'),
-        ];
-        $departments = Department::active()->orderBy('name')->get();
-        $items = Sage300Item::active()
-            ->where('item_code', 'not like', 'ENI-%')
-            ->orderBy('item_code')
-            ->get(['item_code', 'description']);
-
-        return view('admin.reports.local-issued-items', compact('groupedItems', 'statistics', 'departments', 'items'));
-    }
-
-    /**
-     * Import Item Issuing Report.
-     */
-    public function importIssuedItems(Request $request)
-    {
-        if ($request->has('export') && $request->export === 'excel') {
-            return Excel::download(
-                new IssuedItemsExport(array_merge($request->all(), ['item_type' => 'import'])),
-                'import_issued_items_' . date('Y-m-d_H-i-s') . '.xlsx'
-            );
-        }
-
-        $allItems    = $this->buildIssuedQuery($request, 'import')
-            ->orderBy('d_sort.name', 'asc')
-            ->orderBy('requisition_issued_items.issued_at', 'asc')
-            ->get();
-        $groupedItems = $allItems->groupBy(fn($i) => $i->requisition->department->name ?? 'Unknown');
-        $statistics  = [
-            'total_issued'   => $allItems->count(),
-            'total_quantity' => $allItems->sum('issued_quantity'),
-            'total_value'    => $allItems->sum('total_price'),
-        ];
-        $departments = Department::active()->orderBy('name')->get();
-        $items = Sage300Item::active()
-            ->where('item_code', 'like', 'ENI-%')
-            ->orderBy('item_code')
-            ->get(['item_code', 'description']);
-
-        return view('admin.reports.import-issued-items', compact('groupedItems', 'statistics', 'departments', 'items'));
+        return view('admin.reports.issued-items', compact(
+            'groupedItems', 'statistics', 'departments', 'items', 'itemType'
+        ));
     }
 
     /**

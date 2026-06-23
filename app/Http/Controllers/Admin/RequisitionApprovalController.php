@@ -350,6 +350,38 @@ class RequisitionApprovalController extends Controller
     }
 
     /**
+     * Manually force-clear a requisition regardless of issued qty.
+     */
+    public function forceClear(Request $request, Requisition $requisition)
+    {
+        if ($requisition->approve_status !== 'approved') {
+            return redirect()->back()
+                ->with('error', 'Only approved requisitions can be cleared.');
+        }
+
+        if ($requisition->clear_status === 'cleared') {
+            return redirect()->back()
+                ->with('error', 'This requisition is already cleared.');
+        }
+
+        $request->validate([
+            'clear_reason' => 'required|string|max:500',
+        ]);
+
+        $requisition->update([
+            'clear_status' => 'cleared',
+            'cleared_by'   => Auth::id(),
+            'cleared_at'   => now(),
+            'notes'        => ($requisition->notes ? $requisition->notes . "\n" : '')
+                              . '[Force-cleared by ' . Auth::user()->name . ': ' . $request->clear_reason . ']',
+            'updated_by'   => Auth::id(),
+        ]);
+
+        return redirect()->route('admin.requisitions.show', $requisition->id)
+            ->with('success', 'Requisition has been force-cleared successfully.');
+    }
+
+    /**
      * Update requisition items (approver can edit quantities, add/remove items while pending).
      */
     public function updateItems(Request $request, Requisition $requisition)

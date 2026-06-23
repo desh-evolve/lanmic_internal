@@ -17,17 +17,15 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
 {
     protected array $filters;
 
-    // Columns: A–K  (11 total)
-    private const LAST_COL  = 'K';
-    private const NUM_COLS  = 11;
-    private const COL_RANGE = 'A:K';
+    // Columns: A–M  (13 total)
+    private const LAST_COL  = 'M';
+    private const NUM_COLS  = 13;
 
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
     }
 
-    // ── Build grouped data ────────────────────────────────────────────────
     protected function buildGroupedData(): \Illuminate\Support\Collection
     {
         $query = RequisitionIssuedItem::with([
@@ -51,46 +49,61 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
             $query->where('requisition_issued_items.item_name', 'like', '%' . $this->filters['item_name'] . '%');
         if (!empty($this->filters['department_id']))
             $query->where('r_sort.department_id', $this->filters['department_id']);
-        // Import = item code starts with 'ENI-'; local = everything else
-        if (!empty($this->filters['item_type'])) {
-            if ($this->filters['item_type'] === 'import') {
-                $query->where('requisition_issued_items.item_code', 'like', 'ENI-%');
-            } elseif ($this->filters['item_type'] === 'local') {
-                $query->where('requisition_issued_items.item_code', 'not like', 'ENI-%');
-            }
+
+        $itemType = $this->filters['item_type'] ?? 'all';
+        if ($itemType === 'import') {
+            $query->where('requisition_issued_items.item_code', 'like', 'ENI-%');
+        } elseif ($itemType === 'local') {
+            $query->where('requisition_issued_items.item_code', 'not like', 'ENI-%');
         }
 
-        $items = $query
+        return $query
             ->orderBy('d_sort.name', 'asc')
             ->orderBy('requisition_issued_items.issued_at', 'asc')
-            ->get();
-
-        return $items->groupBy(fn($i) => $i->requisition->department->name ?? 'Unknown');
+            ->get()
+            ->groupBy(fn($i) => $i->requisition->department->name ?? 'Unknown');
     }
 
-    // ── Build the sheet row by row ────────────────────────────────────────
     public function registerEvents(): array
     {
         $groupedData = $this->buildGroupedData();
+        $lastCol     = self::LAST_COL;
 
         return [
-            AfterSheet::class => function (AfterSheet $event) use ($groupedData) {
+            AfterSheet::class => function (AfterSheet $event) use ($groupedData, $lastCol) {
                 $sheet = $event->sheet->getDelegate();
                 $row   = 1;
 
-                // ── Column header row ─────────────────────────────────────
+                // ── Column headers ────────────────────────────────────────
                 $headers = [
-                    'Document No', 'Date', 'Item', 'Loc', 'UOM',
-                    'Qty', 'Unit Price', 'Total Cost',
-                    'Sub-Dept', 'Job Card', 'Remarks',
+                    'Document No', 'Date', 'Requested By',
+                    'Item Code', 'Item Name', 'Type',
+                    'Loc', 'UOM', 'Qty', 'Unit Price', 'Total Cost',
+                    'Sub-Dept', 'Job Card', // M is last but let's recount...
+                ];
+                // 13 columns: A=Doc No, B=Date, C=Requested By, D=Item Code,
+                // E=Item Name, F=Type, G=Loc, H=UOM, I=Qty, J=Unit Price,
+                // K=Total Cost, L=Sub-Dept, M=Job Card  ... wait that's 13
+                // Let me re-define clearly:
+                $headers = [
+                    'Document No',   // A
+                    'Date',          // B
+                    'Requested By',  // C
+                    'Item Code',     // D
+                    'Item Name',     // E
+                    'Type',          // F
+                    'Loc',           // G
+                    'UOM',           // H
+                    'Qty',           // I
+                    'Unit Price',    // J
+                    'Total Cost',    // K
+                    'Sub-Dept',      // L
+                    'Remarks',       // M
                 ];
                 $sheet->fromArray($headers, null, "A{$row}");
-                $sheet->getStyle("A{$row}:K{$row}")->applyFromArray([
+                $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-                    'fill' => [
-                        'fillType'   => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => '2F5597'],
-                    ],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2F5597']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
                 $sheet->getRowDimension($row)->setRowHeight(15);
@@ -101,15 +114,12 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
 
                 foreach ($groupedData as $deptName => $items) {
 
-                    // ── Department group header ───────────────────────────
-                    $sheet->mergeCells("A{$row}:K{$row}");
+                    // ── Department header ─────────────────────────────────
+                    $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
                     $sheet->setCellValue("A{$row}", strtoupper($deptName));
-                    $sheet->getStyle("A{$row}:K{$row}")->applyFromArray([
+                    $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
                         'font' => ['bold' => true, 'size' => 10],
-                        'fill' => [
-                            'fillType'   => Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => 'D9D9D9'],
-                        ],
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9D9D9']],
                     ]);
                     $sheet->getRowDimension($row)->setRowHeight(14);
                     $row++;
@@ -117,28 +127,36 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
                     $groupQty  = 0;
                     $groupCost = 0;
 
-                    // ── Data rows ─────────────────────────────────────────
                     foreach ($items as $item) {
+                        $isImport = str_starts_with($item->item_code ?? '', 'ENI-');
+
                         $sheet->fromArray([
-                            $item->requisition->requisition_number ?? '',
-                            Carbon::parse($item->issued_at)->format('d/m/Y'),
-                            $item->item_name,
-                            $item->location_code ?? '',
-                            $item->unit          ?? '',
-                            (float) $item->issued_quantity,
-                            (float) $item->unit_price,
-                            (float) $item->total_price,
-                            $item->requisition->subDepartment->name ?? '',
-                            $item->reference_number_1 ?? '',
-                            $item->notes ?? '',
+                            $item->requisition->requisition_number ?? '',  // A
+                            Carbon::parse($item->issued_at)->format('d/m/Y'), // B
+                            $item->requisition->user->name ?? '',          // C
+                            $item->item_code ?? '',                        // D
+                            $item->item_name,                              // E
+                            $isImport ? 'Import' : 'Local',                // F
+                            $item->location_code ?? '',                    // G
+                            $item->unit ?? '',                             // H
+                            (float) $item->issued_quantity,                // I
+                            (float) $item->unit_price,                     // J
+                            (float) $item->total_price,                    // K
+                            $item->requisition->subDepartment->name ?? '', // L
+                            $item->notes ?? '',                            // M
                         ], null, "A{$row}");
 
-                        // Right-align + number format for numeric columns
-                        $sheet->getStyle("F{$row}")->getNumberFormat()
+                        // Type column colour
+                        $sheet->getStyle("F{$row}")->applyFromArray([
+                            'font' => ['bold' => true, 'color' => ['rgb' => $isImport ? '0D6EFD' : '28A745']],
+                        ]);
+
+                        // Numeric columns right-aligned
+                        $sheet->getStyle("I{$row}")->getNumberFormat()
                               ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-                        $sheet->getStyle("G{$row}:H{$row}")->getNumberFormat()
+                        $sheet->getStyle("J{$row}:K{$row}")->getNumberFormat()
                               ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-                        $sheet->getStyle("F{$row}:H{$row}")->getAlignment()
+                        $sheet->getStyle("I{$row}:K{$row}")->getAlignment()
                               ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
                         $groupQty  += $item->issued_quantity;
@@ -147,26 +165,23 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
                     }
 
                     // ── Group subtotal ────────────────────────────────────
-                    $sheet->mergeCells("A{$row}:E{$row}");
-                    $sheet->setCellValue("F{$row}", (float) $groupQty);
-                    $sheet->setCellValue("H{$row}", (float) $groupCost);
+                    $sheet->mergeCells("A{$row}:H{$row}");
+                    $sheet->setCellValue("I{$row}", (float) $groupQty);
+                    $sheet->setCellValue("K{$row}", (float) $groupCost);
 
-                    $sheet->getStyle("F{$row}")->getNumberFormat()
+                    $sheet->getStyle("I{$row}")->getNumberFormat()
                           ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-                    $sheet->getStyle("H{$row}")->getNumberFormat()
+                    $sheet->getStyle("K{$row}")->getNumberFormat()
                           ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-                    $sheet->getStyle("F{$row}:H{$row}")->getAlignment()
+                    $sheet->getStyle("I{$row}:K{$row}")->getAlignment()
                           ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-
-                    $sheet->getStyle("A{$row}:K{$row}")->applyFromArray([
+                    $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
                         'font'    => ['bold' => true],
-                        'borders' => [
-                            'top' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
-                        ],
+                        'borders' => ['top' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
                     ]);
                     $row++;
 
-                    // ── Blank spacer between groups ───────────────────────
+                    // ── Blank spacer ──────────────────────────────────────
                     $sheet->getRowDimension($row)->setRowHeight(6);
                     $row++;
 
@@ -174,45 +189,32 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
                     $grandTotalCost += $groupCost;
                 }
 
-                // ── Grand total row ───────────────────────────────────────
-                $sheet->mergeCells("A{$row}:E{$row}");
+                // ── Grand total ───────────────────────────────────────────
+                $sheet->mergeCells("A{$row}:H{$row}");
                 $sheet->setCellValue("A{$row}", 'TOTAL ISSUING COST');
-                $sheet->setCellValue("F{$row}", (float) $grandTotalQty);
-                $sheet->setCellValue("H{$row}", (float) $grandTotalCost);
+                $sheet->setCellValue("I{$row}", (float) $grandTotalQty);
+                $sheet->setCellValue("K{$row}", (float) $grandTotalCost);
 
-                $sheet->getStyle("F{$row}")->getNumberFormat()
+                $sheet->getStyle("I{$row}")->getNumberFormat()
                       ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-                $sheet->getStyle("H{$row}")->getNumberFormat()
+                $sheet->getStyle("K{$row}")->getNumberFormat()
                       ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-                $sheet->getStyle("F{$row}:H{$row}")->getAlignment()
+                $sheet->getStyle("I{$row}:K{$row}")->getAlignment()
                       ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-
-                $sheet->getStyle("A{$row}:K{$row}")->applyFromArray([
+                $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 11],
-                    'fill' => [
-                        'fillType'   => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => 'FFFF00'],  // yellow — same as spreadsheet
-                    ],
-                    'borders' => [
-                        'top' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '000000']],
-                    ],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
+                    'borders' => ['top' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '000000']]],
                 ]);
                 $sheet->getRowDimension($row)->setRowHeight(16);
 
-                // ── Apply outer border to entire data range ───────────────
-                $sheet->getStyle("A1:K{$row}")->applyFromArray([
+                // ── Outer borders + wrap item name ────────────────────────
+                $sheet->getStyle("A1:{$lastCol}{$row}")->applyFromArray([
                     'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => Border::BORDER_THIN,
-                            'color'       => ['rgb' => 'BFBFBF'],
-                        ],
+                        'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'BFBFBF']],
                     ],
                 ]);
-
-                // ── Wrap text in Item column (C) ──────────────────────────
-                $sheet->getStyle('C1:C' . $row)->getAlignment()->setWrapText(true);
-
-                // ── Freeze header row ─────────────────────────────────────
+                $sheet->getStyle('E1:E' . $row)->getAlignment()->setWrapText(true);
                 $sheet->freezePane('A2');
             },
         ];
@@ -228,15 +230,17 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
         return [
             'A' => 18,  // Document No
             'B' => 11,  // Date
-            'C' => 38,  // Item
-            'D' => 7,   // Loc
-            'E' => 7,   // UOM
-            'F' => 10,  // Qty
-            'G' => 13,  // Unit Price
-            'H' => 15,  // Total Cost
-            'I' => 22,  // Sub-Dept
-            'J' => 14,  // Job Card
-            'K' => 28,  // Remarks
+            'C' => 22,  // Requested By
+            'D' => 16,  // Item Code
+            'E' => 34,  // Item Name
+            'F' => 9,   // Type
+            'G' => 7,   // Loc
+            'H' => 7,   // UOM
+            'I' => 10,  // Qty
+            'J' => 13,  // Unit Price
+            'K' => 15,  // Total Cost
+            'L' => 22,  // Sub-Dept
+            'M' => 28,  // Remarks
         ];
     }
 }

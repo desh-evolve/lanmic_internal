@@ -258,6 +258,16 @@
 <script>
 $(document).ready(function () {
 
+    function escHtml(str) {
+        if (str == null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
     const itemsData = @json($requisition->items);
     let rowCounter  = 0;
 
@@ -375,24 +385,24 @@ $(document).ready(function () {
 
         $('#stagedTbody').append(`
             <tr data-item-index="${itemIndex}"
-                data-location-code="${data.locationCode}"
-                data-quantity="${data.quantity}">
+                data-location-code="${escHtml(data.locationCode)}"
+                data-quantity="${escHtml(data.quantity)}">
                 <td>
-                    <strong>${data.itemCode}</strong>
-                    <br><small class="text-muted">${data.itemName}</small>
-                    ${data.notes ? `<br><small class="text-muted"><i class="fas fa-comment-alt fa-xs"></i> ${data.notes}</small>` : ''}
-                    <input type="hidden" name="items[${itemIndex}][locations][${rowCounter}][requisition_item_id]" value="${data.requisitionItemId}">
-                    <input type="hidden" name="items[${itemIndex}][locations][${rowCounter}][location_code]"       value="${data.locationCode}">
-                    <input type="hidden" name="items[${itemIndex}][locations][${rowCounter}][notes]"               value="${data.notes}">
+                    <strong>${escHtml(data.itemCode)}</strong>
+                    <br><small class="text-muted">${escHtml(data.itemName)}</small>
+                    ${data.notes ? `<br><small class="text-muted"><i class="fas fa-comment-alt fa-xs"></i> ${escHtml(data.notes)}</small>` : ''}
+                    <input type="hidden" name="items[${itemIndex}][locations][${rowCounter}][requisition_item_id]" value="${escHtml(data.requisitionItemId)}">
+                    <input type="hidden" name="items[${itemIndex}][locations][${rowCounter}][location_code]"       value="${escHtml(data.locationCode)}">
+                    <input type="hidden" name="items[${itemIndex}][locations][${rowCounter}][notes]"               value="${escHtml(data.notes)}">
                 </td>
                 <td class="align-middle">
-                    <small>${data.locationName}</small>
+                    <small>${escHtml(data.locationName)}</small>
                 </td>
                 <td class="align-middle">
-                    <strong>${data.quantity}</strong> <small class="text-muted">${data.itemUnit}</small>
+                    <strong>${escHtml(data.quantity)}</strong> <small class="text-muted">${escHtml(data.itemUnit)}</small>
                     <input type="hidden"
                            name="items[${itemIndex}][locations][${rowCounter}][issued_quantity]"
-                           value="${data.quantity}">
+                           value="${escHtml(data.quantity)}">
                 </td>
                 <td class="text-center align-middle">
                     <button type="button" class="btn btn-xs btn-danger remove-row-btn" title="Remove">

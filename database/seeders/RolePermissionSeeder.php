@@ -66,6 +66,7 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'delete-requisitions', 'module' => 'requisitions', 'description' => 'Delete requisitions'],
             ['name' => 'approve-requisitions', 'module' => 'requisitions', 'description' => 'Approve/reject requisitions'],
             ['name' => 'issue-requisitions', 'module' => 'requisitions', 'description' => 'Issue items for requisitions'],
+            ['name' => 'clear-requisitions', 'module' => 'requisitions', 'description' => 'Manually force-clear requisition status'],
 
             // Purchase Order Module
             ['name' => 'view-purchase-orders', 'module' => 'purchase-orders', 'description' => 'View purchase orders'],
