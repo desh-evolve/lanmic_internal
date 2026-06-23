@@ -281,6 +281,16 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{{ asset('js/sage300.js') }}"></script>
 <script>
+function escHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 let allRequestedItems = [];
 let allItems = [];
 let itemLocations = {};
@@ -676,22 +686,22 @@ function renderTable() {
                 <td>
                     ${item.name}
                     <!-- Requisition Items -->
-                    <input type="hidden" name="requisition_items[${index}][item_code]" value="${item.code}">
-                    <input type="hidden" name="requisition_items[${index}][item_name]" value="${item.name}">
-                    <input type="hidden" name="requisition_items[${index}][item_category]" value="${item.category}">
-                    <input type="hidden" name="requisition_items[${index}][unit]" value="${item.unit}">
-                    <input type="hidden" name="requisition_items[${index}][location_code]" value="${item.location_code}">
-                    <input type="hidden" name="requisition_items[${index}][location_name]" value="${item.location_name}">
-                    <input type="hidden" name="requisition_items[${index}][quantity]" value="${item.requisition_qty}">
+                    <input type="hidden" name="requisition_items[${index}][item_code]" value="${escHtml(item.code)}">
+                    <input type="hidden" name="requisition_items[${index}][item_name]" value="${escHtml(item.name)}">
+                    <input type="hidden" name="requisition_items[${index}][item_category]" value="${escHtml(item.category)}">
+                    <input type="hidden" name="requisition_items[${index}][unit]" value="${escHtml(item.unit)}">
+                    <input type="hidden" name="requisition_items[${index}][location_code]" value="${escHtml(item.location_code)}">
+                    <input type="hidden" name="requisition_items[${index}][location_name]" value="${escHtml(item.location_name)}">
+                    <input type="hidden" name="requisition_items[${index}][quantity]" value="${escHtml(item.requisition_qty)}">
                     ${item.needsPO ? `
                     <!-- Purchase Order Items -->
-                    <input type="hidden" name="purchase_order_items[${index}][item_code]" value="${item.code}">
-                    <input type="hidden" name="purchase_order_items[${index}][item_name]" value="${item.name}">
-                    <input type="hidden" name="purchase_order_items[${index}][item_category]" value="${item.category}">
-                    <input type="hidden" name="purchase_order_items[${index}][unit]" value="${item.unit}">
-                    <input type="hidden" name="purchase_order_items[${index}][location_code]" value="${item.location_code}">
-                    <input type="hidden" name="purchase_order_items[${index}][location_name]" value="${item.location_name}">
-                    <input type="hidden" name="purchase_order_items[${index}][quantity]" value="${item.po_qty}">
+                    <input type="hidden" name="purchase_order_items[${index}][item_code]" value="${escHtml(item.code)}">
+                    <input type="hidden" name="purchase_order_items[${index}][item_name]" value="${escHtml(item.name)}">
+                    <input type="hidden" name="purchase_order_items[${index}][item_category]" value="${escHtml(item.category)}">
+                    <input type="hidden" name="purchase_order_items[${index}][unit]" value="${escHtml(item.unit)}">
+                    <input type="hidden" name="purchase_order_items[${index}][location_code]" value="${escHtml(item.location_code)}">
+                    <input type="hidden" name="purchase_order_items[${index}][location_name]" value="${escHtml(item.location_name)}">
+                    <input type="hidden" name="purchase_order_items[${index}][quantity]" value="${escHtml(item.po_qty)}">
                     ` : ''}
                 </td>
                 <td>${item.category}</td>
