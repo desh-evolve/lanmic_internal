@@ -1,7 +1,7 @@
 {{-- resources/views/admin/reports/inventory-movement.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Inventory Movement Report')
+@section('title', 'Internal Usage Report')
 
 @push('styles')
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -109,7 +109,7 @@
     <div class="row mb-3 no-print">
         <div class="col-12 d-flex justify-content-between align-items-center">
             <div>
-                <h1 class="h3 mb-0">I/C Inventory Movement Report</h1>
+                <h1 class="h3 mb-0">Internal Usage Report</h1>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item"><a href="{{ route('home') }}">Dashboard</a></li>
@@ -182,7 +182,7 @@
             <div>{{ now()->format('d/m/Y H:i:s') }}</div>
         </div>
         <div style="font-size:12pt; font-weight:bold; text-align:center; margin:6px 0;">
-            I/C Inventory Movement (ICMVMT02)
+            Internal Usage Report
         </div>
         <table style="font-size:9pt; margin-bottom:8px;">
             <tr>

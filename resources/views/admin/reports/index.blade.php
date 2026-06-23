@@ -222,8 +222,8 @@
                                             <i class="fas fa-exchange-alt fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
-                                            <h5 class="card-title">Inventory Movement</h5>
-                                            <p class="card-text small">Item-wise IN/OUT movement — mirrors Sage ICMVMT02</p>
+                                            <h5 class="card-title">Internal Usage Report</h5>
+                                            <p class="card-text small">Item-wise IN/OUT movement with opening &amp; ending balances</p>
                                         </div>
                                     </div>
                                 </div>

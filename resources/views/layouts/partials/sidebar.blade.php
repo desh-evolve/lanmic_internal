@@ -186,18 +186,6 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('reports.local-issued-items') }}" class="nav-link {{ request()->routeIs('reports.local-issued-items') ? 'active' : '' }}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Local Item Issuing</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('reports.import-issued-items') }}" class="nav-link {{ request()->routeIs('reports.import-issued-items') ? 'active' : '' }}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Import Item Issuing</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a href="{{ route('reports.purchase-order') }}" class="nav-link {{ request()->routeIs('reports.purchase-order') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Purchase Orders</p>
@@ -242,7 +230,7 @@
                         <li class="nav-item">
                             <a href="{{ route('reports.inventory-movement') }}" class="nav-link {{ request()->routeIs('reports.inventory-movement') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Inventory Movement</p>
+                                <p>Internal Usage Report</p>
                             </a>
                         </li>
                     </ul>
