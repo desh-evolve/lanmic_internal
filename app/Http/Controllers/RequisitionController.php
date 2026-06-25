@@ -29,16 +29,19 @@ class RequisitionController extends Controller
     }
 
     /**
-     * Display a listing of the user's requisitions.
+     * Display requisitions created by the current user or by any colleague
+     * who shares a department with them.
      */
     public function index()
     {
-        $requisitions = Requisition::where('user_id', Auth::id())
+        $colleagueIds = Auth::user()->departmentColleagueIds();
+
+        $requisitions = Requisition::whereIn('user_id', $colleagueIds)
             ->where('status', 'active')
-            ->with(['department', 'subDepartment', 'division', 'items'])
+            ->with(['department', 'subDepartment', 'division', 'items', 'user'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
-        
+
         return view('requisitions.index', compact('requisitions'));
     }
 
@@ -144,12 +147,22 @@ class RequisitionController extends Controller
     }
 
     /**
+     * True if the current user may VIEW a requisition: their own, admin role,
+     * or one created by a colleague who shares a department with them.
+     */
+    private function canViewRequisition(Requisition $requisition): bool
+    {
+        $user = Auth::user();
+        if ($user->hasRole('admin')) return true;
+        return $user->departmentColleagueIds()->contains($requisition->user_id);
+    }
+
+    /**
      * Display the specified requisition.
      */
     public function show(Requisition $requisition)
     {
-        // Check if user owns this requisition or is admin
-        if ((int)$requisition->user_id !== Auth::id() && !Auth::user()->hasRole('admin')) {
+        if (!$this->canViewRequisition($requisition)) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(php artisan *)",
-      "Bash(grep -E \"\\\\.\\(php|blade\\\\.php\\)$\")"
+      "Bash(grep -E \"\\\\.\\(php|blade\\\\.php\\)$\")",
+      "Bash(php -l \"C:\\\\DESH\\\\PROJECTS\\\\GitHub\\\\lanmic_internal\\\\resources\\\\views\\\\admin\\\\requisitions\\\\show.blade.php\")"
     ]
   }
 }

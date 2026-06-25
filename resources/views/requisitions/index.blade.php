@@ -43,6 +43,7 @@
                     <thead>
                         <tr>
                             <th>Requisition #</th>
+                            <th>Requested By</th>
                             <th>Department</th>
                             <th>Items</th>
                             <th>Approve Status</th>
@@ -55,6 +56,12 @@
                         @forelse($requisitions as $requisition)
                         <tr>
                             <td><strong>{{ $requisition->requisition_number }}</strong></td>
+                            <td>
+                                {{ $requisition->user->name ?? '-' }}
+                                @if($requisition->user_id === Auth::id())
+                                    <span class="badge badge-secondary" style="font-size:0.7em">You</span>
+                                @endif
+                            </td>
                             <td>
                                 {{ $requisition->department->name ?? '-' }}
                                 @if($requisition->subDepartment)
@@ -87,7 +94,7 @@
                                 <a href="{{ route('requisitions.show', $requisition->id) }}" class="btn btn-info btn-sm">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                @if($requisition->approve_status === 'pending')
+                                @if($requisition->approve_status === 'pending' && $requisition->user_id === Auth::id())
                                 @if(Auth::user()->hasPermission('edit-requisitions'))
                                 <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning btn-sm" title="Edit">
                                     <i class="fas fa-edit"></i>
@@ -107,7 +114,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="text-center">No requisitions found. <a href="{{ route('requisitions.create') }}">Create your first requisition</a></td>
+                            <td colspan="8" class="text-center">No requisitions found. <a href="{{ route('requisitions.create') }}">Create your first requisition</a></td>
                         </tr>
                         @endforelse
                     </tbody>

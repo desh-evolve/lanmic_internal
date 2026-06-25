@@ -1,13 +1,14 @@
 {{--
     Shared partial for issued-items report.
     Expects:
-        $groupedItems  — Collection keyed by department name
-        $statistics    — ['total_issued', 'total_quantity', 'total_value']
-        $departments   — Collection of active Department models
-        $reportTitle   — string
-        $exportRoute   — named route string
-        $items         — optional: Collection of Sage300Item for searchable dropdown
-        $itemType      — optional: 'all'|'local'|'import' (default 'all')
+        $groupedItems       — Collection keyed by department name
+        $statistics         — ['total_issued', 'total_quantity', 'total_value']
+        $departments        — Collection of active Department models
+        $reportTitle        — string
+        $exportRoute        — named route string
+        $items              — optional: Collection of Sage300Item for searchable dropdown
+        $itemType           — optional: 'all'|'local'|'import' (default 'all')
+        $requestedByUsers   — optional: Collection of User models for Requested By filter
 --}}
 @php $itemType = $itemType ?? 'all'; @endphp
 
@@ -81,6 +82,20 @@
                         @endforeach
                     </select>
                 </div>
+
+                @if(isset($requestedByUsers) && $requestedByUsers->isNotEmpty())
+                <div class="col-md-3">
+                    <label class="small mb-1">Requested By</label>
+                    <select name="requested_by[]" id="requestedBySelect" class="form-control form-control-sm" multiple style="width:100%">
+                        @foreach($requestedByUsers as $user)
+                            <option value="{{ $user->id }}"
+                                {{ in_array($user->id, (array) request('requested_by', [])) ? 'selected' : '' }}>
+                                {{ $user->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
 
                 <div class="col-md-2 d-flex" style="gap:4px">
                     <button type="submit" class="btn btn-sm btn-primary flex-fill">

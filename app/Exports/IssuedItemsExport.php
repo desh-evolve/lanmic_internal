@@ -57,6 +57,11 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
             $query->where('requisition_issued_items.item_code', 'not like', 'ENI-%');
         }
 
+        $requestedBy = array_filter((array) ($this->filters['requested_by'] ?? []));
+        if (!empty($requestedBy)) {
+            $query->whereIn('r_sort.user_id', $requestedBy);
+        }
+
         return $query
             ->orderBy('d_sort.name', 'asc')
             ->orderBy('requisition_issued_items.issued_at', 'asc')

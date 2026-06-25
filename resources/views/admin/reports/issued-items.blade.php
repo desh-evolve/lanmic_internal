@@ -16,10 +16,11 @@
 
 @section('content')
 @include('admin.reports._issued-items-table', [
-    'reportTitle' => 'Issued Items Report',
-    'exportRoute' => 'reports.issued-items',
-    'items'       => $items,
-    'itemType'    => $itemType,
+    'reportTitle'      => 'Issued Items Report',
+    'exportRoute'      => 'reports.issued-items',
+    'items'            => $items,
+    'itemType'         => $itemType,
+    'requestedByUsers' => $requestedByUsers,
 ])
 @endsection
 
@@ -38,6 +39,13 @@
                 if (data.text && data.text.toLowerCase().includes(term)) return data;
                 return null;
             }
+        });
+
+        $('#requestedBySelect').select2({
+            theme: 'bootstrap',
+            placeholder: 'All requestors…',
+            allowClear: true,
+            closeOnSelect: false,
         });
     });
 </script>

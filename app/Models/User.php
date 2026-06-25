@@ -281,4 +281,27 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Department::class, 'user_department');
     }
+
+    /**
+     * IDs of every user who shares at least one department with this user,
+     * including this user. Used to scope requisitions/returns so that
+     * same-department colleagues can see each other's data.
+     *
+     * If the user belongs to no department, only their own id is returned.
+     */
+    public function departmentColleagueIds(): \Illuminate\Support\Collection
+    {
+        $this->loadMissing('departments');
+        $deptIds = $this->departments->pluck('id');
+
+        if ($deptIds->isEmpty()) {
+            return collect([$this->id]);
+        }
+
+        return static::whereHas('departments', fn ($q) => $q->whereIn('departments.id', $deptIds))
+            ->pluck('id')
+            ->push($this->id)
+            ->unique()
+            ->values();
+    }
 }

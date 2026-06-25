@@ -188,6 +188,9 @@ class ReportController extends Controller
         if ($request->filled('item_name'))     $query->where('requisition_issued_items.item_name',  'like', '%' . $request->item_name  . '%');
         if ($request->filled('department_id')) $query->where('r_sort.department_id', $request->department_id);
 
+        $requestedBy = array_filter((array) $request->input('requested_by', []));
+        if (!empty($requestedBy))              $query->whereIn('r_sort.user_id', $requestedBy);
+
         return $query;
     }
 
@@ -212,6 +215,9 @@ class ReportController extends Controller
         if ($request->filled('item_name'))     $query->where('rii.item_name', 'like', '%' . $request->item_name . '%');
         if ($request->filled('department_id')) $query->where('r.department_id', $request->department_id);
         if ($request->filled('category'))      $query->where('rii.item_category', 'like', '%' . $request->category . '%');
+
+        $requestedBy = array_filter((array) $request->input('requested_by', []));
+        if (!empty($requestedBy))              $query->whereIn('r.user_id', $requestedBy);
 
         return $query->groupByRaw('d.id, d.name')->orderByRaw('d.name ASC')->get();
     }
@@ -241,11 +247,13 @@ class ReportController extends Controller
             'total_quantity' => $allItems->sum('issued_quantity'),
             'total_value'    => $allItems->sum('total_price'),
         ];
-        $departments = Department::active()->orderBy('name')->get();
-        $items       = Sage300Item::active()->orderBy('item_code')->get(['item_code', 'description']);
+        $departments      = Department::active()->orderBy('name')->get();
+        $items            = Sage300Item::active()->orderBy('item_code')->get(['item_code', 'description']);
+        $requestedByUsers = User::whereIn('id', Requisition::select('user_id')->distinct())
+                                ->orderBy('name')->get(['id', 'name']);
 
         return view('admin.reports.issued-items', compact(
-            'groupedItems', 'statistics', 'departments', 'items', 'itemType'
+            'groupedItems', 'statistics', 'departments', 'items', 'itemType', 'requestedByUsers'
         ));
     }
 

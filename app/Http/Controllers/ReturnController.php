@@ -23,35 +23,33 @@ class ReturnController extends Controller
     }
 
     /**
-     * Display a listing of returns.
+     * Display returns created by the current user or by a colleague who shares
+     * a department with them (directly, or via the linked requisition's creator).
      */
     public function index()
     {
-        $returns = ReturnModel::where('returned_by', Auth::id())
+        $colleagueIds = Auth::user()->departmentColleagueIds();
+
+        $returns = ReturnModel::where(function ($q) use ($colleagueIds) {
+                $q->whereIn('returned_by', $colleagueIds)
+                  ->orWhereHas('requisition', fn($rq) => $rq->whereIn('user_id', $colleagueIds));
+            })
             ->where('status', '!=', 'delete')
-            ->with(['requisition', 'items'])
+            ->with(['requisition.user', 'returnedBy', 'items'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
-        
+
         return view('returns.index', compact('returns'));
     }
 
     /**
      * Determine whether the current user may access a requisition for return creation.
-     * Access is granted if:
-     *   (a) the user created the requisition, OR
-     *   (b) the requisition's department is in the user's assigned departments.
+     * Access is granted when the requisition was created by the user themselves
+     * or by a colleague who shares a department with them.
      */
     private function canAccessRequisition(Requisition $requisition): bool
     {
-        $user = Auth::user();
-
-        if ((int) $requisition->user_id === (int) $user->id) {
-            return true;
-        }
-
-        $user->loadMissing('departments');
-        return $user->departments->pluck('id')->contains($requisition->department_id);
+        return Auth::user()->departmentColleagueIds()->contains($requisition->user_id);
     }
 
     /**
@@ -59,17 +57,11 @@ class ReturnController extends Controller
      */
     public function create()
     {
-        $user = Auth::user();
-        $user->loadMissing('departments');
-        $departmentIds = $user->departments->pluck('id');
+        $colleagueIds = Auth::user()->departmentColleagueIds();
 
-        // Show requisitions the user created OR that belong to any of their assigned departments
-        $requisitions = Requisition::where(function ($q) use ($user, $departmentIds) {
-                $q->where('user_id', $user->id);
-                if ($departmentIds->isNotEmpty()) {
-                    $q->orWhereIn('department_id', $departmentIds);
-                }
-            })
+        // Requisitions created by the user or a same-department colleague that are
+        // approved, active and have issued items available to return.
+        $requisitions = Requisition::whereIn('user_id', $colleagueIds)
             ->where('approve_status', 'approved')
             ->where('status', 'active')
             ->whereHas('issuedItems')
@@ -220,9 +212,16 @@ class ReturnController extends Controller
      */
     public function show(ReturnModel $return)
     {
-        // Check if user owns this return or is admin
-        if ((int)$return->returned_by !== Auth::id() && !Auth::user()->hasRole('admin')) {
-            abort(403, 'Unauthorized action.');
+        $user = Auth::user();
+
+        if (!$user->hasRole('admin')) {
+            $colleagueIds   = $user->departmentColleagueIds();
+            $returnByColleague = $colleagueIds->contains($return->returned_by);
+            $reqByColleague    = $colleagueIds->contains(optional($return->requisition)->user_id);
+
+            if (!$returnByColleague && !$reqByColleague) {
+                abort(403, 'Unauthorized action.');
+            }
         }
 
         $return->load([
