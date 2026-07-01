@@ -16,7 +16,7 @@ class SubDepartmentController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('role:admin');
+        // Access is enforced per-route via permission:* middleware (see routes/web.php).
         // $this->middleware('permission:view-sub-departments')->only(['index', 'show']);
         // $this->middleware('permission:create-sub-departments')->only(['create', 'store']);
         // $this->middleware('permission:edit-sub-departments')->only(['edit', 'update']);

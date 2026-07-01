@@ -37,7 +37,7 @@ class ReportController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('role:admin');
+        // Access is enforced per-route via permission:view-reports (see routes/web.php).
     }
 
     /**

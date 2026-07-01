@@ -153,7 +153,7 @@ class RequisitionController extends Controller
     private function canViewRequisition(Requisition $requisition): bool
     {
         $user = Auth::user();
-        if ($user->hasRole('admin')) return true;
+        if ($user->hasPermission('full-access')) return true;
         return $user->departmentColleagueIds()->contains($requisition->user_id);
     }
 

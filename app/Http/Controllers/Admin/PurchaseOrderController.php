@@ -17,8 +17,7 @@ class PurchaseOrderController extends Controller
     public function __construct(Sage300Service $sage300)
     {
         $this->middleware('auth');
-        $this->middleware('role:admin');
-
+        // Access is enforced per-route via permission:* middleware (see routes/web.php).
         $this->sage300 = $sage300;
     }
 

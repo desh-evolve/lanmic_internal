@@ -16,18 +16,12 @@ class DepartmentController extends Controller
 
     public function __construct()
     {
+        $this->middleware('auth');
         // Apply permission middleware to specific methods
-        $this->middleware(CheckPermission::class . ':department.view')
-             ->only(['index', 'show']);
-        
-        $this->middleware(CheckPermission::class . ':department.create')
-             ->only(['create', 'store']);
-        
-        $this->middleware(CheckPermission::class . ':department.edit')
-             ->only(['edit', 'update']);
-        
-        $this->middleware(CheckPermission::class . ':department.delete')
-             ->only(['destroy']);
+        //$this->middleware(CheckPermission::class . ':department.view')->only(['index', 'show']);
+        //$this->middleware(CheckPermission::class . ':department.create')->only(['create', 'store']);
+        //$this->middleware(CheckPermission::class . ':department.edit')->only(['edit', 'update']);
+        //$this->middleware(CheckPermission::class . ':department.delete')->only(['destroy']);
     }
 
     /**

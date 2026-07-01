@@ -214,7 +214,7 @@ class ReturnController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user->hasRole('admin')) {
+        if (!$user->hasPermission('full-access')) {
             $colleagueIds   = $user->departmentColleagueIds();
             $returnByColleague = $colleagueIds->contains($return->returned_by);
             $reqByColleague    = $colleagueIds->contains(optional($return->requisition)->user_id);

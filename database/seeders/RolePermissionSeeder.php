@@ -19,6 +19,10 @@ class RolePermissionSeeder extends Seeder
 
         // Create permissions organized by module
         $permissions = [
+            // System Module — grants an unconditional super-pass across the whole app.
+            // Use this instead of hardcoding an "admin" role name anywhere in code.
+            ['name' => 'full-access', 'module' => 'system', 'description' => 'Full access — bypasses all permission checks'],
+
             // Dashboard Module
             ['name' => 'view-dashboard', 'module' => 'dashboard', 'description' => 'View dashboard'],
 

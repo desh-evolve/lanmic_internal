@@ -42,7 +42,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('requisitions/{requisition}', [RequisitionController::class, 'show'])->middleware('permission:view-requisitions')->name('requisitions.show');
     Route::get('requisitions/{requisition}/edit', [RequisitionController::class, 'edit'])->middleware('permission:edit-requisitions')->name('requisitions.edit');
     Route::put('requisitions/{requisition}', [RequisitionController::class, 'update'])->middleware('permission:edit-requisitions')->name('requisitions.update');
-    Route::patch('requisitions/{requisition}', [RequisitionController::class, 'update']);
+    Route::patch('requisitions/{requisition}', [RequisitionController::class, 'update'])->middleware('permission:edit-requisitions');
     Route::delete('requisitions/{requisition}', [RequisitionController::class, 'destroy'])->middleware('permission:delete-requisitions')->name('requisitions.destroy');
 
     // Requisition supporting API endpoints
@@ -60,7 +60,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('returns/{return}', [ReturnController::class, 'show'])->middleware('permission:view-returns')->name('returns.show');
     Route::get('returns/{return}/edit', [ReturnController::class, 'edit'])->middleware('permission:edit-returns')->name('returns.edit');
     Route::put('returns/{return}', [ReturnController::class, 'update'])->middleware('permission:edit-returns')->name('returns.update');
-    Route::patch('returns/{return}', [ReturnController::class, 'update']);
+    Route::patch('returns/{return}', [ReturnController::class, 'update'])->middleware('permission:edit-returns');
     Route::delete('returns/{return}', [ReturnController::class, 'destroy'])->middleware('permission:delete-returns')->name('returns.destroy');
 
     // Returns supporting API endpoints
@@ -68,8 +68,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('api/requisitions/{requisition}/issued-items', [ReturnController::class, 'getIssuedItems']);
     });
 
-    // Admin routes
-    Route::middleware(['role:admin'])->prefix('admin')->group(function () {
+    // Admin routes — access governed by per-route permissions (not a hardcoded admin role)
+    Route::prefix('admin')->group(function () {
 
         // User Management
         Route::get('users', [UserController::class, 'index'])->middleware('permission:view-users')->name('users.index');
@@ -78,7 +78,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('users/{user}', [UserController::class, 'show'])->middleware('permission:view-users')->name('users.show');
         Route::get('users/{user}/edit', [UserController::class, 'edit'])->middleware('permission:edit-users')->name('users.edit');
         Route::put('users/{user}', [UserController::class, 'update'])->middleware('permission:edit-users')->name('users.update');
-        Route::patch('users/{user}', [UserController::class, 'update']);
+        Route::patch('users/{user}', [UserController::class, 'update'])->middleware('permission:edit-users');
         Route::delete('users/{user}', [UserController::class, 'destroy'])->middleware('permission:delete-users')->name('users.destroy');
         Route::get('users/{user}/permissions', [UserController::class, 'permissions'])->middleware('permission:assign-user-permissions')->name('users.permissions');
         Route::post('users/{user}/permissions', [UserController::class, 'updatePermissions'])->middleware('permission:assign-user-permissions')->name('users.permissions.update');
@@ -90,7 +90,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('roles/{role}', [RoleController::class, 'show'])->middleware('permission:view-roles')->name('roles.show');
         Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->middleware('permission:edit-roles')->name('roles.edit');
         Route::put('roles/{role}', [RoleController::class, 'update'])->middleware('permission:edit-roles')->name('roles.update');
-        Route::patch('roles/{role}', [RoleController::class, 'update']);
+        Route::patch('roles/{role}', [RoleController::class, 'update'])->middleware('permission:edit-roles');
         Route::delete('roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:delete-roles')->name('roles.destroy');
 
         // Permission Management
@@ -100,7 +100,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('permissions/{permission}', [PermissionController::class, 'show'])->middleware('permission:view-permissions')->name('permissions.show');
         Route::get('permissions/{permission}/edit', [PermissionController::class, 'edit'])->middleware('permission:edit-permissions')->name('permissions.edit');
         Route::put('permissions/{permission}', [PermissionController::class, 'update'])->middleware('permission:edit-permissions')->name('permissions.update');
-        Route::patch('permissions/{permission}', [PermissionController::class, 'update']);
+        Route::patch('permissions/{permission}', [PermissionController::class, 'update'])->middleware('permission:edit-permissions');
         Route::delete('permissions/{permission}', [PermissionController::class, 'destroy'])->middleware('permission:delete-permissions')->name('permissions.destroy');
 
         // Department Management
@@ -110,7 +110,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('departments/{department}', [DepartmentController::class, 'show'])->middleware('permission:view-departments')->name('departments.show');
         Route::get('departments/{department}/edit', [DepartmentController::class, 'edit'])->middleware('permission:edit-departments')->name('departments.edit');
         Route::put('departments/{department}', [DepartmentController::class, 'update'])->middleware('permission:edit-departments')->name('departments.update');
-        Route::patch('departments/{department}', [DepartmentController::class, 'update']);
+        Route::patch('departments/{department}', [DepartmentController::class, 'update'])->middleware('permission:edit-departments');
         Route::delete('departments/{department}', [DepartmentController::class, 'destroy'])->middleware('permission:delete-departments')->name('departments.destroy');
 
         // Sub-Department Management
@@ -120,7 +120,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('sub-departments/{sub_department}', [SubDepartmentController::class, 'show'])->middleware('permission:view-sub-departments')->name('sub-departments.show');
         Route::get('sub-departments/{sub_department}/edit', [SubDepartmentController::class, 'edit'])->middleware('permission:edit-sub-departments')->name('sub-departments.edit');
         Route::put('sub-departments/{sub_department}', [SubDepartmentController::class, 'update'])->middleware('permission:edit-sub-departments')->name('sub-departments.update');
-        Route::patch('sub-departments/{sub_department}', [SubDepartmentController::class, 'update']);
+        Route::patch('sub-departments/{sub_department}', [SubDepartmentController::class, 'update'])->middleware('permission:edit-sub-departments');
         Route::delete('sub-departments/{sub_department}', [SubDepartmentController::class, 'destroy'])->middleware('permission:delete-sub-departments')->name('sub-departments.destroy');
 
         // Division Management
@@ -130,11 +130,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('divisions/{division}', [DivisionController::class, 'show'])->middleware('permission:view-divisions')->name('divisions.show');
         Route::get('divisions/{division}/edit', [DivisionController::class, 'edit'])->middleware('permission:edit-divisions')->name('divisions.edit');
         Route::put('divisions/{division}', [DivisionController::class, 'update'])->middleware('permission:edit-divisions')->name('divisions.update');
-        Route::patch('divisions/{division}', [DivisionController::class, 'update']);
+        Route::patch('divisions/{division}', [DivisionController::class, 'update'])->middleware('permission:edit-divisions');
         Route::delete('divisions/{division}', [DivisionController::class, 'destroy'])->middleware('permission:delete-divisions')->name('divisions.destroy');
 
-        // Sage 300 admin explorer routes (raw API access, admin only)
-        Route::prefix('sage300')->name('sage300.')->group(function () {
+        // Sage 300 admin explorer routes (raw API access, restricted to full-access holders)
+        Route::middleware(['permission:full-access'])->prefix('sage300')->name('sage300.')->group(function () {
             Route::get('/', [Sage300Controller::class, 'index'])->name('index');
             Route::get('/items', [Sage300Controller::class, 'itemsList'])->name('items');
             Route::get('/api/get', [Sage300Controller::class, 'getData'])->name('api.get');

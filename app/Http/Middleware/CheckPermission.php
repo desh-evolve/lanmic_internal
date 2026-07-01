@@ -17,8 +17,9 @@ class CheckPermission
 
         $user = Auth::user();
 
-        // If admin role, allow all
-        if ($user->hasRole('admin')) {
+        // Super-pass: holders of the 'full-access' permission bypass every check.
+        // This is a permission (data), not a role name, so renaming roles never breaks it.
+        if ($user->hasPermission('full-access')) {
             return $next($request);
         }
 

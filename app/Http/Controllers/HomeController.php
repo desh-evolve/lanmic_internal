@@ -24,7 +24,8 @@ class HomeController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $isAdmin = $user->hasRole('admin');
+        // "Admin" dashboard widgets are shown to full-access holders (permission, not role name).
+        $isAdmin = $user->hasPermission('full-access');
 
         // Get date ranges
         $today = Carbon::today();
