@@ -101,6 +101,7 @@ class ReturnApprovalController extends Controller
             'items.*.grn_quantity' => 'required|numeric|min:0',
             'items.*.scrap_quantity' => 'required|numeric|min:0',
             'items.*.admin_note' => 'nullable|string',
+            'items.*.reject' => 'nullable|boolean',
         ]);
 
         if ($return->status !== 'pending') {
@@ -119,7 +120,31 @@ class ReturnApprovalController extends Controller
                 if (!$returnItem || $returnItem->approve_status !== 'pending') {
                     continue; // Skip already processed items
                 }
-                
+
+                // ── Outright rejection ────────────────────────────────────────
+                // Deny the returned item: no GRN, no Scrap, nothing posted to Sage.
+                // A reason (admin note) is required for the audit trail.
+                if (filter_var($itemData['reject'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                    $reason = trim($itemData['admin_note'] ?? '');
+                    if ($reason === '') {
+                        throw new \Exception("Please provide a reason to reject item: {$returnItem->item_name}");
+                    }
+
+                    $returnItem->update([
+                        'approve_status' => 'rejected',
+                        'approved_by'    => Auth::id(),
+                        'approved_at'    => now(),
+                        'return_type'    => $itemData['return_type'],
+                        'location_code'  => $itemData['location_code'],
+                        'item_code'      => $itemData['item_code'],
+                        'admin_note'     => $reason,
+                        'updated_by'     => Auth::id(),
+                    ]);
+
+                    $processedItems[] = ['type' => 'Rejected', 'item' => $returnItem->item_name, 'quantity' => $returnItem->quantity];
+                    continue;
+                }
+
                 $grnQty    = (float)($itemData['grn_quantity']  ?? 0);
                 $scrapQty  = (float)($itemData['scrap_quantity'] ?? 0);
                 $unitPrice = (float)($itemData['unit_price']     ?? 0);

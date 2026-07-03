@@ -157,6 +157,23 @@
                             </div>
                         </div>
 
+                        <!-- Reject toggle -->
+                        <div class="card border-danger mb-3">
+                            <div class="card-body py-2">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input reject-checkbox" id="reject-{{ $index }}"
+                                           name="items[{{ $index }}][reject]" value="1">
+                                    <label class="custom-control-label text-danger font-weight-bold" for="reject-{{ $index }}">
+                                        <i class="fas fa-ban"></i> Reject this returned item
+                                    </label>
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    Denies the return — no GRN, no Scrap, nothing posted to Sage.
+                                    A reason (Admin Note below) is required.
+                                </small>
+                            </div>
+                        </div>
+
                         <h6 class="mb-3"><i class="fas fa-edit"></i> Admin Processing (You can modify):</h6>
 
                         <!-- Item Selection and Details -->
@@ -505,8 +522,31 @@ $(document).ready(function() {
         const card = $(this).closest('.item-card');
         const index = card.data('item-index');
         const checkbox = $('#check-' + index);
-        
+
         checkbox.prop('checked', true).trigger('change');
+    });
+
+    // Reject toggle — disables GRN/Scrap and requires a reason
+    $(document).on('change', '.reject-checkbox', function() {
+        const card = $(this).closest('.item-card');
+        const rejected = $(this).is(':checked');
+        card.toggleClass('is-rejected', rejected);
+
+        const grn = card.find('.grn-quantity');
+        const scrap = card.find('.scrap-quantity');
+
+        if (rejected) {
+            grn.val(0).prop('readonly', true);
+            scrap.val(0).prop('readonly', true);
+            card.find('.quantity-warning').hide();
+            grn.add(scrap).removeClass('is-invalid');
+            card.find('.admin-note').attr('placeholder', 'Reason for rejection (required)').addClass('border-danger');
+        } else {
+            grn.val(grn.data('max')).prop('readonly', false);
+            scrap.val(0).prop('readonly', false);
+            card.find('.admin-note').attr('placeholder', 'Add a note for this item').removeClass('border-danger');
+            validateQuantities(card);
+        }
     });
 
     // Quantity validation
@@ -555,11 +595,21 @@ $(document).ready(function() {
         
         $('.item-card').each(function() {
             const card = $(this);
+            const itemName = card.find('h5').text().trim().split('(')[0].trim();
+
+            // Rejected items only require a reason, not a GRN/Scrap split.
+            if (card.find('.reject-checkbox').is(':checked')) {
+                if (!card.find('.admin-note').val().trim()) {
+                    valid = false;
+                    errorMessage += `\n- ${itemName}: Rejection reason (Admin Note) is required`;
+                }
+                return;
+            }
+
             const grnQty = parseFloat(card.find('.grn-quantity').val()) || 0;
             const scrapQty = parseFloat(card.find('.scrap-quantity').val()) || 0;
             const maxQty = parseFloat(card.find('.grn-quantity').data('max'));
-            const itemName = card.find('h5').text().trim().split('(')[0].trim();
-            
+
             if (grnQty + scrapQty !== maxQty) {
                 valid = false;
                 errorMessage += `\n- ${itemName}: Total must equal ${maxQty}`;
@@ -712,6 +762,12 @@ function loadItemLocationPrice(itemCode, locationCode, card) {
 }
 
 function validateQuantities(card) {
+    // Rejected items skip GRN/Scrap validation entirely.
+    if (card.find('.reject-checkbox').is(':checked')) {
+        card.find('.quantity-warning').hide();
+        card.find('.grn-quantity, .scrap-quantity').removeClass('is-invalid');
+        return;
+    }
     const grnQty = parseFloat(card.find('.grn-quantity').val()) || 0;
     const scrapQty = parseFloat(card.find('.scrap-quantity').val()) || 0;
     const maxQty = parseFloat(card.find('.grn-quantity').data('max'));
@@ -762,6 +818,13 @@ $(document).on('paste', '.qty-text-input', function(e) {
 }
 .item-card .border-success {
     border: 2px solid #28a745 !important;
+}
+.item-card.is-rejected {
+    border: 2px solid #dc3545 !important;
+}
+.item-card.is-rejected .grn-quantity,
+.item-card.is-rejected .scrap-quantity {
+    background-color: #f8d7da;
 }
 .sticky-top {
     position: sticky;
