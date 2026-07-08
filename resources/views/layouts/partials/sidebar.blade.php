@@ -206,7 +206,7 @@
                         <li class="nav-item">
                             <a href="{{ route('reports.scrap') }}" class="nav-link {{ request()->routeIs('reports.scrap') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Scrap Report</p>
+                                <p>Return Reject Report</p>
                             </a>
                         </li>
                         <li class="nav-item">

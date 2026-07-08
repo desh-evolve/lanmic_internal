@@ -11,7 +11,6 @@ use App\Models\ReturnModel;
 use App\Models\ReturnItem;
 use App\Exports\InventoryMovementExport;
 use App\Models\GrnItem;
-use App\Models\ScrapItem;
 use App\Models\User;
 use App\Models\Department;
 use App\Models\Sage300Item;
@@ -316,7 +315,9 @@ class ReportController extends Controller
                 'issuedItem',
                 'approvedBy',
             ])
-            ->where('status', 'active');
+            ->where('status', 'active')
+            // Rejected items are tracked separately in the Return Reject Report.
+            ->where('approve_status', '!=', 'rejected');
 
         // Date filter
         if ($request->filled('date_from')) {
@@ -368,6 +369,7 @@ class ReportController extends Controller
             ->join('departments as d', 'req.department_id', '=', 'd.id')
             ->leftJoin('requisition_issued_items as rii', 'ri.requisition_issued_item_id', '=', 'rii.id')
             ->where('ri.status', 'active')
+            ->where('ri.approve_status', '!=', 'rejected')
             ->select(
                 'd.name as dept_name',
                 DB::raw('SUM(ri.quantity) as total_qty'),
@@ -440,25 +442,34 @@ class ReportController extends Controller
     }
 
     /**
-     * Scrap Report.
+     * Return Reject Report.
+     *
+     * Covers every ReturnItem denied by an approver:
+     *   - items scrapped in full (a ScrapItem record exists — physically disposed), and
+     *   - items rejected outright via the Reject toggle (no ScrapItem — nothing was
+     *     posted anywhere, the return was simply denied).
+     * The ScrapItem, when present, is the source of truth for quantity/price;
+     * otherwise we fall back to the ReturnItem's own quantity and the original
+     * issued unit price.
      */
     public function scrap(Request $request)
     {
         // Check if export is requested
         if ($request->has('export') && $request->export === 'excel') {
-            $filename = 'scrap_report_' . date('Y-m-d_H-i-s') . '.xlsx';
+            $filename = 'return_reject_report_' . date('Y-m-d_H-i-s') . '.xlsx';
             return Excel::download(new ScrapExport($request->all()), $filename);
         }
 
-        $query = ScrapItem::with(['return.returnedBy', 'returnItem'])
-            ->where('status', '!=', 'delete');
+        $query = ReturnItem::with(['return.returnedBy', 'issuedItem', 'scrapItem', 'approvedBy'])
+            ->where('status', 'active')
+            ->where('approve_status', 'rejected');
 
-        // Date filter
+        // Date filter — approved_at is set for both scrapped and outright-rejected items
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $query->whereDate('approved_at', '>=', $request->date_from);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $query->whereDate('approved_at', '<=', $request->date_to);
         }
 
         // Item filter
@@ -466,30 +477,55 @@ class ReportController extends Controller
             $query->where('item_code', 'like', '%' . $request->item_code . '%');
         }
 
-        $scrapItems = $query->orderBy('created_at', 'desc')->paginate(50);
+        $rejectItems = $query->orderBy('approved_at', 'desc')->paginate(50)->appends($request->query());
 
-        // Statistics
+        // Statistics — computed via raw joins so partial (scrapped vs. outright-rejected)
+        // quantity/value sourcing doesn't require pulling every row into memory.
+        $statsQuery = DB::table('return_items as ri')
+            ->leftJoin('scrap_items as si', function ($join) {
+                $join->on('si.return_item_id', '=', 'ri.id')->where('si.status', 'active');
+            })
+            ->leftJoin('requisition_issued_items as rii', 'ri.requisition_issued_item_id', '=', 'rii.id')
+            ->where('ri.status', 'active')
+            ->where('ri.approve_status', 'rejected');
+
+        if ($request->filled('date_from')) $statsQuery->whereDate('ri.approved_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))   $statsQuery->whereDate('ri.approved_at', '<=', $request->date_to);
+        if ($request->filled('item_code')) $statsQuery->where('ri.item_code', 'like', '%' . $request->item_code . '%');
+
+        $statsRow = $statsQuery->selectRaw('
+                COUNT(*) as total_items,
+                SUM(COALESCE(si.scrap_quantity, ri.quantity)) as total_quantity,
+                SUM(COALESCE(si.total_price, COALESCE(rii.unit_price, 0) * ri.quantity)) as total_value
+            ')->first();
+
         $statistics = [
-            'total_scrap_items' => $query->count(),
-            'total_quantity' => $query->sum('scrap_quantity'),
-            'total_value' => $query->sum('total_price'),
+            'total_reject_items' => (int) ($statsRow->total_items ?? 0),
+            'total_quantity'     => (float) ($statsRow->total_quantity ?? 0),
+            'total_value'        => (float) ($statsRow->total_value ?? 0),
         ];
 
-        // Group by item
-        $itemStats = ScrapItem::select(
-            'item_code',
-            'item_name',
-            DB::raw('COUNT(*) as scrap_count'),
-            DB::raw('SUM(scrap_quantity) as total_quantity'),
-            DB::raw('SUM(total_price) as total_value')
-        )
-        ->where('status', '!=', 'delete')
-        ->groupBy('item_code', 'item_name')
-        ->orderBy('total_quantity', 'desc')
-        ->limit(10)
-        ->get();
+        // Top 10 most rejected items
+        $itemStats = DB::table('return_items as ri')
+            ->leftJoin('scrap_items as si', function ($join) {
+                $join->on('si.return_item_id', '=', 'ri.id')->where('si.status', 'active');
+            })
+            ->leftJoin('requisition_issued_items as rii', 'ri.requisition_issued_item_id', '=', 'rii.id')
+            ->where('ri.status', 'active')
+            ->where('ri.approve_status', 'rejected')
+            ->select(
+                'ri.item_code',
+                'ri.item_name',
+                DB::raw('COUNT(*) as reject_count'),
+                DB::raw('SUM(COALESCE(si.scrap_quantity, ri.quantity)) as total_quantity'),
+                DB::raw('SUM(COALESCE(si.total_price, COALESCE(rii.unit_price, 0) * ri.quantity)) as total_value')
+            )
+            ->groupBy('ri.item_code', 'ri.item_name')
+            ->orderByDesc('total_quantity')
+            ->limit(10)
+            ->get();
 
-        return view('admin.reports.scrap', compact('scrapItems', 'statistics', 'itemStats'));
+        return view('admin.reports.scrap', compact('rejectItems', 'statistics', 'itemStats'));
     }
 
     /**

@@ -156,8 +156,8 @@
                                             <i class="fas fa-trash-alt fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
-                                            <h5 class="card-title">Scrap Report</h5>
-                                            <p class="card-text small">Scrapped items and disposal tracking</p>
+                                            <h5 class="card-title">Return Reject Report</h5>
+                                            <p class="card-text small">Rejected and scrapped return items</p>
                                         </div>
                                     </div>
                                 </div>

@@ -33,7 +33,9 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
                 'issuedItem',
                 'approvedBy',
             ])
-            ->where('status', 'active');
+            ->where('status', 'active')
+            // Rejected items are tracked separately in the Return Reject Report.
+            ->where('approve_status', '!=', 'rejected');
 
         if (!empty($this->filters['date_from']))      $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '>=', $this->filters['date_from']));
         if (!empty($this->filters['date_to']))        $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '<=', $this->filters['date_to']));
@@ -61,6 +63,7 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
             'Department',
             'Sub-Department',
             'Remarks',
+            'Admin Note',
             'Returned By',
             'Accepted By',
         ];
@@ -86,6 +89,7 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
             $ret?->requisition?->department?->name ?? '',
             $ret?->requisition?->subDepartment?->name ?? '',
             $item->notes ?? '',
+            $item->admin_note ?? '',
             $ret?->returnedBy?->name ?? 'N/A',
             $item->approvedBy?->name ?? '',
         ];
@@ -120,8 +124,9 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
             'K' => 25,
             'L' => 22,
             'M' => 30,
-            'N' => 25,
+            'N' => 30,
             'O' => 25,
+            'P' => 25,
         ];
     }
 
@@ -135,7 +140,7 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:O1');
+                $event->sheet->setAutoFilter('A1:P1');
             },
         ];
     }
