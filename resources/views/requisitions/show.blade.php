@@ -35,6 +35,11 @@
                 <h3 class="card-title">Requisition Information</h3>
             </div>
             <div class="card-body">
+                @if($requisition->notes)
+                <div class="alert alert-info">
+                    <i class="fas fa-sticky-note"></i> <strong>Notes:</strong> {{ $requisition->notes }}
+                </div>
+                @endif
                 <div class="row mb-3">
                     <div class="col-md-4"><strong>Requisition Number:</strong></div>
                     <div class="col-md-8">
@@ -98,12 +103,6 @@
                             <span class="badge badge-secondary">{{ $requisition->division->short_code }}</span>
                         @endif
                     </div>
-                </div>
-                @endif
-                @if($requisition->notes)
-                <div class="row mb-3">
-                    <div class="col-md-4"><strong>Notes:</strong></div>
-                    <div class="col-md-8">{{ $requisition->notes }}</div>
                 </div>
                 @endif
                 <div class="row mb-3">

@@ -59,6 +59,7 @@ class ItemRequisitionExport implements FromCollection, WithHeadings, WithMapping
             'Requested By',
             'Department',
             'Quantity',
+            'Requisition Notes',
         ];
     }
 
@@ -76,6 +77,7 @@ class ItemRequisitionExport implements FromCollection, WithHeadings, WithMapping
             $item->requisition->user->name ?? 'N/A',
             $item->requisition->department->name ?? 'N/A',
             $item->quantity,
+            $item->requisition->notes ?? '',
         ];
     }
 
@@ -103,6 +105,7 @@ class ItemRequisitionExport implements FromCollection, WithHeadings, WithMapping
             'F' => 25,
             'G' => 25,
             'H' => 12,
+            'I' => 35,
         ];
     }
 
@@ -116,7 +119,7 @@ class ItemRequisitionExport implements FromCollection, WithHeadings, WithMapping
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:H1');
+                $event->sheet->setAutoFilter('A1:I1');
             },
         ];
     }

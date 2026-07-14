@@ -169,6 +169,7 @@
                             <th>Department</th>
                             <th>Items Count</th>
                             <th>Status</th>
+                            <th>Notes</th>
                             <th>Approved By</th>
                             <th>Approved Date</th>
                         </tr>
@@ -197,12 +198,13 @@
                                         <span class="badge bg-secondary">{{ ucfirst($requisition->approve_status) }}</span>
                                     @endif
                                 </td>
+                                <td>{{ Str::limit($requisition->notes ?? '', 40) ?: '—' }}</td>
                                 <td>{{ $requisition->approvedBy->name ?? '-' }}</td>
                                 <td>{{ $requisition->approved_at ? \Carbon\Carbon::parse($requisition->approved_at)->format('d M Y') : '-' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center py-4">
+                                <td colspan="10" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No requisitions found</p>
                                 </td>

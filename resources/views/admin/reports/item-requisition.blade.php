@@ -134,6 +134,7 @@
                             <th>Department</th>
                             <th>Location</th>
                             <th class="text-center">Quantity</th>
+                            <th>Requisition Notes</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -152,10 +153,11 @@
                                 <td>{{ $item->requisition->department->name ?? 'N/A' }}</td>
                                 <td>{{ $item->location_code ?? '-' }}</td>
                                 <td class="text-center">{{ number_format($item->quantity) }}</td>
+                                <td>{{ Str::limit($item->requisition->notes ?? '', 40) ?: '—' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center py-4">
+                                <td colspan="10" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No items found</p>
                                 </td>

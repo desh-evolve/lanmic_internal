@@ -48,6 +48,7 @@
                             <th>Items</th>
                             <th>Approve Status</th>
                             <th>Clear Status</th>
+                            <th>Notes</th>
                             <th>Date</th>
                             <th>Actions</th>
                         </tr>
@@ -89,6 +90,13 @@
                                     <span class="badge badge-danger">Error</span>
                                 @endif
                             </td>
+                            <td>
+                                @if($requisition->notes)
+                                    <i class="fas fa-sticky-note text-info" title="{{ $requisition->notes }}"></i>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td>{{ $requisition->created_at->format('Y-m-d') }}</td>
                             <td>
                                 <a href="{{ route('requisitions.show', $requisition->id) }}" class="btn btn-info btn-sm">
@@ -114,7 +122,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="8" class="text-center">No requisitions found. <a href="{{ route('requisitions.create') }}">Create your first requisition</a></td>
+                            <td colspan="9" class="text-center">No requisitions found. <a href="{{ route('requisitions.create') }}">Create your first requisition</a></td>
                         </tr>
                         @endforelse
                     </tbody>
