@@ -165,6 +165,43 @@
             </div>
         </div>
 
+        @if($requisition->issuedItems->count() > 0)
+        <div class="card card-success">
+            <div class="card-header">
+                <h3 class="card-title">Issued Items</h3>
+            </div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Item</th>
+                            <th>Quantity Issued</th>
+                            <th>Issued By</th>
+                            <th>Issued At</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($requisition->issuedItems as $index => $issuedItem)
+                        <tr>
+                            <td>{{ $index + 1 }}</td>
+                            <td>
+                                <strong>{{ $issuedItem->item_name }}</strong>
+                                <br><small class="text-muted">{{ $issuedItem->item_code }}</small>
+                            </td>
+                            <td>{{ $issuedItem->issued_quantity }} {{ $issuedItem->unit }}</td>
+                            <td>{{ $issuedItem->issuedBy->name ?? '-' }}</td>
+                            <td>{{ $issuedItem->issued_at->format('Y-m-d H:i:s') }}</td>
+                            <td>{{ $issuedItem->notes ?? '—' }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
+
         <div class="card-footer">
             <a href="{{ route('requisitions.index') }}" class="btn btn-default">
                 <i class="fas fa-arrow-left"></i> Back to List

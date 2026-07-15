@@ -166,7 +166,7 @@ class RequisitionController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $requisition->load(['department', 'subDepartment', 'division', 'items', 'purchaseOrderItems', 'user', 'approvedBy']);
+        $requisition->load(['department', 'subDepartment', 'division', 'items', 'purchaseOrderItems', 'user', 'approvedBy', 'issuedItems.issuedBy']);
         
         foreach($requisition->items as $item){
             $location = $this->sage300->getLocation($item->location_code);

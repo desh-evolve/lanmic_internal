@@ -448,6 +448,7 @@
                             <th>Quantity Issued</th>
                             <th>Issued By</th>
                             <th>Issued At</th>
+                            <th>Remarks</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -461,6 +462,7 @@
                             <td>{{ $issuedItem->issued_quantity }} {{ $issuedItem->unit }}</td>
                             <td>{{ $issuedItem->issuedBy->name ?? '-' }}</td>
                             <td>{{ $issuedItem->issued_at->format('Y-m-d H:i:s') }}</td>
+                            <td>{{ $issuedItem->notes ?? '—' }}</td>
                         </tr>
                         @endforeach
                     </tbody>
