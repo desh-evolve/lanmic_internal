@@ -62,8 +62,7 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
             'Total Price',
             'Department',
             'Sub-Department',
-            'Remarks',
-            'Admin Note',
+            'Remark',
             'Returned By',
             'Accepted By',
         ];
@@ -88,7 +87,6 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
             $item->issuedItem ? number_format($item->issuedItem->unit_price * $item->quantity, 2) : '',
             $ret?->requisition?->department?->name ?? '',
             $ret?->requisition?->subDepartment?->name ?? '',
-            $item->notes ?? '',
             $item->admin_note ?? '',
             $ret?->returnedBy?->name ?? 'N/A',
             $item->approvedBy?->name ?? '',
@@ -124,9 +122,8 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
             'K' => 25,
             'L' => 22,
             'M' => 30,
-            'N' => 30,
+            'N' => 25,
             'O' => 25,
-            'P' => 25,
         ];
     }
 
@@ -140,7 +137,7 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:P1');
+                $event->sheet->setAutoFilter('A1:O1');
             },
         ];
     }

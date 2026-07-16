@@ -148,8 +148,7 @@
                             <th class="text-end">Total Price</th>
                             <th>Department</th>
                             <th>Sub Department</th>
-                            <th>Remarks</th>
-                            <th>Admin Note</th>
+                            <th>Remark</th>
                             <th>Returned By</th>
                             <th>Accepted By</th>
                         </tr>
@@ -184,14 +183,13 @@
                                 <td class="text-end">{{ $returnItem->issuedItem ? number_format($returnItem->issuedItem->unit_price * $returnItem->quantity, 2) : '—' }}</td>
                                 <td>{{ $ret?->requisition?->department?->name ?? '—' }}</td>
                                 <td>{{ $ret?->requisition?->subDepartment?->name ?? '—' }}</td>
-                                <td>{{ $returnItem->notes ?? '—' }}</td>
                                 <td>{{ $returnItem->admin_note ?? '—' }}</td>
                                 <td>{{ $ret?->returnedBy?->name ?? 'N/A' }}</td>
                                 <td>{{ $returnItem->approvedBy?->name ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="16" class="text-center py-4">
+                                <td colspan="15" class="text-center py-4">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No return items found</p>
                                 </td>
@@ -207,7 +205,7 @@
                             <td class="text-end">
                                 {{ number_format($returns->sum(fn($ri) => $ri->issuedItem ? $ri->issuedItem->unit_price * $ri->quantity : 0), 2) }}
                             </td>
-                            <td colspan="6"></td>
+                            <td colspan="5"></td>
                         </tr>
                     </tfoot>
                     @endif

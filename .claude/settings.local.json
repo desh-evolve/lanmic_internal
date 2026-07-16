@@ -7,7 +7,8 @@
       "Bash(php -l app/Http/Controllers/RequisitionController.php)",
       "Bash(grep -c \"\\\\.php$\")",
       "Bash(php -l database/migrations/2026_07_17_090000_ensure_requisition_issued_items_notes_column.php)",
-      "Bash(php -l app/Exports/IssuedItemsExport.php)"
+      "Bash(php -l app/Exports/IssuedItemsExport.php)",
+      "Bash(php -l app/Exports/ReturnsSummaryExport.php)"
     ]
   }
 }
