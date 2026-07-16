@@ -222,7 +222,7 @@
                         <td class="text-right">{{ number_format($item->total_price, 2) }}</td>
                         <td>{{ $item->requisition->subDepartment->name ?? '—' }}</td>
                         <td>{{ $item->reference_number_1 ?? '—' }}</td>
-                        <td>{{ $item->notes ?? '—' }}</td>
+                        <td>{{ $item->requisition->notes ?? $item->notes ?? '—' }}</td>
                     </tr>
                     @endforeach
 

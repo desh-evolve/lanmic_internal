@@ -148,7 +148,7 @@ class IssuedItemsExport implements WithEvents, WithTitle, WithColumnWidths
                             (float) $item->unit_price,                     // J
                             (float) $item->total_price,                    // K
                             $item->requisition->subDepartment->name ?? '', // L
-                            $item->notes ?? '',                            // M
+                            $item->requisition->notes ?? $item->notes ?? '', // M
                         ], null, "A{$row}");
 
                         // Type column colour
