@@ -50,6 +50,12 @@
                     {{ $requisition->subDepartment->name }}
                 </div>
                 @endif
+                @if($requisition->notes)
+                <div class="col-sm-3">
+                    <strong>Notes:</strong><br>
+                    {{ $requisition->notes }}
+                </div>
+                @endif
             </div>
         </div>
     </div>
