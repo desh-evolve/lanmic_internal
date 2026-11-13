@@ -19,6 +19,10 @@ class RolePermissionSeeder extends Seeder
 
         // Create permissions organized by module
         $permissions = [
+            // System Module — grants an unconditional super-pass across the whole app.
+            // Use this instead of hardcoding an "admin" role name anywhere in code.
+            ['name' => 'full-access', 'module' => 'system', 'description' => 'Full access — bypasses all permission checks'],
+
             // Dashboard Module
             ['name' => 'view-dashboard', 'module' => 'dashboard', 'description' => 'View dashboard'],
 
@@ -66,6 +70,7 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'delete-requisitions', 'module' => 'requisitions', 'description' => 'Delete requisitions'],
             ['name' => 'approve-requisitions', 'module' => 'requisitions', 'description' => 'Approve/reject requisitions'],
             ['name' => 'issue-requisitions', 'module' => 'requisitions', 'description' => 'Issue items for requisitions'],
+            ['name' => 'clear-requisitions', 'module' => 'requisitions', 'description' => 'Manually force-clear requisition status'],
 
             // Purchase Order Module
             ['name' => 'view-purchase-orders', 'module' => 'purchase-orders', 'description' => 'View purchase orders'],
@@ -177,10 +182,13 @@ class RolePermissionSeeder extends Seeder
 
         // Example: Assign a direct permission to a specific user (optional)
         // This demonstrates the permission_user table functionality
-        $specificPermission = Permission::where('name', 'view-settings')->first();
-        if ($specificPermission) {
-            $managerUser->permissions()->attach($specificPermission);
-        }
+        //$specificPermission = Permission::where('name', 'view-settings')->first();
+        //if ($specificPermission) {
+        //    $adminUser->permissions()->attach($specificPermission);
+        //}
+
+        // Assign ALL permissions directly to adminUser
+        $adminUser->permissions()->attach(Permission::all());
 
         $this->command->info('Roles, permissions, and users seeded successfully!');
         $this->command->info('Admin: admin@lanmic.com / password');

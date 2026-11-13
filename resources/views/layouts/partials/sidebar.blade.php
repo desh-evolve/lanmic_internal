@@ -206,7 +206,7 @@
                         <li class="nav-item">
                             <a href="{{ route('reports.scrap') }}" class="nav-link {{ request()->routeIs('reports.scrap') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Scrap Report</p>
+                                <p>Return Reject Report</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -225,6 +225,12 @@
                             <a href="{{ route('reports.monthly-summary') }}" class="nav-link {{ request()->routeIs('reports.monthly-summary') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Monthly Summary</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('reports.inventory-movement') }}" class="nav-link {{ request()->routeIs('reports.inventory-movement') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Internal Usage Report</p>
                             </a>
                         </li>
                     </ul>
@@ -264,14 +270,14 @@
                         </li>
                         @endif
 
-                        @if(Auth::user()->hasPermission('view-permissions'))
+                        {{-- @if(Auth::user()->hasPermission('view-permissions'))
                         <li class="nav-item">
                             <a href="{{ route('permissions.index') }}" class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Permissions</p>
                             </a>
                         </li>
-                        @endif
+                        @endif --}}
                     </ul>
                 </li>
                 @endif
@@ -312,16 +318,6 @@
                         </li>
                         @endif
                     </ul>
-                </li>
-                @endif
-
-                <!-- SAGE 300 -->
-                @if(Auth::user()->hasPermission('view-sage300'))
-                <li class="nav-item">
-                    <a href="{{ route('sage300.index') }}" class="nav-link {{ request()->is('sage300*') ? 'active' : '' }}">
-                        <i class="far fa-circle nav-icon"></i>
-                        <p>sage</p>
-                    </a>
                 </li>
                 @endif
 

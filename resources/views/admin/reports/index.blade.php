@@ -156,8 +156,8 @@
                                             <i class="fas fa-trash-alt fa-3x opacity-75 mr-3"></i>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
-                                            <h5 class="card-title">Scrap Report</h5>
-                                            <p class="card-text small">Scrapped items and disposal tracking</p>
+                                            <h5 class="card-title">Return Reject Report</h5>
+                                            <p class="card-text small">Rejected and scrapped return items</p>
                                         </div>
                                     </div>
                                 </div>
@@ -207,6 +207,28 @@
                                 </div>
                                 <div class="card-footer bg-transparent border-0">
                                     <a href="{{ route('reports.user-activity') }}" class="btn btn-light btn-sm">
+                                        <i class="fas fa-arrow-right"></i> View Report
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Inventory Movement Report --}}
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card text-white h-100" style="background-color: #0d6efd;">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <i class="fas fa-exchange-alt fa-3x opacity-75 mr-3"></i>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h5 class="card-title">Internal Usage Report</h5>
+                                            <p class="card-text small">Item-wise IN/OUT movement with opening &amp; ending balances</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-0">
+                                    <a href="{{ route('reports.inventory-movement') }}" class="btn btn-light btn-sm">
                                         <i class="fas fa-arrow-right"></i> View Report
                                     </a>
                                 </div>

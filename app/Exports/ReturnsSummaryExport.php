@@ -3,7 +3,7 @@
 
 namespace App\Exports;
 
-use App\Models\ReturnModel;
+use App\Models\ReturnItem;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -14,7 +14,6 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Carbon\Carbon;
-use Illuminate\Support\Str;
 
 class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle, WithColumnWidths, WithEvents
 {
@@ -27,55 +26,70 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
 
     public function collection()
     {
-        $query = ReturnModel::with(['returnedBy', 'items', 'processedBy'])
-            ->where('status', '!=', 'delete');
+        $query = ReturnItem::with([
+                'return.returnedBy',
+                'return.requisition.department',
+                'return.requisition.subDepartment',
+                'issuedItem',
+                'approvedBy',
+            ])
+            ->where('status', 'active')
+            // Rejected items are tracked separately in the Return Reject Report.
+            ->where('approve_status', '!=', 'rejected');
 
-        if (!empty($this->filters['date_from'])) {
-            $query->whereDate('returned_at', '>=', $this->filters['date_from']);
-        }
-        if (!empty($this->filters['date_to'])) {
-            $query->whereDate('returned_at', '<=', $this->filters['date_to']);
-        }
-        if (!empty($this->filters['status'])) {
-            $query->where('status', $this->filters['status']);
-        }
-        if (!empty($this->filters['user_id'])) {
-            $query->where('returned_by', $this->filters['user_id']);
-        }
+        if (!empty($this->filters['date_from']))      $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '>=', $this->filters['date_from']));
+        if (!empty($this->filters['date_to']))        $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '<=', $this->filters['date_to']));
+        if (!empty($this->filters['status']))         $query->whereHas('return', fn($q) => $q->where('status', $this->filters['status']));
+        if (!empty($this->filters['user_id']))        $query->whereHas('return', fn($q) => $q->where('returned_by', $this->filters['user_id']));
+        if (!empty($this->filters['department_id']))  $query->whereHas('return.requisition', fn($q) => $q->where('department_id', $this->filters['department_id']));
+        if (!empty($this->filters['item_name']))      $query->where('item_name', 'like', '%' . $this->filters['item_name'] . '%');
 
-        return $query->orderBy('returned_at', 'desc')->get();
+        return $query->get();
     }
 
     public function headings(): array
     {
         return [
             '#',
-            'Return No',
-            'Return Date',
+            'Returned Date',
+            'Return Number',
+            'Requisition Number',
+            'Item Code',
+            'Item Name',
+            'UOM',
+            'Qty',
+            'Unit Price',
+            'Total Price',
+            'Department',
+            'Sub-Department',
+            'Remark',
             'Returned By',
-            'Items Count',
-            'Reason',
-            'Status',
-            'Processed By',
-            'Processed Date',
+            'Accepted By',
         ];
     }
 
-    public function map($return): array
+    public function map($item): array
     {
         static $index = 0;
         $index++;
+        $ret = $item->return;
 
         return [
             $index,
-            $return->return_no ?? 'RET-' . str_pad($return->id, 6, '0', STR_PAD_LEFT),
-            Carbon::parse($return->returned_at)->format('d M Y H:i'),
-            $return->returnedBy->name ?? 'N/A',
-            $return->items->count(),
-            Str::limit($return->reason, 50),
-            ucfirst($return->status),
-            $return->processedBy->name ?? '-',
-            $return->processed_at ? Carbon::parse($return->processed_at)->format('d M Y') : '-',
+            $ret ? Carbon::parse($ret->returned_at)->format('d M Y H:i') : '',
+            $ret ? 'RET-' . str_pad($ret->id, 6, '0', STR_PAD_LEFT) : '',
+            $ret?->requisition?->requisition_number ?? '',
+            $item->item_code,
+            $item->item_name,
+            $item->unit ?? '',
+            $item->quantity,
+            $item->issuedItem ? number_format($item->issuedItem->unit_price, 2) : '',
+            $item->issuedItem ? number_format($item->issuedItem->unit_price * $item->quantity, 2) : '',
+            $ret?->requisition?->department?->name ?? '',
+            $ret?->requisition?->subDepartment?->name ?? '',
+            $item->admin_note ?? '',
+            $ret?->returnedBy?->name ?? 'N/A',
+            $item->approvedBy?->name ?? '',
         ];
     }
 
@@ -95,15 +109,21 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
     public function columnWidths(): array
     {
         return [
-            'A' => 8,
+            'A' => 6,
             'B' => 20,
-            'C' => 20,
-            'D' => 25,
-            'E' => 12,
-            'F' => 40,
-            'G' => 12,
-            'H' => 20,
-            'I' => 15,
+            'C' => 18,
+            'D' => 18,
+            'E' => 14,
+            'F' => 30,
+            'G' => 8,
+            'H' => 10,
+            'I' => 12,
+            'J' => 14,
+            'K' => 25,
+            'L' => 22,
+            'M' => 30,
+            'N' => 25,
+            'O' => 25,
         ];
     }
 
@@ -117,7 +137,7 @@ class ReturnsSummaryExport implements FromCollection, WithHeadings, WithMapping,
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:I1');
+                $event->sheet->setAutoFilter('A1:O1');
             },
         ];
     }

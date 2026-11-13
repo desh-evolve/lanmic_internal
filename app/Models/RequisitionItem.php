@@ -24,7 +24,7 @@ class RequisitionItem extends Model
     ];
 
     protected $casts = [
-        'quantity' => 'integer',
+        'quantity' => 'float',
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
     ];

@@ -14,7 +14,7 @@ class DivisionController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('role:admin');
+        // Access is enforced per-route via permission:* middleware (see routes/web.php).
         // $this->middleware('permission:view-divisions')->only(['index', 'show']);
         // $this->middleware('permission:create-divisions')->only(['create', 'store']);
         // $this->middleware('permission:edit-divisions')->only(['edit', 'update']);

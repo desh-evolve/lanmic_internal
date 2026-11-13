@@ -45,6 +45,14 @@ class Department extends Model
     // }
 
     /**
+     * The users assigned to this department (for return access).
+     */
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'user_department');
+    }
+
+    /**
      * Scope to get only active departments.
      */
     public function scopeActive($query)

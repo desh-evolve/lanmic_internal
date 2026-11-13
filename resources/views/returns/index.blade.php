@@ -45,7 +45,8 @@
                             <tr>
                                 <th width="5%">#</th>
                                 <th width="15%">Requisition</th>
-                                <th width="15%">Returned At</th>
+                                <th width="13%">Returned By</th>
+                                <th width="12%">Returned At</th>
                                 <th width="10%">Total Items</th>
                                 <th width="10%">Total Qty</th>
                                 <th width="10%">Same</th>
@@ -62,6 +63,12 @@
                                     <strong>{{ $return->requisition->requisition_number }}</strong><br>
                                     <small class="text-muted">{{ $return->requisition->department->name ?? 'N/A' }}</small>
                                 </td>
+                                <td>
+                                    {{ $return->returnedBy->name ?? $return->requisition->user->name ?? '—' }}
+                                    @if($return->returned_by === Auth::id())
+                                        <span class="badge badge-secondary" style="font-size:0.7em">You</span>
+                                    @endif
+                                </td>
                                 <td>{{ $return->returned_at->format('Y-m-d H:i') }}</td>
                                 <td><span class="badge badge-info">{{ $return->total_items }}</span></td>
                                 <td><span class="badge badge-primary">{{ $return->total_quantity }}</span></td>
@@ -70,10 +77,8 @@
                                 <td>
                                     @if($return->status === 'pending')
                                         <span class="badge badge-warning">Pending Approval</span>
-                                    @elseif($return->status === 'approved')
-                                        <span class="badge badge-success">Approved</span>
-                                    @elseif($return->status === 'rejected')
-                                        <span class="badge badge-danger">Rejected</span>
+                                    @elseif($return->status === 'cleared')
+                                        <span class="badge badge-success">Cleared</span>
                                     @else
                                         <span class="badge badge-secondary">{{ ucfirst($return->status) }}</span>
                                     @endif
@@ -84,9 +89,9 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     
-                                    @if($return->status === 'pending')
-                                    <form action="{{ route('returns.destroy', $return->id) }}" 
-                                          method="POST" 
+                                    @if($return->status === 'pending' && $return->returned_by === Auth::id())
+                                    <form action="{{ route('returns.destroy', $return->id) }}"
+                                          method="POST"
                                           class="d-inline"
                                           onsubmit="return confirm('Are you sure you want to delete this return?');">
                                         @csrf

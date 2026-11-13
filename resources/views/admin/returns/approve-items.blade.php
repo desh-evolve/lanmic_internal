@@ -47,6 +47,13 @@
             </div>
             @endif
 
+            <div id="itemsLoadError" class="alert alert-warning" style="display:none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Could not load item catalogue from Sage 300.</strong>
+                <a href="javascript:void(0)" onclick="loadItems(); $('#itemsLoadError').hide();">Click here to retry</a>
+                or ask an admin to refresh the cache on the Sage 300 page.
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Return Information</h3>
@@ -150,6 +157,23 @@
                             </div>
                         </div>
 
+                        <!-- Reject toggle -->
+                        <div class="card border-danger mb-3">
+                            <div class="card-body py-2">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input reject-checkbox" id="reject-{{ $index }}"
+                                           name="items[{{ $index }}][reject]" value="1">
+                                    <label class="custom-control-label text-danger font-weight-bold" for="reject-{{ $index }}">
+                                        <i class="fas fa-ban"></i> Reject this returned item
+                                    </label>
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    Denies the return — no GRN, no Scrap, nothing posted to Sage.
+                                    A reason (Admin Note below) is required.
+                                </small>
+                            </div>
+                        </div>
+
                         <h6 class="mb-3"><i class="fas fa-edit"></i> Admin Processing (You can modify):</h6>
 
                         <!-- Item Selection and Details -->
@@ -194,10 +218,9 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Unit Price <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" class="form-control unit-price-input" 
-                                           name="items[{{ $index }}][unit_price]" 
-                                           value="0" 
-                                           min="0"
+                                    <input type="text" inputmode="decimal" class="form-control unit-price-input"
+                                           name="items[{{ $index }}][unit_price]"
+                                           value="0"
                                            readonly
                                            required>
                                     <small class="text-muted">Auto-calculated from item average cost</small>
@@ -209,10 +232,8 @@
                                         <i class="fas fa-check-circle text-success"></i>
                                         GRN Quantity <span class="text-danger">*</span>
                                     </label>
-                                    <input type="number" class="form-control grn-quantity" 
-                                           name="items[{{ $index }}][grn_quantity]" 
-                                           min="0" 
-                                           max="{{ $item->quantity }}" 
+                                    <input type="text" inputmode="decimal" class="form-control grn-quantity qty-text-input"
+                                           name="items[{{ $index }}][grn_quantity]"
                                            value="{{ $item->quantity }}"
                                            data-max="{{ $item->quantity }}"
                                            required>
@@ -225,10 +246,8 @@
                                         <i class="fas fa-times-circle text-danger"></i>
                                         Scrap Quantity <span class="text-danger">*</span>
                                     </label>
-                                    <input type="number" class="form-control scrap-quantity" 
-                                           name="items[{{ $index }}][scrap_quantity]" 
-                                           min="0" 
-                                           max="{{ $item->quantity }}" 
+                                    <input type="text" inputmode="decimal" class="form-control scrap-quantity qty-text-input"
+                                           name="items[{{ $index }}][scrap_quantity]"
                                            value="0"
                                            data-max="{{ $item->quantity }}"
                                            required>
@@ -238,7 +257,7 @@
                         </div>
 
                         <!-- Quick Action Buttons -->
-                        <div class="row mb-3">
+                        {{-- <div class="row mb-3">
                             <div class="col-md-12">
                                 <div class="btn-group btn-group-sm" role="group">
                                     <button type="button" class="btn btn-outline-success quick-btn" data-action="all-grn">
@@ -252,7 +271,7 @@
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        </div> --}}
 
                         <!-- Validation Warning -->
                         <div class="alert alert-warning quantity-warning" style="display: none;">
@@ -390,16 +409,45 @@ let allLocations = [];
 
 $(document).ready(function() {
     // Load items and locations from SAGE
-    loadItems();
-    loadLocations();
+    //loadItems();
+    //loadLocations()
+
+    // Load initial prices for items that have both item and location selected
+    /*setTimeout(function() {
+        $('.item-card').each(function() {
+            const card = $(this);
+            const itemCode = card.find('.item-select').val();
+            const locationCode = card.find('.location-select').val();
+            
+            if (itemCode && locationCode) {
+                loadItemLocationPrice(itemCode, locationCode, card);
+            }
+        });
+    }, 1500);*/
 
     // Initialize Select2 after data loads
-    setTimeout(function() {
+    /*setTimeout(function() {
         $('.select2').select2({
             theme: 'bootstrap',
             width: '100%'
         });
-    }, 1000);
+    }, 1000);*/
+
+    $.when(loadItems(), loadLocations()).done(function() {
+        // Re-init Select2 now that options are populated
+        $('.select2').select2({ theme: 'bootstrap', width: '100%' });
+
+        // Load initial prices for cards with both item and location pre-selected
+        $('.item-card').each(function() {
+            const card = $(this);
+            const itemCode = card.find('.item-select').val();
+            const locationCode = card.find('.location-select').val();
+
+            if (itemCode && locationCode) {
+                loadItemLocationPrice(itemCode, locationCode, card);
+            }
+        });
+    });
 
     // Toggle collapse
     $('.item-header').on('click', function(e) {
@@ -474,8 +522,31 @@ $(document).ready(function() {
         const card = $(this).closest('.item-card');
         const index = card.data('item-index');
         const checkbox = $('#check-' + index);
-        
+
         checkbox.prop('checked', true).trigger('change');
+    });
+
+    // Reject toggle — disables GRN/Scrap and requires a reason
+    $(document).on('change', '.reject-checkbox', function() {
+        const card = $(this).closest('.item-card');
+        const rejected = $(this).is(':checked');
+        card.toggleClass('is-rejected', rejected);
+
+        const grn = card.find('.grn-quantity');
+        const scrap = card.find('.scrap-quantity');
+
+        if (rejected) {
+            grn.val(0).prop('readonly', true);
+            scrap.val(0).prop('readonly', true);
+            card.find('.quantity-warning').hide();
+            grn.add(scrap).removeClass('is-invalid');
+            card.find('.admin-note').attr('placeholder', 'Reason for rejection (required)').addClass('border-danger');
+        } else {
+            grn.val(grn.data('max')).prop('readonly', false);
+            scrap.val(0).prop('readonly', false);
+            card.find('.admin-note').attr('placeholder', 'Add a note for this item').removeClass('border-danger');
+            validateQuantities(card);
+        }
     });
 
     // Quantity validation
@@ -488,7 +559,7 @@ $(document).ready(function() {
     $(document).on('click', '.quick-btn', function() {
         const action = $(this).data('action');
         const card = $(this).closest('.item-card');
-        const maxQty = parseInt(card.find('.grn-quantity').data('max'));
+        const maxQty = parseFloat(card.find('.grn-quantity').data('max'));
         const grnInput = card.find('.grn-quantity');
         const scrapInput = card.find('.scrap-quantity');
         
@@ -524,11 +595,21 @@ $(document).ready(function() {
         
         $('.item-card').each(function() {
             const card = $(this);
-            const grnQty = parseInt(card.find('.grn-quantity').val()) || 0;
-            const scrapQty = parseInt(card.find('.scrap-quantity').val()) || 0;
-            const maxQty = parseInt(card.find('.grn-quantity').data('max'));
             const itemName = card.find('h5').text().trim().split('(')[0].trim();
-            
+
+            // Rejected items only require a reason, not a GRN/Scrap split.
+            if (card.find('.reject-checkbox').is(':checked')) {
+                if (!card.find('.admin-note').val().trim()) {
+                    valid = false;
+                    errorMessage += `\n- ${itemName}: Rejection reason (Admin Note) is required`;
+                }
+                return;
+            }
+
+            const grnQty = parseFloat(card.find('.grn-quantity').val()) || 0;
+            const scrapQty = parseFloat(card.find('.scrap-quantity').val()) || 0;
+            const maxQty = parseFloat(card.find('.grn-quantity').data('max'));
+
             if (grnQty + scrapQty !== maxQty) {
                 valid = false;
                 errorMessage += `\n- ${itemName}: Total must equal ${maxQty}`;
@@ -549,22 +630,11 @@ $(document).ready(function() {
         validateQuantities($(this));
     });
     
-    // Load initial prices for items that have both item and location selected
-    setTimeout(function() {
-        $('.item-card').each(function() {
-            const card = $(this);
-            const itemCode = card.find('.item-select').val();
-            const locationCode = card.find('.location-select').val();
-            
-            if (itemCode && locationCode) {
-                loadItemLocationPrice(itemCode, locationCode, card);
-            }
-        });
-    }, 1500);
+    
 });
 
 function loadItems() {
-    Sage300.getItems()
+    return Sage300.getItems()
         .done(function(response) {
             if (response.success && response.data) {
                 allItems = response.data.map(item => ({
@@ -586,7 +656,7 @@ function loadItems() {
                         const selected = item.code === originalCode ? 'selected' : '';
                         select.append(
                             `<option value="${item.code}" ${selected}>
-                                ${item.code} - ${item.name} (${item.category})
+                                ${item.code} - ${item.name}
                             </option>`
                         );
                     });
@@ -604,12 +674,12 @@ function loadItems() {
         })
         .fail(function() {
             console.error('Failed to load items');
-            alert('Failed to load items from SAGE300. Please refresh the page.');
+            $('#itemsLoadError').show();
         });
 }
 
 function loadLocations() {
-    Sage300.getLocations()
+    return Sage300.getLocations()
         .done(function(response) {
             if (response.success && response.data) {
                 allLocations = response.data.map(loc => ({
@@ -692,9 +762,15 @@ function loadItemLocationPrice(itemCode, locationCode, card) {
 }
 
 function validateQuantities(card) {
-    const grnQty = parseInt(card.find('.grn-quantity').val()) || 0;
-    const scrapQty = parseInt(card.find('.scrap-quantity').val()) || 0;
-    const maxQty = parseInt(card.find('.grn-quantity').data('max'));
+    // Rejected items skip GRN/Scrap validation entirely.
+    if (card.find('.reject-checkbox').is(':checked')) {
+        card.find('.quantity-warning').hide();
+        card.find('.grn-quantity, .scrap-quantity').removeClass('is-invalid');
+        return;
+    }
+    const grnQty = parseFloat(card.find('.grn-quantity').val()) || 0;
+    const scrapQty = parseFloat(card.find('.scrap-quantity').val()) || 0;
+    const maxQty = parseFloat(card.find('.grn-quantity').data('max'));
     const totalQty = grnQty + scrapQty;
     
     const warning = card.find('.quantity-warning');
@@ -715,6 +791,19 @@ function updateCheckedCount() {
     const count = $('.item-checkbox:checked').length;
     $('#checkedCount').text(count);
 }
+
+// ── Qty text-input: block non-numeric keystrokes ─────────────────────
+$(document).on('keydown', '.qty-text-input', function(e) {
+    if ([8,9,13,27,46,35,36,37,38,39,40].includes(e.keyCode)) return;
+    if ((e.ctrlKey||e.metaKey) && [65,67,86,88,90].includes(e.keyCode)) return;
+    if ((e.keyCode===190||e.keyCode===110) && !$(this).val().includes('.')) return;
+    if ((e.keyCode>=48&&e.keyCode<=57)||(e.keyCode>=96&&e.keyCode<=105)) return;
+    e.preventDefault();
+});
+$(document).on('paste', '.qty-text-input', function(e) {
+    const text = (e.originalEvent.clipboardData||window.clipboardData).getData('text');
+    if (!/^\d*\.?\d*$/.test(text)) e.preventDefault();
+});
 </script>
 
 <style>
@@ -729,6 +818,13 @@ function updateCheckedCount() {
 }
 .item-card .border-success {
     border: 2px solid #28a745 !important;
+}
+.item-card.is-rejected {
+    border: 2px solid #dc3545 !important;
+}
+.item-card.is-rejected .grn-quantity,
+.item-card.is-rejected .scrap-quantity {
+    background-color: #f8d7da;
 }
 .sticky-top {
     position: sticky;

@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Requisition;
 use App\Models\RequisitionItem;
 use App\Models\RequisitionIssuedItem;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Services\Sage300Service;
 use App\Services\ItemAvailabilityService;
 
@@ -19,7 +21,7 @@ class RequisitionApprovalController extends Controller
     public function __construct(Sage300Service $sage300Service)
     {
         $this->middleware('auth');
-        $this->middleware('role:admin');
+        // Access is enforced per-route via permission:* middleware (see routes/web.php).
         $this->sage300Service = $sage300Service;
     }
 
@@ -31,16 +33,20 @@ class RequisitionApprovalController extends Controller
         $query = Requisition::with(['user', 'department', 'subDepartment', 'division', 'items'])
             ->where('status', 'active');
 
-        if ($request->has('approve_status') && $request->approve_status != '') {
+        if ($request->filled('approve_status')) {
             $query->where('approve_status', $request->approve_status);
         }
-        if ($request->has('clear_status') && $request->clear_status != '') {
+        if ($request->filled('clear_status')) {
             $query->where('clear_status', $request->clear_status);
+        }
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
         }
 
         $requisitions = $query->orderBy('created_at', 'desc')->paginate(15);
-        
-        return view('admin.requisitions.index', compact('requisitions'));
+        $users = User::orderBy('name')->get();
+
+        return view('admin.requisitions.index', compact('requisitions', 'users'));
     }
 
     /**
@@ -137,14 +143,13 @@ class RequisitionApprovalController extends Controller
 
         $requisition->load(['items.issuedItems', 'department', 'subDepartment', 'division', 'user']);
         
-        // Add available quantities and locations for each item
+        // Reuse the stock response if an item appears on more than one line.
+        $locationsByCode = [];
         foreach ($requisition->items as $item) {
+            $item->stock_lookup_failed = false;
             try {
-                // Get item locations from SAGE300
-                $locations = $this->sage300Service->getItemLocations($item->item_code);
+                $locations = $locationsByCode[$item->item_code] ??= $this->sage300Service->getItemLocations($item->item_code);
                 $item->locations = $locations;
-                $itemRequestedLocation = $this->sage300Service->getLocation($item->location_code);
-                $item->location_name = $itemRequestedLocation['Name'];
                 // Calculate total stock across all locations
                 $totalStock = collect($locations)->sum('quantity');
                 $pendingQuantity = $availabilityService->getPendingQuantity($item->item_code, $requisition->id);
@@ -153,6 +158,12 @@ class RequisitionApprovalController extends Controller
                 $item->stock_quantity = $totalStock;
                 $item->pending_quantity = $pendingQuantity;
             } catch (\Exception $e) {
+                Log::warning('Issue form could not verify stock', [
+                    'requisition' => $requisition->requisition_number,
+                    'item_code' => $item->item_code,
+                    'error' => $e->getMessage(),
+                ]);
+                $item->stock_lookup_failed = true;
                 $item->locations = [];
                 $item->available_quantity = 0;
                 $item->stock_quantity = 0;
@@ -168,11 +179,12 @@ class RequisitionApprovalController extends Controller
      */
     public function issueItems(Request $request, Requisition $requisition)
     {
+        
         $request->validate([
             'items' => 'required|array|min:1',
             'items.*.locations' => 'required|array|min:1',
             'items.*.locations.*.location_code' => 'required|string',
-            'items.*.locations.*.issued_quantity' => 'required|integer|min:1',
+            'items.*.locations.*.issued_quantity' => 'required|numeric|min:0.0001',
             'items.*.locations.*.requisition_item_id' => 'required|exists:requisition_items,id',
             'items.*.locations.*.notes' => 'nullable|string',
         ]);
@@ -181,7 +193,7 @@ class RequisitionApprovalController extends Controller
             return redirect()->back()
                 ->with('error', 'Only approved requisitions can have items issued.');
         }
-
+        
         DB::beginTransaction();
         try {
             $issueDataForSage = []; // Store data for SAGE API calls
@@ -215,7 +227,7 @@ class RequisitionApprovalController extends Controller
                             throw new \Exception("Insufficient stock at location {$locationData['location_code']} for item: {$requisitionItem->item_name}. Available: {$locationStock}, Requested: {$locationData['issued_quantity']}");
                         }
                     }
-
+                    
                     // Prepare data for SAGE API calls (don't create DB records yet)
                     foreach ($locations as $locationData) {
                         $issueDataForSage[] = [
@@ -226,7 +238,7 @@ class RequisitionApprovalController extends Controller
                     }
                 }
             }
-
+            
             // All validations passed, now post to SAGE300 and create DB records
             $successfulIssues = [];
             $failedIssues = [];
@@ -339,6 +351,114 @@ class RequisitionApprovalController extends Controller
             DB::rollBack();
             return redirect()->back()
                 ->with('error', 'Failed to issue items: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Manually force-clear a requisition regardless of issued qty.
+     */
+    public function forceClear(Request $request, Requisition $requisition)
+    {
+        if ($requisition->approve_status !== 'approved') {
+            return redirect()->back()
+                ->with('error', 'Only approved requisitions can be cleared.');
+        }
+
+        if ($requisition->clear_status === 'cleared') {
+            return redirect()->back()
+                ->with('error', 'This requisition is already cleared.');
+        }
+
+        $request->validate([
+            'clear_reason' => 'required|string|max:500',
+        ]);
+
+        $requisition->update([
+            'clear_status' => 'cleared',
+            'cleared_by'   => Auth::id(),
+            'cleared_at'   => now(),
+            'notes'        => ($requisition->notes ? $requisition->notes . "\n" : '')
+                              . '[Force-cleared by ' . Auth::user()->name . ': ' . $request->clear_reason . ']',
+            'updated_by'   => Auth::id(),
+        ]);
+
+        return redirect()->route('admin.requisitions.show', $requisition->id)
+            ->with('success', 'Requisition has been force-cleared successfully.');
+    }
+
+    /**
+     * Update requisition items (approver can edit quantities, add/remove items while pending).
+     */
+    public function updateItems(Request $request, Requisition $requisition)
+    {
+        if ($requisition->approve_status !== 'pending') {
+            return redirect()->back()
+                ->with('error', 'Items can only be edited while the requisition is pending.');
+        }
+
+        $request->validate([
+            'items'                     => 'required|array|min:1',
+            'items.*.item_code'         => 'required|string',
+            'items.*.item_name'         => 'required|string',
+            'items.*.quantity'          => ['required', 'numeric', 'min:0.0001'],
+            'items.*.unit'              => 'nullable|string',
+            'items.*.item_category'     => 'nullable|string',
+            'items.*.location_code'     => 'required|string',
+            'items.*.specifications'    => 'nullable|string',
+            'items.*.id'                => 'nullable|exists:requisition_items,id',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $submittedIds = collect($request->items)
+                ->filter(fn($i) => !empty($i['id']))
+                ->pluck('id')
+                ->map('intval');
+
+            // Soft-delete items that were removed
+            $requisition->allItems()
+                ->whereNotIn('id', $submittedIds->toArray())
+                ->update(['status' => 'delete', 'updated_by' => Auth::id()]);
+
+            // Update existing / create new items
+            foreach ($request->items as $itemData) {
+                if (!empty($itemData['id'])) {
+                    // Update existing item
+                    RequisitionItem::where('id', $itemData['id'])
+                        ->where('requisition_id', $requisition->id)
+                        ->update([
+                            'quantity'       => $itemData['quantity'],
+                            'specifications' => $itemData['specifications'] ?? null,
+                            'status'         => 'active',
+                            'updated_by'     => Auth::id(),
+                        ]);
+                } else {
+                    // New item added by approver
+                    RequisitionItem::create([
+                        'requisition_id' => $requisition->id,
+                        'item_code'      => $itemData['item_code'],
+                        'item_name'      => $itemData['item_name'],
+                        'item_category'  => $itemData['item_category'] ?? null,
+                        'unit'           => $itemData['unit'] ?? null,
+                        'quantity'       => $itemData['quantity'],
+                        'location_code'  => $itemData['location_code'],
+                        'specifications' => $itemData['specifications'] ?? null,
+                        'status'         => 'active',
+                        'created_by'     => Auth::id(),
+                        'updated_by'     => Auth::id(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return redirect()->route('admin.requisitions.show', $requisition->id)
+                ->with('success', 'Requisition items updated successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->with('error', 'Failed to update items: ' . $e->getMessage())
                 ->withInput();
         }
     }

@@ -20,10 +20,14 @@ use Carbon\Carbon;
 class MonthlySummaryExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithColumnWidths, WithEvents
 {
     protected $year;
+    protected $departmentId;
+    protected $subDeptId;
 
-    public function __construct($year = null)
+    public function __construct($year = null, $departmentId = null, $subDeptId = null)
     {
-        $this->year = $year ?? date('Y');
+        $this->year         = $year ?? date('Y');
+        $this->departmentId = $departmentId;
+        $this->subDeptId    = $subDeptId;
     }
 
     public function array(): array
@@ -36,13 +40,30 @@ class MonthlySummaryExport implements FromArray, WithHeadings, WithStyles, WithT
 
             $requisitions = Requisition::whereBetween('created_at', [$startDate, $endDate])
                 ->where('status', 'active');
+            if ($this->departmentId) $requisitions->where('department_id', $this->departmentId);
+            if ($this->subDeptId)    $requisitions->where('sub_department_id', $this->subDeptId);
+
+            $reqIds = (clone $requisitions)->pluck('id');
 
             $returns = ReturnModel::whereBetween('returned_at', [$startDate, $endDate])
                 ->where('status', '!=', 'delete');
+            if ($reqIds->isNotEmpty()) {
+                $returns->whereIn('requisition_id', $reqIds);
+            } elseif ($this->departmentId || $this->subDeptId) {
+                $returns->whereRaw('0=1');
+            }
+
+            $issuedQuery = RequisitionIssuedItem::whereBetween('issued_at', [$startDate, $endDate])
+                ->where('status', '!=', 'delete');
+            if ($reqIds->isNotEmpty()) {
+                $issuedQuery->whereIn('requisition_id', $reqIds);
+            } elseif ($this->departmentId || $this->subDeptId) {
+                $issuedQuery->whereRaw('0=1');
+            }
 
             $requisitionsCount = $requisitions->count();
-            $approvedCount = (clone $requisitions)->where('approve_status', 'approved')->count();
-            $approvalRate = $requisitionsCount > 0 ? round(($approvedCount / $requisitionsCount) * 100) . '%' : '0%';
+            $approvedCount     = (clone $requisitions)->where('approve_status', 'approved')->count();
+            $approvalRate      = $requisitionsCount > 0 ? round(($approvedCount / $requisitionsCount) * 100) . '%' : '0%';
 
             $data[] = [
                 $startDate->format('F'),
@@ -51,8 +72,8 @@ class MonthlySummaryExport implements FromArray, WithHeadings, WithStyles, WithT
                 $approvalRate,
                 $returns->count(),
                 (clone $returns)->where('status', 'cleared')->count(),
-                RequisitionIssuedItem::whereBetween('issued_at', [$startDate, $endDate])
-                    ->where('status', '!=', 'delete')->sum('issued_quantity'),
+                (clone $issuedQuery)->sum('issued_quantity'),
+                number_format((clone $issuedQuery)->sum('total_price'), 2),
                 GrnItem::whereBetween('created_at', [$startDate, $endDate])
                     ->where('status', '!=', 'delete')->sum('grn_quantity'),
             ];
@@ -71,6 +92,7 @@ class MonthlySummaryExport implements FromArray, WithHeadings, WithStyles, WithT
             'Returns',
             'Cleared',
             'Items Issued',
+            'Total Cost',
             'GRN Items',
         ];
     }
@@ -98,7 +120,8 @@ class MonthlySummaryExport implements FromArray, WithHeadings, WithStyles, WithT
             'E' => 12,
             'F' => 12,
             'G' => 15,
-            'H' => 12,
+            'H' => 15,
+            'I' => 12,
         ];
     }
 
@@ -112,7 +135,7 @@ class MonthlySummaryExport implements FromArray, WithHeadings, WithStyles, WithT
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:H1');
+                $event->sheet->setAutoFilter('A1:I1');
             },
         ];
     }

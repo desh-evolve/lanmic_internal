@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\Sage300Service;
+use App\Models\Sage300Item;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
@@ -23,6 +24,21 @@ class Sage300Controller extends Controller
     {
         $endpoints = $this->sage300->getEndpoints();
         return view('admin.sage300.index', compact('endpoints'));
+    }
+
+    /**
+     * Item browser - view all synced items in a searchable table
+     */
+    public function itemsList(): View
+    {
+        $total      = Sage300Item::where('active', true)->count();
+        $lastSync   = Sage300Item::max('updated_at');
+        $lastUpdated = $lastSync
+            ? \Carbon\Carbon::parse($lastSync)->format('d M Y H:i')
+            : null;
+        $hasItems   = $total > 0;
+
+        return view('admin.sage300.items', compact('total', 'lastUpdated', 'hasItems'));
     }
 
     /**
@@ -59,15 +75,38 @@ class Sage300Controller extends Controller
     }
 
     /**
-     * Get all items from Sage 300
+     * Get all items from Sage 300 (paginated internally, cached for 10 minutes)
      */
     public function getItems(Request $request): JsonResponse
     {
         $items = $this->sage300->getItems();
-        
+
         return response()->json([
             'success' => true,
-            'data' => $items
+            'data' => $items,
+            'count' => count($items),
+        ]);
+    }
+
+    /**
+     * Sync all items from Sage 300 into the DB.
+     * Called by the admin "Refresh Items Cache" button.
+     */
+    public function refreshItemsCache(Request $request): JsonResponse
+    {
+        // Remove time limit and extend memory — syncing 10,000+ items takes time
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
+
+        $stats = $this->sage300->syncItems();
+
+        return response()->json([
+            'success'     => true,
+            'message'     => "{$stats['total']} active items — {$stats['added']} added, {$stats['updated']} updated, {$stats['deactivated']} deactivated.",
+            'added'       => $stats['added'],
+            'updated'     => $stats['updated'],
+            'deactivated' => $stats['deactivated'],
+            'total'       => $stats['total'],
         ]);
     }
 
@@ -136,7 +175,7 @@ class Sage300Controller extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch item locations: ' . $e->getMessage()
-            ], 500);
+            ], 502);
         }
     }
 

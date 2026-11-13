@@ -9,12 +9,14 @@ use App\Models\RequisitionIssuedItem;
 use App\Models\PurchaseOrderItem;
 use App\Models\ReturnModel;
 use App\Models\ReturnItem;
+use App\Exports\InventoryMovementExport;
 use App\Models\GrnItem;
-use App\Models\ScrapItem;
 use App\Models\User;
 use App\Models\Department;
+use App\Models\Sage300Item;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\RequisitionSummaryExport;
@@ -27,13 +29,14 @@ use App\Exports\ScrapExport;
 use App\Exports\DepartmentActivityExport;
 use App\Exports\UserActivityExport;
 use App\Exports\MonthlySummaryExport;
+use App\Services\Sage300Service;
 
 class ReportController extends Controller
 {
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('role:admin');
+        // Access is enforced per-route via permission:view-reports (see routes/web.php).
     }
 
     /**
@@ -153,42 +156,104 @@ class ReportController extends Controller
     }
 
     /**
-     * Issued Items Report.
+     * Build a base issued-items query with all common filters applied.
+     * Joins requisitions + departments so callers can ORDER BY d_sort.name without a subquery.
+     *
+     * @param  string|null  $itemType  'import' → item_code LIKE 'ENI-%'
+     *                                 'local'  → item_code NOT LIKE 'ENI-%'
+     *                                 null     → no restriction (all items)
+     */
+    private function buildIssuedQuery(Request $request, ?string $itemType = null)
+    {
+        $query = RequisitionIssuedItem::with([
+                'requisition.user', 'requisition.department',
+                'requisition.subDepartment', 'requisitionItem', 'issuedBy',
+            ])
+            ->join('requisitions as r_sort', 'requisition_issued_items.requisition_id', '=', 'r_sort.id')
+            ->join('departments as d_sort', 'r_sort.department_id', '=', 'd_sort.id')
+            ->select('requisition_issued_items.*')
+            ->where('requisition_issued_items.status', '!=', 'delete');
+
+        // Import = item code starts with 'ENI-'; local = everything else
+        if ($itemType === 'import') {
+            $query->where('requisition_issued_items.item_code', 'like', 'ENI-%');
+        } elseif ($itemType === 'local') {
+            $query->where('requisition_issued_items.item_code', 'not like', 'ENI-%');
+        }
+
+        if ($request->filled('date_from'))     $query->whereDate('requisition_issued_items.issued_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))       $query->whereDate('requisition_issued_items.issued_at', '<=', $request->date_to);
+        if ($request->filled('item_code'))     $query->where('requisition_issued_items.item_code',  'like', '%' . $request->item_code  . '%');
+        if ($request->filled('item_name'))     $query->where('requisition_issued_items.item_name',  'like', '%' . $request->item_name  . '%');
+        if ($request->filled('department_id')) $query->where('r_sort.department_id', $request->department_id);
+
+        $requestedBy = array_filter((array) $request->input('requested_by', []));
+        if (!empty($requestedBy))              $query->whereIn('r_sort.user_id', $requestedBy);
+
+        return $query;
+    }
+
+    /**
+     * Build department-wise totals for issued items with the same filters.
+     */
+    private function buildIssuedDeptTotals(Request $request)
+    {
+        $query = DB::table('requisition_issued_items as rii')
+            ->join('requisitions as r', 'rii.requisition_id', '=', 'r.id')
+            ->join('departments as d', 'r.department_id', '=', 'd.id')
+            ->where('rii.status', '!=', 'delete')
+            ->select(
+                'd.name as dept_name',
+                DB::raw('SUM(rii.issued_quantity) as total_qty'),
+                DB::raw('SUM(rii.total_price) as total_value')
+            );
+
+        if ($request->filled('date_from'))     $query->whereDate('rii.issued_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))       $query->whereDate('rii.issued_at', '<=', $request->date_to);
+        if ($request->filled('item_code'))     $query->where('rii.item_code', 'like', '%' . $request->item_code . '%');
+        if ($request->filled('item_name'))     $query->where('rii.item_name', 'like', '%' . $request->item_name . '%');
+        if ($request->filled('department_id')) $query->where('r.department_id', $request->department_id);
+        if ($request->filled('category'))      $query->where('rii.item_category', 'like', '%' . $request->category . '%');
+
+        $requestedBy = array_filter((array) $request->input('requested_by', []));
+        if (!empty($requestedBy))              $query->whereIn('r.user_id', $requestedBy);
+
+        return $query->groupByRaw('d.id, d.name')->orderByRaw('d.name ASC')->get();
+    }
+
+    /**
+     * Issued Items Report (all / local / import via item_type filter).
      */
     public function issuedItems(Request $request)
     {
-        // Check if export is requested
+        $itemType = $request->input('item_type', 'all');
+
         if ($request->has('export') && $request->export === 'excel') {
-            $filename = 'issued_items_' . date('Y-m-d_H-i-s') . '.xlsx';
-            return Excel::download(new IssuedItemsExport($request->all()), $filename);
+            return Excel::download(
+                new IssuedItemsExport($request->all()),
+                'issued_items_' . date('Y-m-d_H-i-s') . '.xlsx'
+            );
         }
 
-        $query = RequisitionIssuedItem::with(['requisition.user', 'requisitionItem'])
-            ->where('status', '!=', 'delete');
+        $allItems = $this->buildIssuedQuery($request, $itemType === 'all' ? null : $itemType)
+            ->orderBy('d_sort.name', 'asc')
+            ->orderBy('requisition_issued_items.issued_at', 'asc')
+            ->get();
 
-        // Date filter
-        if ($request->filled('date_from')) {
-            $query->whereDate('issued_at', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('issued_at', '<=', $request->date_to);
-        }
-
-        // Item filter
-        if ($request->filled('item_code')) {
-            $query->where('item_code', 'like', '%' . $request->item_code . '%');
-        }
-
-        $issuedItems = $query->orderBy('issued_at', 'desc')->paginate(50);
-
-        // Statistics
-        $statistics = [
-            'total_issued' => $query->count(),
-            'total_quantity' => $query->sum('issued_quantity'),
-            'total_value' => $query->sum('total_price'),
+        $groupedItems = $allItems->groupBy(fn($i) => $i->requisition->department->name ?? 'Unknown');
+        $statistics   = [
+            'total_issued'   => $allItems->count(),
+            'total_quantity' => $allItems->sum('issued_quantity'),
+            'total_value'    => $allItems->sum('total_price'),
         ];
+        $departments      = Department::active()->orderBy('name')->get();
+        $items            = Sage300Item::active()->orderBy('item_code')->get(['item_code', 'description']);
+        $requestedByUsers = User::whereIn('id', Requisition::select('user_id')->distinct())
+                                ->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.reports.issued-items', compact('issuedItems', 'statistics'));
+        return view('admin.reports.issued-items', compact(
+            'groupedItems', 'statistics', 'departments', 'items', 'itemType', 'requestedByUsers'
+        ));
     }
 
     /**
@@ -243,40 +308,84 @@ class ReportController extends Controller
             return Excel::download(new ReturnsSummaryExport($request->all()), $filename);
         }
 
-        $query = ReturnModel::with(['returnedBy', 'items', 'requisition'])
-            ->where('status', '!=', 'delete');
+        $query = ReturnItem::with([
+                'return.returnedBy',
+                'return.requisition.department',
+                'return.requisition.subDepartment',
+                'issuedItem',
+                'approvedBy',
+            ])
+            ->where('status', 'active')
+            // Rejected items are tracked separately in the Return Reject Report.
+            ->where('approve_status', '!=', 'rejected');
 
         // Date filter
         if ($request->filled('date_from')) {
-            $query->whereDate('returned_at', '>=', $request->date_from);
+            $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '>=', $request->date_from));
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('returned_at', '<=', $request->date_to);
+            $query->whereHas('return', fn($q) => $q->whereDate('returned_at', '<=', $request->date_to));
         }
 
-        // Status filter
+        // Status filter (return-level)
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('return', fn($q) => $q->where('status', $request->status));
         }
 
         // User filter
         if ($request->filled('user_id')) {
-            $query->where('returned_by', $request->user_id);
+            $query->whereHas('return', fn($q) => $q->where('returned_by', $request->user_id));
         }
 
-        $returns = $query->orderBy('returned_at', 'desc')->paginate(50);
+        // Department filter
+        if ($request->filled('department_id')) {
+            $query->whereHas('return.requisition', fn($q) => $q->where('department_id', $request->department_id));
+        }
+
+        // Item name filter
+        if ($request->filled('item_name')) {
+            $query->where('item_name', 'like', '%' . $request->item_name . '%');
+        }
+
+        $returns = $query->orderByDesc(
+            ReturnModel::select('returned_at')->whereColumn('returns.id', 'return_items.return_id')->limit(1)
+        )->paginate(50)->appends($request->query());
 
         // Statistics
         $statistics = [
-            'total_returns' => $query->count(),
-            'pending' => ReturnModel::where('status', 'pending')->count(),
-            'cleared' => ReturnModel::where('status', 'cleared')->count(),
-            'total_items' => ReturnItem::whereIn('return_id', $query->pluck('id'))->sum('quantity'),
+            'total_returns' => ReturnModel::where('status', '!=', 'delete')->count(),
+            'pending'       => ReturnModel::where('status', 'pending')->count(),
+            'cleared'       => ReturnModel::where('status', 'cleared')->count(),
+            'total_items'   => $query->count(),
         ];
 
-        $users = User::all();
+        $users       = User::all();
+        $departments = Department::active()->orderBy('name')->get();
 
-        return view('admin.reports.returns-summary', compact('returns', 'statistics', 'users'));
+        // Dept-wise totals (using issuedItem price for value)
+        $deptTotals = DB::table('return_items as ri')
+            ->join('returns as ret', 'ri.return_id', '=', 'ret.id')
+            ->join('requisitions as req', 'ret.requisition_id', '=', 'req.id')
+            ->join('departments as d', 'req.department_id', '=', 'd.id')
+            ->leftJoin('requisition_issued_items as rii', 'ri.requisition_issued_item_id', '=', 'rii.id')
+            ->where('ri.status', 'active')
+            ->where('ri.approve_status', '!=', 'rejected')
+            ->select(
+                'd.name as dept_name',
+                DB::raw('SUM(ri.quantity) as total_qty'),
+                DB::raw('SUM(COALESCE(rii.unit_price, 0) * ri.quantity) as total_value')
+            );
+
+        if ($request->filled('date_from'))     $deptTotals->whereDate('ret.returned_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))       $deptTotals->whereDate('ret.returned_at', '<=', $request->date_to);
+        if ($request->filled('status'))        $deptTotals->where('ret.status', $request->status);
+        if ($request->filled('user_id'))       $deptTotals->where('ret.returned_by', $request->user_id);
+        if ($request->filled('department_id')) $deptTotals->where('req.department_id', $request->department_id);
+        if ($request->filled('item_name'))     $deptTotals->where('ri.item_name', 'like', '%' . $request->item_name . '%');
+
+        $deptTotals = $deptTotals->groupByRaw('d.id, d.name')->orderByRaw('d.name ASC')->get();
+
+        return view('admin.reports.returns-summary', compact('returns', 'statistics', 'users', 'departments', 'deptTotals'));
     }
 
     /**
@@ -333,25 +442,34 @@ class ReportController extends Controller
     }
 
     /**
-     * Scrap Report.
+     * Return Reject Report.
+     *
+     * Covers every ReturnItem denied by an approver:
+     *   - items scrapped in full (a ScrapItem record exists — physically disposed), and
+     *   - items rejected outright via the Reject toggle (no ScrapItem — nothing was
+     *     posted anywhere, the return was simply denied).
+     * The ScrapItem, when present, is the source of truth for quantity/price;
+     * otherwise we fall back to the ReturnItem's own quantity and the original
+     * issued unit price.
      */
     public function scrap(Request $request)
     {
         // Check if export is requested
         if ($request->has('export') && $request->export === 'excel') {
-            $filename = 'scrap_report_' . date('Y-m-d_H-i-s') . '.xlsx';
+            $filename = 'return_reject_report_' . date('Y-m-d_H-i-s') . '.xlsx';
             return Excel::download(new ScrapExport($request->all()), $filename);
         }
 
-        $query = ScrapItem::with(['return.returnedBy', 'returnItem'])
-            ->where('status', '!=', 'delete');
+        $query = ReturnItem::with(['return.returnedBy', 'issuedItem', 'scrapItem', 'approvedBy'])
+            ->where('status', 'active')
+            ->where('approve_status', 'rejected');
 
-        // Date filter
+        // Date filter — approved_at is set for both scrapped and outright-rejected items
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $query->whereDate('approved_at', '>=', $request->date_from);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $query->whereDate('approved_at', '<=', $request->date_to);
         }
 
         // Item filter
@@ -359,30 +477,55 @@ class ReportController extends Controller
             $query->where('item_code', 'like', '%' . $request->item_code . '%');
         }
 
-        $scrapItems = $query->orderBy('created_at', 'desc')->paginate(50);
+        $rejectItems = $query->orderBy('approved_at', 'desc')->paginate(50)->appends($request->query());
 
-        // Statistics
+        // Statistics — computed via raw joins so partial (scrapped vs. outright-rejected)
+        // quantity/value sourcing doesn't require pulling every row into memory.
+        $statsQuery = DB::table('return_items as ri')
+            ->leftJoin('scrap_items as si', function ($join) {
+                $join->on('si.return_item_id', '=', 'ri.id')->where('si.status', 'active');
+            })
+            ->leftJoin('requisition_issued_items as rii', 'ri.requisition_issued_item_id', '=', 'rii.id')
+            ->where('ri.status', 'active')
+            ->where('ri.approve_status', 'rejected');
+
+        if ($request->filled('date_from')) $statsQuery->whereDate('ri.approved_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))   $statsQuery->whereDate('ri.approved_at', '<=', $request->date_to);
+        if ($request->filled('item_code')) $statsQuery->where('ri.item_code', 'like', '%' . $request->item_code . '%');
+
+        $statsRow = $statsQuery->selectRaw('
+                COUNT(*) as total_items,
+                SUM(COALESCE(si.scrap_quantity, ri.quantity)) as total_quantity,
+                SUM(COALESCE(si.total_price, COALESCE(rii.unit_price, 0) * ri.quantity)) as total_value
+            ')->first();
+
         $statistics = [
-            'total_scrap_items' => $query->count(),
-            'total_quantity' => $query->sum('scrap_quantity'),
-            'total_value' => $query->sum('total_price'),
+            'total_reject_items' => (int) ($statsRow->total_items ?? 0),
+            'total_quantity'     => (float) ($statsRow->total_quantity ?? 0),
+            'total_value'        => (float) ($statsRow->total_value ?? 0),
         ];
 
-        // Group by item
-        $itemStats = ScrapItem::select(
-            'item_code',
-            'item_name',
-            DB::raw('COUNT(*) as scrap_count'),
-            DB::raw('SUM(scrap_quantity) as total_quantity'),
-            DB::raw('SUM(total_price) as total_value')
-        )
-        ->where('status', '!=', 'delete')
-        ->groupBy('item_code', 'item_name')
-        ->orderBy('total_quantity', 'desc')
-        ->limit(10)
-        ->get();
+        // Top 10 most rejected items
+        $itemStats = DB::table('return_items as ri')
+            ->leftJoin('scrap_items as si', function ($join) {
+                $join->on('si.return_item_id', '=', 'ri.id')->where('si.status', 'active');
+            })
+            ->leftJoin('requisition_issued_items as rii', 'ri.requisition_issued_item_id', '=', 'rii.id')
+            ->where('ri.status', 'active')
+            ->where('ri.approve_status', 'rejected')
+            ->select(
+                'ri.item_code',
+                'ri.item_name',
+                DB::raw('COUNT(*) as reject_count'),
+                DB::raw('SUM(COALESCE(si.scrap_quantity, ri.quantity)) as total_quantity'),
+                DB::raw('SUM(COALESCE(si.total_price, COALESCE(rii.unit_price, 0) * ri.quantity)) as total_value')
+            )
+            ->groupBy('ri.item_code', 'ri.item_name')
+            ->orderByDesc('total_quantity')
+            ->limit(10)
+            ->get();
 
-        return view('admin.reports.scrap', compact('scrapItems', 'statistics', 'itemStats'));
+        return view('admin.reports.scrap', compact('rejectItems', 'statistics', 'itemStats'));
     }
 
     /**
@@ -473,45 +616,225 @@ class ReportController extends Controller
     }
 
     /**
+     * Inventory Movement Report — mirrors Sage 300 ICMVMT02.
+     * Shows all Inventory Out (Issues) and Inventory In (GRN) grouped by item,
+     * with document number, invoice number, department, remarks, and running totals.
+     */
+    public function inventoryMovement(Request $request)
+    {
+        $dateFrom = $request->input('date_from', Carbon::now()->startOfMonth()->toDateString());
+        $dateTo   = $request->input('date_to',   Carbon::now()->toDateString());
+        $itemCode = $request->input('item_code');
+        $deptId   = $request->input('department_id');
+
+        // ── Inventory OUT — Issued Items ──────────────────────────────────
+        $issuesQuery = RequisitionIssuedItem::with(['requisition.department', 'requisition.subDepartment', 'issuedBy'])
+            ->where('status', '!=', 'delete')
+            ->whereDate('issued_at', '>=', $dateFrom)
+            ->whereDate('issued_at', '<=', $dateTo);
+
+        if ($itemCode) $issuesQuery->where('item_code', 'like', '%' . $itemCode . '%');
+        if ($deptId)   $issuesQuery->whereHas('requisition', fn($q) => $q->where('department_id', $deptId));
+
+        $issues = $issuesQuery->orderBy('issued_at')->get();
+
+        // ── Inventory IN — Return GRN Items ───────────────────────────────
+        $grnQuery = GrnItem::with(['return.requisition.department', 'processedBy'])
+            ->where('status', '!=', 'delete')
+            ->whereDate('processed_at', '>=', $dateFrom)
+            ->whereDate('processed_at', '<=', $dateTo);
+
+        if ($itemCode) $grnQuery->where('item_code', 'like', '%' . $itemCode . '%');
+
+        $grns = $grnQuery->orderBy('processed_at')->get();
+
+        // ── Merge into movements collection ───────────────────────────────
+        $movements = collect();
+
+        foreach ($issues as $issue) {
+            $movements->push([
+                'date'        => $issue->issued_at,
+                'document_no' => $issue->reference_number_1 ?? $issue->requisition?->requisition_number ?? '—',
+                'invoice_no'  => $issue->reference_number_2 ?? '—',
+                'vendor_no'   => '—',
+                'vendor_name' => '—',
+                'type'        => 'Internal Usage',
+                'unit'        => $issue->unit ?? '—',
+                'department'  => $issue->requisition?->department?->name ?? '—',
+                'sub_dept'    => $issue->requisition?->subDepartment?->name ?? '',
+                'remarks'     => $issue->notes ?? '—',
+                'qty_in'      => 0,
+                'cost_in'     => 0,
+                'qty_out'     => (float) $issue->issued_quantity,
+                'cost_out'    => (float) $issue->total_price,
+                'item_code'   => $issue->item_code,
+                'item_name'   => $issue->item_name,
+            ]);
+        }
+
+        foreach ($grns as $grn) {
+            $movements->push([
+                'date'        => $grn->processed_at,
+                'document_no' => $grn->reference_number_1 ?? '—',
+                'invoice_no'  => $grn->reference_number_2 ?? '—',
+                'vendor_no'   => '—',
+                'vendor_name' => '—',
+                'type'        => 'RETURN GRN',
+                'unit'        => $grn->unit ?? '—',
+                'department'  => $grn->return?->requisition?->department?->name ?? '—',
+                'sub_dept'    => '',
+                'remarks'     => '—',
+                'qty_in'      => (float) $grn->grn_quantity,
+                'cost_in'     => (float) $grn->total_price,
+                'qty_out'     => 0,
+                'cost_out'    => 0,
+                'item_code'   => $grn->item_code,
+                'item_name'   => $grn->item_name,
+            ]);
+        }
+
+        // ── Inventory IN — Purchase GRNs from Sage 300 ────────────────────
+        $sage = app(Sage300Service::class);
+        try {
+            $poReceipts = $sage->getPOReceiptsByDateRange($dateFrom, $dateTo);
+        } catch (\Exception $e) {
+            Log::warning('Sage300 getPOReceiptsByDateRange failed: ' . $e->getMessage());
+            $poReceipts = [];
+        }
+
+        foreach ($poReceipts as $line) {
+            if (!$line['item_number']) continue;
+            if ($itemCode && stripos($line['item_number'], $itemCode) === false) continue;
+
+            $movements->push([
+                'date'        => $line['receipt_date'],
+                'document_no' => $line['receipt_number'],
+                'invoice_no'  => $line['invoice_no'] ?: '—',
+                'vendor_no'   => $line['vendor'],
+                'vendor_name' => $line['vendor_name'],
+                'type'        => 'Purchase GRN',
+                'unit'        => $line['unit'],
+                'department'  => '—',
+                'sub_dept'    => '',
+                'remarks'     => $line['po_number'] ? 'PO: ' . $line['po_number'] : '—',
+                'qty_in'      => $line['quantity_received'],
+                'cost_in'     => round($line['quantity_received'] * $line['unit_cost'], 2),
+                'qty_out'     => 0,
+                'cost_out'    => 0,
+                'item_code'   => $line['item_number'],
+                'item_name'   => $line['item_description'],
+            ]);
+        }
+
+        // ── Group by item code ────────────────────────────────────────────
+        $grouped = $movements
+            ->sortBy('date')
+            ->groupBy('item_code')
+            ->sortKeys();
+
+        // ── Opening balances from Sage 300 ────────────────────────────────
+        // opening = currentQty + all_decreases_since_dateFrom - all_increases_since_dateFrom
+        $openingBalances = [];
+        try {
+            $adjByItem = $sage->getAdjustmentsSince($dateFrom);
+
+            foreach ($grouped->keys() as $code) {
+                $currentQty = $sage->getItemTotalQuantity($code);
+                $increases  = $adjByItem[$code]['increases'] ?? 0.0;
+                $decreases  = $adjByItem[$code]['decreases'] ?? 0.0;
+                $openingBalances[$code] = $currentQty + $decreases - $increases;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Sage300 opening balance calculation failed: ' . $e->getMessage());
+        }
+
+        $departments = Department::active()->get();
+        $items       = Sage300Item::active()
+                            ->orderBy('item_code')
+                            ->get(['item_code', 'description'])
+                            ->map(fn($i) => ['code' => $i->item_code, 'name' => $i->description]);
+
+        if ($request->has('export') && $request->export === 'excel') {
+            $filename = 'inventory_movement_' . $dateFrom . '_to_' . $dateTo . '.xlsx';
+            return Excel::download(
+                new InventoryMovementExport($grouped, $openingBalances, $dateFrom, $dateTo),
+                $filename
+            );
+        }
+
+        return view('admin.reports.inventory-movement', compact(
+            'grouped', 'openingBalances', 'dateFrom', 'dateTo', 'itemCode', 'deptId', 'departments', 'items'
+        ));
+    }
+
+    /**
      * Monthly Summary Report.
      */
     public function monthlySummary(Request $request)
     {
-        $year = $request->input('year', date('Y'));
+        $year         = $request->input('year', date('Y'));
+        $departmentId = $request->input('department_id');
+        $subDeptId    = $request->input('sub_department_id');
 
         // Check if export is requested
         if ($request->has('export') && $request->export === 'excel') {
             $filename = 'monthly_summary_' . $year . '_' . date('Y-m-d_H-i-s') . '.xlsx';
-            return Excel::download(new MonthlySummaryExport($year), $filename);
+            return Excel::download(new MonthlySummaryExport($year, $departmentId, $subDeptId), $filename);
         }
 
         $months = [];
 
         for ($month = 1; $month <= 12; $month++) {
             $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+            $endDate   = Carbon::create($year, $month, 1)->endOfMonth();
 
             $requisitions = Requisition::whereBetween('created_at', [$startDate, $endDate])
                 ->where('status', 'active');
+            if ($departmentId) $requisitions->where('department_id', $departmentId);
+            if ($subDeptId)    $requisitions->where('sub_department_id', $subDeptId);
+
+            $reqIds = (clone $requisitions)->pluck('id');
 
             $returns = ReturnModel::whereBetween('returned_at', [$startDate, $endDate])
                 ->where('status', '!=', 'delete');
+            if ($reqIds->isNotEmpty()) {
+                $returns->whereIn('requisition_id', $reqIds);
+            } elseif ($departmentId || $subDeptId) {
+                $returns->whereRaw('0=1'); // no requisitions match → no returns
+            }
+
+            $issuedQuery = RequisitionIssuedItem::whereBetween('issued_at', [$startDate, $endDate])
+                ->where('status', '!=', 'delete');
+            if ($reqIds->isNotEmpty()) {
+                $issuedQuery->whereIn('requisition_id', $reqIds);
+            } elseif ($departmentId || $subDeptId) {
+                $issuedQuery->whereRaw('0=1');
+            }
 
             $months[] = [
-                'month' => $startDate->format('F'),
-                'requisitions_count' => $requisitions->count(),
+                'month'                 => $startDate->format('F'),
+                'requisitions_count'    => $requisitions->count(),
                 'requisitions_approved' => (clone $requisitions)->where('approve_status', 'approved')->count(),
-                'returns_count' => $returns->count(),
-                'returns_cleared' => (clone $returns)->where('status', 'cleared')->count(),
-                'issued_items' => RequisitionIssuedItem::whereBetween('issued_at', [$startDate, $endDate])
-                    ->where('status', '!=', 'delete')->sum('issued_quantity'),
-                'grn_items' => GrnItem::whereBetween('created_at', [$startDate, $endDate])
-                    ->where('status', '!=', 'delete')->sum('grn_quantity'),
+                'returns_count'         => $returns->count(),
+                'returns_cleared'       => (clone $returns)->where('status', 'cleared')->count(),
+                'issued_items'          => (clone $issuedQuery)->sum('issued_quantity'),
+                'issued_cost'           => (clone $issuedQuery)->sum('total_price'),
+                'grn_items'             => GrnItem::whereBetween('created_at', [$startDate, $endDate])
+                                            ->where('status', '!=', 'delete')->sum('grn_quantity'),
             ];
         }
 
-        $years = range(date('Y'), date('Y') - 5);
+        $years       = range(date('Y'), date('Y') - 5);
+        $departments = Department::active()->get();
 
-        return view('admin.reports.monthly-summary', compact('months', 'year', 'years'));
+        // Sub-departments for the selected department
+        $subDepartments = $departmentId
+            ? \App\Models\SubDepartment::where('department_id', $departmentId)->get()
+            : collect();
+
+        return view('admin.reports.monthly-summary', compact(
+            'months', 'year', 'years', 'departments', 'subDepartments',
+            'departmentId', 'subDeptId'
+        ));
     }
 }

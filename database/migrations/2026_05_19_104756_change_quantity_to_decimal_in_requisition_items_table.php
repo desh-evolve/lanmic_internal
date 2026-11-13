@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('permissions', function (Blueprint $table) {
-            $table->string('module')->nullable()->after('name');
+        Schema::table('requisition_items', function (Blueprint $table) {
+            $table->decimal('quantity', 10, 4)->change();
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('permissions', function (Blueprint $table) {
-            $table->dropColumn('module');
+        Schema::table('requisition_items', function (Blueprint $table) {
+            $table->integer('quantity')->change();
         });
     }
 };

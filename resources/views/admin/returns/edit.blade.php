@@ -153,13 +153,13 @@ function addItemRow(existingItem = null) {
                     <div class="col-md-3">
                         <div class="form-group">
                             <label>Quantity <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control item-quantity" name="items[${itemIndex}][return_quantity]" min="1" value="${existingItem ? existingItem.return_quantity : 1}" required>
+                            <input type="text" inputmode="decimal" class="form-control item-quantity qty-text-input" name="items[${itemIndex}][return_quantity]" value="${existingItem ? existingItem.return_quantity : 1}" required>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
                             <label>Unit Price</label>
-                            <input type="number" class="form-control item-price" name="items[${itemIndex}][unit_price]" step="0.01" min="0" value="${existingItem ? existingItem.unit_price : 0}" readonly>
+                            <input type="text" inputmode="decimal" class="form-control item-price" name="items[${itemIndex}][unit_price]" value="${existingItem ? existingItem.unit_price : 0}" readonly>
                         </div>
                     </div>
                 </div>
@@ -269,7 +269,7 @@ function populateItems(row, selectedItemCode = null) {
                     data-unit="${item.unit || ''}"
                     data-price="${item.unit_price || 0}"
                     ${selected}>
-                ${item.code} - ${item.name} (${item.category || 'N/A'})
+                ${item.code} - ${item.name}
             </option>
         `);
     });
@@ -287,5 +287,18 @@ function updateSummary() {
     $('#totalItemsCount').text(itemCount);
     $('#totalQuantity').text(totalQuantity);
 }
+
+// ── Qty text-input: block non-numeric keystrokes ─────────────────────
+$(document).on('keydown', '.qty-text-input', function(e) {
+    if ([8,9,13,27,46,35,36,37,38,39,40].includes(e.keyCode)) return;
+    if ((e.ctrlKey||e.metaKey) && [65,67,86,88,90].includes(e.keyCode)) return;
+    if ((e.keyCode===190||e.keyCode===110) && !$(this).val().includes('.')) return;
+    if ((e.keyCode>=48&&e.keyCode<=57)||(e.keyCode>=96&&e.keyCode<=105)) return;
+    e.preventDefault();
+});
+$(document).on('paste', '.qty-text-input', function(e) {
+    const text = (e.originalEvent.clipboardData||window.clipboardData).getData('text');
+    if (!/^\d*\.?\d*$/.test(text)) e.preventDefault();
+});
 </script>
 @endpush

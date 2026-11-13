@@ -23,17 +23,33 @@ class ReturnController extends Controller
     }
 
     /**
-     * Display a listing of returns.
+     * Display returns created by the current user or by a colleague who shares
+     * a department with them (directly, or via the linked requisition's creator).
      */
     public function index()
     {
-        $returns = ReturnModel::where('returned_by', Auth::id())
+        $colleagueIds = Auth::user()->departmentColleagueIds();
+
+        $returns = ReturnModel::where(function ($q) use ($colleagueIds) {
+                $q->whereIn('returned_by', $colleagueIds)
+                  ->orWhereHas('requisition', fn($rq) => $rq->whereIn('user_id', $colleagueIds));
+            })
             ->where('status', '!=', 'delete')
-            ->with(['requisition', 'items'])
+            ->with(['requisition.user', 'returnedBy', 'items'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
-        
+
         return view('returns.index', compact('returns'));
+    }
+
+    /**
+     * Determine whether the current user may access a requisition for return creation.
+     * Access is granted when the requisition was created by the user themselves
+     * or by a colleague who shares a department with them.
+     */
+    private function canAccessRequisition(Requisition $requisition): bool
+    {
+        return Auth::user()->departmentColleagueIds()->contains($requisition->user_id);
     }
 
     /**
@@ -41,15 +57,18 @@ class ReturnController extends Controller
      */
     public function create()
     {
-        // Get user's cleared requisitions with issued items
-        $requisitions = Requisition::where('user_id', Auth::id())
+        $colleagueIds = Auth::user()->departmentColleagueIds();
+
+        // Requisitions created by the user or a same-department colleague that are
+        // approved, active and have issued items available to return.
+        $requisitions = Requisition::whereIn('user_id', $colleagueIds)
             ->where('approve_status', 'approved')
             ->where('status', 'active')
             ->whereHas('issuedItems')
-            ->with(['department', 'subDepartment', 'division', 'issuedItems'])
+            ->with(['department', 'subDepartment', 'division', 'issuedItems', 'user'])
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         return view('returns.create', compact('requisitions'));
     }
 
@@ -59,9 +78,8 @@ class ReturnController extends Controller
     public function getIssuedItems($requisitionId)
     {
         $requisition = Requisition::findOrFail($requisitionId);
-        
-        // Check if user owns this requisition
-        if ((int)$requisition->user_id !== Auth::id()) {
+
+        if (! $this->canAccessRequisition($requisition)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -81,7 +99,7 @@ class ReturnController extends Controller
                     'issued_quantity' => $item->issued_quantity,
                     'location_code' => $item->location_code,
                     'location_name' => $location['Name'] ?? $item->location_code,
-                    'issued_at' => $item->issued_at->format('Y-m-d'),
+                    'issued_at' => $item->issued_at?->format('Y-m-d'),
                 ];
             });
 
@@ -101,7 +119,7 @@ class ReturnController extends Controller
             'items.*.item_code' => 'required|string',
             'items.*.item_name' => 'required|string',
             'items.*.location_code' => 'required|string',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.quantity' => 'required|numeric|min:0.0001',
             'items.*.notes' => 'nullable|string',
         ]);
 
@@ -111,9 +129,9 @@ class ReturnController extends Controller
                 ->withInput();
         }
 
-        // Verify requisition belongs to user
+        // Verify the current user is allowed to create a return for this requisition
         $requisition = Requisition::findOrFail($request->requisition_id);
-        if ((int)$requisition->user_id !== Auth::id()) {
+        if (! $this->canAccessRequisition($requisition)) {
             return redirect()->back()
                 ->with('error', 'Unauthorized action.')
                 ->withInput();
@@ -121,12 +139,17 @@ class ReturnController extends Controller
 
         DB::beginTransaction();
         try {
-            // Validate quantities
+            // Validate quantities and ownership
             foreach ($request->items as $itemData) {
                 $issuedItem = RequisitionIssuedItem::find($itemData['requisition_issued_item_id']);
-                
+
                 if (!$issuedItem) {
                     throw new \Exception("Issued item not found");
+                }
+
+                // Ensure the issued item belongs to the submitted requisition
+                if ((int)$issuedItem->requisition_id !== (int)$request->requisition_id) {
+                    throw new \Exception("Issued item does not belong to the selected requisition.");
                 }
 
                 // Get already returned quantity for this issued item
@@ -189,9 +212,16 @@ class ReturnController extends Controller
      */
     public function show(ReturnModel $return)
     {
-        // Check if user owns this return or is admin
-        if ((int)$return->returned_by !== Auth::id() && !Auth::user()->hasRole('admin')) {
-            abort(403, 'Unauthorized action.');
+        $user = Auth::user();
+
+        if (!$user->hasPermission('full-access')) {
+            $colleagueIds   = $user->departmentColleagueIds();
+            $returnByColleague = $colleagueIds->contains($return->returned_by);
+            $reqByColleague    = $colleagueIds->contains(optional($return->requisition)->user_id);
+
+            if (!$returnByColleague && !$reqByColleague) {
+                abort(403, 'Unauthorized action.');
+            }
         }
 
         $return->load([
@@ -209,6 +239,29 @@ class ReturnController extends Controller
         }
         
         return view('returns.show', compact('return'));
+    }
+
+    /**
+     * Show the form for editing a pending return.
+     * Returns are immutable once submitted — editing is not supported.
+     */
+    public function edit(ReturnModel $return)
+    {
+        if ((int)$return->returned_by !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return redirect()->route('returns.show', $return->id)
+            ->with('error', 'Returns cannot be edited after submission. Delete and re-create if needed.');
+    }
+
+    /**
+     * Update a return — not supported; returns are immutable after submission.
+     */
+    public function update(Request $request, ReturnModel $return)
+    {
+        return redirect()->route('returns.show', $return->id)
+            ->with('error', 'Returns cannot be edited after submission.');
     }
 
     /**

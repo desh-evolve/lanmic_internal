@@ -43,10 +43,12 @@
                     <thead>
                         <tr>
                             <th>Requisition #</th>
+                            <th>Requested By</th>
                             <th>Department</th>
                             <th>Items</th>
                             <th>Approve Status</th>
                             <th>Clear Status</th>
+                            <th>Notes</th>
                             <th>Date</th>
                             <th>Actions</th>
                         </tr>
@@ -55,6 +57,12 @@
                         @forelse($requisitions as $requisition)
                         <tr>
                             <td><strong>{{ $requisition->requisition_number }}</strong></td>
+                            <td>
+                                {{ $requisition->user->name ?? '-' }}
+                                @if($requisition->user_id === Auth::id())
+                                    <span class="badge badge-secondary" style="font-size:0.7em">You</span>
+                                @endif
+                            </td>
                             <td>
                                 {{ $requisition->department->name ?? '-' }}
                                 @if($requisition->subDepartment)
@@ -82,15 +90,25 @@
                                     <span class="badge badge-danger">Error</span>
                                 @endif
                             </td>
+                            <td>
+                                @if($requisition->notes)
+                                    <i class="fas fa-sticky-note text-info" title="{{ $requisition->notes }}"></i>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td>{{ $requisition->created_at->format('Y-m-d') }}</td>
                             <td>
                                 <a href="{{ route('requisitions.show', $requisition->id) }}" class="btn btn-info btn-sm">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                @if($requisition->approve_status === 'pending')
-                                {{-- <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning btn-sm">
+                                @if($requisition->approve_status === 'pending' && $requisition->user_id === Auth::id())
+                                @if(Auth::user()->hasPermission('edit-requisitions'))
+                                <a href="{{ route('requisitions.edit', $requisition->id) }}" class="btn btn-warning btn-sm" title="Edit">
                                     <i class="fas fa-edit"></i>
-                                </a> --}}
+                                </a>
+                                @endif
+                                @if(Auth::user()->hasPermission('delete-requisitions'))
                                 <form action="{{ route('requisitions.destroy', $requisition->id) }}" method="POST" style="display: inline-block;">
                                     @csrf
                                     @method('DELETE')
@@ -99,11 +117,12 @@
                                     </button>
                                 </form>
                                 @endif
+                                @endif
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="text-center">No requisitions found. <a href="{{ route('requisitions.create') }}">Create your first requisition</a></td>
+                            <td colspan="9" class="text-center">No requisitions found. <a href="{{ route('requisitions.create') }}">Create your first requisition</a></td>
                         </tr>
                         @endforelse
                     </tbody>

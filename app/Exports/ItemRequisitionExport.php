@@ -59,8 +59,7 @@ class ItemRequisitionExport implements FromCollection, WithHeadings, WithMapping
             'Requested By',
             'Department',
             'Quantity',
-            'Unit Price',
-            'Total Price',
+            'Requisition Notes',
         ];
     }
 
@@ -78,8 +77,7 @@ class ItemRequisitionExport implements FromCollection, WithHeadings, WithMapping
             $item->requisition->user->name ?? 'N/A',
             $item->requisition->department->name ?? 'N/A',
             $item->quantity,
-            number_format($item->unit_price, 2),
-            number_format($item->total_price, 2),
+            $item->requisition->notes ?? '',
         ];
     }
 
@@ -107,8 +105,7 @@ class ItemRequisitionExport implements FromCollection, WithHeadings, WithMapping
             'F' => 25,
             'G' => 25,
             'H' => 12,
-            'I' => 12,
-            'J' => 15,
+            'I' => 35,
         ];
     }
 
@@ -122,7 +119,7 @@ class ItemRequisitionExport implements FromCollection, WithHeadings, WithMapping
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:J1');
+                $event->sheet->setAutoFilter('A1:I1');
             },
         ];
     }

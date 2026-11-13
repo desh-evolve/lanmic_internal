@@ -59,6 +59,7 @@ class RequisitionSummaryExport implements FromCollection, WithHeadings, WithMapp
             'Items Count',
             'Total Value',
             'Status',
+            'Notes',
             'Approved By',
             'Approved Date',
         ];
@@ -78,6 +79,7 @@ class RequisitionSummaryExport implements FromCollection, WithHeadings, WithMapp
             $requisition->items->count(),
             number_format($requisition->items->sum('total_price'), 2),
             ucfirst($requisition->approve_status),
+            $requisition->notes ?? '',
             $requisition->approvedBy->name ?? '-',
             $requisition->approved_at ? Carbon::parse($requisition->approved_at)->format('d M Y') : '-',
         ];
@@ -107,8 +109,9 @@ class RequisitionSummaryExport implements FromCollection, WithHeadings, WithMapp
             'F' => 12,
             'G' => 15,
             'H' => 12,
-            'I' => 20,
-            'J' => 15,
+            'I' => 35,
+            'J' => 20,
+            'K' => 15,
         ];
     }
 
@@ -122,7 +125,7 @@ class RequisitionSummaryExport implements FromCollection, WithHeadings, WithMapp
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $event->sheet->freezePane('A2');
-                $event->sheet->setAutoFilter('A1:J1');
+                $event->sheet->setAutoFilter('A1:K1');
             },
         ];
     }

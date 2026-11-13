@@ -103,10 +103,11 @@ class ReturnItem extends Model
     public function getStatusBadgeAttribute()
     {
         return match($this->approve_status) {
-            'pending' => 'warning',
+            'pending'  => 'warning',
             'approved' => 'success',
             'rejected' => 'danger',
-            default => 'secondary'
+            'partial'  => 'warning',
+            default    => 'secondary',
         };
     }
 

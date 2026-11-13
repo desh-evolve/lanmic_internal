@@ -13,14 +13,24 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/icheck-bootstrap/3.0.1/icheck-bootstrap.min.css">
     <!-- AdminLTE -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+
+    <style>
+        .login-page {
+            background-image: url('/images/login_bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            min-height: 100vh;
+        }
+    </style>
 </head>
 <body class="hold-transition login-page">
 <div class="login-box">
-    <div class="login-logo">
-        <b>LANMIC</b> Internal
-    </div>
     <!-- /.login-logo -->
     <div class="card">
+        <div class="login-logo mt-3">
+            <b>LANMIC</b> Internal
+        </div>
         <div class="card-body login-card-body">
             <p class="login-box-msg">Sign in to start your session</p>
 
@@ -59,12 +69,12 @@
 
                 <div class="row">
                     <div class="col-8">
-                        <div class="icheck-primary">
+                        {{-- <div class="icheck-primary">
                             <input type="checkbox" id="remember" name="remember" {{ old('remember') ? 'checked' : '' }}>
                             <label for="remember">
                                 Remember Me
                             </label>
-                        </div>
+                        </div> --}}
                     </div>
                     <!-- /.col -->
                     <div class="col-4">
@@ -74,16 +84,16 @@
                 </div>
             </form>
 
-            @if (Route::has('password.request'))
+            {{-- @if (Route::has('password.request'))
                 <p class="mb-1">
                     <a href="{{ route('password.request') }}">I forgot my password</a>
                 </p>
-            @endif
-            @if (Route::has('register'))
+            @endif --}}
+            {{-- @if (Route::has('register'))
                 <p class="mb-0">
                     <a href="{{ route('register') }}" class="text-center">Register a new membership</a>
                 </p>
-            @endif
+            @endif --}}
         </div>
         <!-- /.login-card-body -->
     </div>

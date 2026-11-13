@@ -35,8 +35,8 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Assign Direct Permissions</h5>
-                    <small class="text-muted">Add or remove direct permissions below.</small>
+                    <h5 class="mb-0">Assign Permissions</h5>
+                    <small class="text-muted">Add or remove permissions as needed.</small>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('users.permissions.update', $user) }}" method="POST">
@@ -63,14 +63,15 @@
                                                     value="{{ $permission->id }}"
                                                     id="perm_{{ $permission->id }}"
                                                     {{ $isChecked ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="perm_{{ $permission->id }}">
+                                                <label class="form-check-label {{ $isFromRole ? 'text-success fw-bold' : '' }}" for="perm_{{ $permission->id }}">
                                                     {{ $permission->description }}
+                                                    @if($isFromRole)
+                                                        <small class="badge bg-success ms-1">Role</small>
+                                                    @endif
+                                                    @if($isDirectPermission)
+                                                        <small class="badge bg-primary ms-1">Direct</small>
+                                                    @endif
                                                 </label>
-
-                                                {{-- Hidden input for disabled checkboxes that are checked --}}
-                                                @if($isFromRole && !$isDirectPermission)
-                                                    <input type="hidden" name="permissions[]" value="{{ $permission->id }}">
-                                                @endif
                                             </div>
                                         </div>
                                     @endforeach
@@ -90,7 +91,6 @@
                 </div>
             </div>
         </div>
-
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header bg-primary text-white">
@@ -104,6 +104,16 @@
                             <span class="badge bg-info">{{ $role->name }}</span>
                         @endforeach
                     </p>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Legend</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><span class="badge bg-success">Green</span> = From Role (pre-ticked)</p>
+                    <p class="mb-0"><span class="badge bg-primary">Blue</span> = Direct Permission</p>
                 </div>
             </div>
         </div>

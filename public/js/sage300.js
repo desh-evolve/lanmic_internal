@@ -37,7 +37,7 @@ const Sage300 = {
     },
     
     getItemLocations: function(itemCode) {
-        return $.get(this.baseUrl + '/items/' + itemCode + '/locations');
+        return $.get(this.baseUrl + '/items/' + encodeURIComponent(itemCode) + '/locations');
     },
     
     // Helper methods for locations

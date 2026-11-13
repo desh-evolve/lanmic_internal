@@ -93,15 +93,20 @@
                 <div class="card-body">
                     <!-- Item Entry Form -->
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-12">
                             <div class="form-group">
                                 <label>Select Item <span class="text-danger">*</span></label>
                                 <select class="form-control select2" id="itemSelect" style="width: 100%;">
                                     <option value="">Search and select an item</option>
                                 </select>
+                                <button type="button" id="itemReloadBtn" class="btn btn-sm btn-outline-secondary mt-1" style="display:none;" onclick="loadItems()">
+                                    <i class="fas fa-sync-alt"></i> Retry loading items
+                                </button>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-5">
                             <div class="form-group">
                                 <label>Location <span class="text-danger">*</span></label>
                                 <select class="form-control" id="locationSelect" disabled>
@@ -112,14 +117,14 @@
                                 </small>
                             </div>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <div class="form-group">
                                 <label>Quantity <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="itemQuantity" min="1" value="1" disabled>
+                                <input type="text" inputmode="decimal" class="form-control qty-text-input" id="itemQuantity" value="1" disabled>
                             </div>
                         </div>
-                        <div class="col-md-3 d-flex align-items-center pb-2">
-                            <button type="button" class="btn btn-success" id="addItemBtn">
+                        <div class="col-md-4 d-flex align-items-center pb-2">
+                            <button type="button" class="btn btn-success btn-block" id="addItemBtn" disabled>
                                 <i class="fas fa-plus"></i> Add Item
                             </button>
                         </div>
@@ -235,10 +240,10 @@
 
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Item</h5>
+                <h5 class="modal-title"><i class="fas fa-edit mr-1"></i> Edit Item</h5>
                 <button type="button" class="close" data-dismiss="modal">
                     <span>&times;</span>
                 </button>
@@ -246,24 +251,21 @@
             <div class="modal-body">
                 <input type="hidden" id="editIndex">
                 <div class="form-group">
-                    <label>Item Code</label>
-                    <input type="text" class="form-control" id="editItemCode" readonly>
+                    <label>Item <span class="text-danger">*</span></label>
+                    <select class="form-control" id="editItemSelect" style="width:100%;"></select>
                 </div>
                 <div class="form-group">
-                    <label>Item Name</label>
-                    <input type="text" class="form-control" id="editItemName" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Location</label>
-                    <input type="text" class="form-control" id="editLocation" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Available Quantity</label>
-                    <input type="text" class="form-control" id="editAvailableQty" readonly>
+                    <label>Location <span class="text-danger">*</span></label>
+                    <select class="form-control" id="editLocationSelect">
+                        <option value="">— Select item first —</option>
+                    </select>
+                    <small class="text-muted">
+                        Available: <span id="editAvailableQtyDisplay" class="font-weight-bold text-success">—</span>
+                    </small>
                 </div>
                 <div class="form-group">
                     <label>Quantity <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control" id="editQuantity" min="1" required>
+                    <input type="text" inputmode="decimal" class="form-control qty-text-input" id="editQuantity" required>
                 </div>
             </div>
             <div class="modal-footer">
@@ -279,10 +281,21 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{{ asset('js/sage300.js') }}"></script>
 <script>
+function escHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 let allRequestedItems = [];
 let allItems = [];
 let itemLocations = {};
-let pendingApprovals = {}; // Track pending quantities per item-location combination
+let pendingApprovals = {};
+let suppressEditItemChange = false; // prevent double-firing when programmatically setting edit select2
 
 $(document).ready(function() {
     loadItems();
@@ -334,31 +347,40 @@ $(document).ready(function() {
         }
     });
 
+    $('#itemSelect').on('select2:clear', function() {
+        $('#locationSelect').html('<option value="">Select item first</option>').prop('disabled', true);
+        $('#locationAvailableQty').text('-');
+        $('#itemQuantity').prop('disabled', true).val(1);
+        $('#addItemBtn').prop('disabled', true);
+    });
+
     $('#locationSelect').change(function() {
         const selectedLocation = $(this).val();
         const selectedItem = $('#itemSelect').select2('data')[0];
-        
+
         if (selectedLocation && selectedItem) {
             const locationData = JSON.parse($(this).find('option:selected').attr('data-location'));
             const itemCode = selectedItem.item.code;
             const locationCode = locationData.location_code;
-            
+
             // Get pending quantity for this item-location combination
             const pendingKey = `${itemCode}_${locationCode}`;
             const pendingQty = pendingApprovals[pendingKey] || 0;
-            
+
             // Calculate actual available quantity
             const stockQty = locationData.quantity;
             const actualAvailable = Math.max(0, stockQty - pendingQty);
-            
+
             $('#locationAvailableQty').html(`
                 <span class="text-success">${actualAvailable}</span>
                 ${pendingQty > 0 ? `<br><small class="text-warning">(${pendingQty} pending approval)</small>` : ''}
             `);
             $('#itemQuantity').prop('disabled', false).val(1);
+            $('#addItemBtn').prop('disabled', false);
         } else {
             $('#locationAvailableQty').text('-');
             $('#itemQuantity').prop('disabled', true).val(1);
+            $('#addItemBtn').prop('disabled', true);
         }
     });
 
@@ -368,6 +390,34 @@ $(document).ready(function() {
 
     $('#saveEditBtn').click(function() {
         saveEdit();
+    });
+
+    // Edit modal: when item changes, reload locations
+    $('#editItemSelect').on('change', function() {
+        if (suppressEditItemChange) return;
+        const code = $(this).val();
+        if (code) loadEditLocations(code);
+        else {
+            $('#editLocationSelect').html('<option value="">— Select item first —</option>');
+            $('#editAvailableQtyDisplay').text('—');
+        }
+    });
+
+    // Edit modal: when location changes, update available qty display
+    $('#editLocationSelect').on('change', function() {
+        const $opt = $(this).find('option:selected');
+        if ($opt.val() && $opt.attr('data-location')) {
+            const loc = JSON.parse($opt.attr('data-location'));
+            const itemCode = $('#editItemSelect').val();
+            const pendingKey = `${itemCode}_${loc.location_code}`;
+            const pendingQty = pendingApprovals[pendingKey] || 0;
+            const available = Math.max(0, loc.quantity - pendingQty);
+            $('#editAvailableQtyDisplay').text(
+                available + (pendingQty > 0 ? ` (${pendingQty} pending)` : '')
+            );
+        } else {
+            $('#editAvailableQtyDisplay').text('—');
+        }
     });
 
     $('#requisitionForm').submit(function(e) {
@@ -381,7 +431,7 @@ $(document).ready(function() {
     $('#refreshItemsBtn').click(function() {
         const $btn = $(this);
         $btn.prop('disabled', true).find('i').addClass('fa-spin');
-        loadItems();
+        refreshItemsFromApi();
         loadPendingApprovals();
         setTimeout(function() {
             $btn.prop('disabled', false).find('i').removeClass('fa-spin');
@@ -390,23 +440,45 @@ $(document).ready(function() {
 });
 
 function loadItems() {
-    $('#itemSelect').html('<option value="">Loading items from Sage300...</option>');
+    // Use server-injected data — same DB source as the AJAX route, zero round-trip cost.
+    const raw = @json($items);
+    $('#itemReloadBtn').hide();
+    if (raw && raw.length > 0) {
+        allItems = raw.map(item => ({
+            code: item.UnformattedItemNumber,
+            name: item.Description,
+            category: item.Category || 'N/A',
+            unit: item.StockingUnitOfMeasure
+        })).filter(item => item.code && item.name);
+        initializeSelect2();
+    } else {
+        $('#itemSelect').html('<option value="">No items found — ask an admin to sync items.</option>');
+        $('#itemReloadBtn').show();
+    }
+}
 
+// Manual refresh: fetches fresh data from the API (used by the Refresh button only).
+function refreshItemsFromApi() {
+    $('#itemSelect').html('<option value="">Refreshing items...</option>');
+    $('#itemReloadBtn').hide();
     Sage300.getItems()
         .done(function(response) {
-            if (response.success && response.data) {
+            if (response.success && response.data && response.data.length > 0) {
                 allItems = response.data.map(item => ({
                     code: item.UnformattedItemNumber,
                     name: item.Description,
                     category: item.Category || 'N/A',
                     unit: item.StockingUnitOfMeasure
-                }));
+                })).filter(item => item.code && item.name);
                 initializeSelect2();
+            } else {
+                $('#itemSelect').html('<option value="">Item catalogue not ready yet.</option>');
+                $('#itemReloadBtn').show();
             }
         })
-        .fail(function(xhr, status, error) {
-            console.error('Failed to load items from Sage300:', error);
-            alert('Failed to load items. Please refresh the page.');
+        .fail(function() {
+            $('#itemSelect').html('<option value="">Failed to load items.</option>');
+            $('#itemReloadBtn').show();
         });
 }
 
@@ -416,7 +488,7 @@ function loadPendingApprovals() {
         pendingApprovals = {};
         data.forEach(function(item) {
             const key = `${item.item_code}_${item.location_code}`;
-            pendingApprovals[key] = parseInt(item.total_quantity) || 0;
+            pendingApprovals[key] = parseFloat(item.total_quantity) || 0;
         });
     }).fail(function() {
         console.log('Could not load pending approvals');
@@ -424,56 +496,66 @@ function loadPendingApprovals() {
     });
 }
 
-function initializeSelect2() {
-    const normalizedItems = allItems.map(item => {
-        return {
-            code: item.code || '',
-            name: item.name || '',
-            category: item.category || 'N/A',
-            unit: item.unit || 'pcs'
-        };
-    }).filter(item => item.code && item.name);
+function itemMatcher(params, data) {
+    if ($.trim(params.term) === '') return data;
+    if (!data.item) return null;
+    const term = params.term.toLowerCase();
+    const item = data.item;
+    if (item.code && item.code.toString().toLowerCase().indexOf(term) > -1) return data;
+    if (item.name && item.name.toLowerCase().indexOf(term) > -1) return data;
+    if (item.category && item.category.toLowerCase().indexOf(term) > -1) return data;
+    return null;
+}
 
+function initializeSelect2() {
+    const normalizedItems = allItems.map(item => ({
+        code: item.code || '',
+        name: item.name || '',
+        category: item.category || 'N/A',
+        unit: item.unit || 'pcs'
+    })).filter(item => item.code && item.name);
+
+    const selectData = normalizedItems.map(item => ({
+        id: item.code,
+        text: `${item.code} - ${item.name}`,
+        item: item
+    }));
+
+    // Main item select
     $('#itemSelect').select2({
         theme: 'bootstrap',
-        placeholder: 'Search for an item by code or name',
+        placeholder: 'Type 2+ characters to search by code or name...',
         allowClear: true,
-        data: normalizedItems.map(item => ({
-            id: item.code,
-            text: `${item.code} - ${item.name} (${item.category})`,
-            item: item
-        })),
-        matcher: function(params, data) {
-            if ($.trim(params.term) === '') {
-                return data;
-            }
-
-            if (!data.item) {
-                return null;
-            }
-
-            const term = params.term.toLowerCase();
-            const item = data.item;
-            
-            if (item.code && item.code.toString().toLowerCase().indexOf(term) > -1) {
-                return data;
-            }
-            if (item.name && item.name.toLowerCase().indexOf(term) > -1) {
-                return data;
-            }
-            if (item.category && item.category.toLowerCase().indexOf(term) > -1) {
-                return data;
-            }
-
-            return null;
-        }
+        minimumInputLength: 2,
+        data: selectData,
+        matcher: itemMatcher
     });
+
+    // Edit modal item select
+    $('#editItemSelect').select2({
+        theme: 'bootstrap',
+        placeholder: 'Type 2+ characters to search...',
+        allowClear: true,
+        minimumInputLength: 2,
+        dropdownParent: $('#editModal'),
+        data: selectData,
+        matcher: itemMatcher
+    });
+}
+
+function locationLookupError(xhr) {
+    const status = xhr.status;
+    if (status === 401 || status === 419) return `Sign in again to load stock locations (HTTP ${status}).`;
+    if (status === 403) return 'Access to stock locations was denied (HTTP 403).';
+    if (status === 502 || status === 503 || status === 504) return `Could not verify stock with Sage (HTTP ${status}). Try again.`;
+    return status ? `Failed to load locations (HTTP ${status}).` : 'Could not reach the app server. Try again.';
 }
 
 function loadItemLocations(itemCode) {
     $('#locationSelect').html('<option value="">Loading locations...</option>').prop('disabled', true);
     $('#locationAvailableQty').text('-');
     $('#itemQuantity').prop('disabled', true).val(1);
+    $('#addItemBtn').prop('disabled', true);
 
     Sage300.getItemLocations(itemCode)
         .done(function(response) {
@@ -500,8 +582,7 @@ function loadItemLocations(itemCode) {
         })
         .fail(function(xhr, status, error) {
             console.error('Failed to load item locations:', error);
-            $('#locationSelect').html('<option value="">Error loading locations</option>');
-            alert('Failed to load locations. Please try again.');
+            $('#locationSelect').empty().append($('<option>').val('').text(locationLookupError(xhr)));
         });
 }
 
@@ -521,10 +602,14 @@ function addItemToTable() {
 
     const item = selectedOption.item;
     const locationData = JSON.parse(locationSelect.find('option:selected').attr('data-location'));
-    const requestedQty = parseInt($('#itemQuantity').val()) || 1;
+    const requestedQty = parseFloat($('#itemQuantity').val()) || 1;
 
-    if (requestedQty < 1) {
-        alert('Quantity must be at least 1');
+    if (requestedQty <= 0) {
+        alert('Quantity must be greater than 0');
+        return;
+    }
+    if (!/^\d+(\.\d{1,4})?$/.test($('#itemQuantity').val())) {
+        alert('Quantity cannot have more than 4 decimal places');
         return;
     }
 
@@ -587,7 +672,7 @@ function renderTable() {
         
         if (item.needsPO) {
             statusBadge = `
-                <span class="badge badge-success">${item.requisition_qty} Available</span><br>
+                <span class="badge badge-success">${item.available_qty} Available</span><br>
                 <span class="badge badge-warning">${item.po_qty} PO Required</span>
             `;
             availableDisplay = `
@@ -608,22 +693,22 @@ function renderTable() {
                 <td>
                     ${item.name}
                     <!-- Requisition Items -->
-                    <input type="hidden" name="requisition_items[${index}][item_code]" value="${item.code}">
-                    <input type="hidden" name="requisition_items[${index}][item_name]" value="${item.name}">
-                    <input type="hidden" name="requisition_items[${index}][item_category]" value="${item.category}">
-                    <input type="hidden" name="requisition_items[${index}][unit]" value="${item.unit}">
-                    <input type="hidden" name="requisition_items[${index}][location_code]" value="${item.location_code}">
-                    <input type="hidden" name="requisition_items[${index}][location_name]" value="${item.location_name}">
-                    <input type="hidden" name="requisition_items[${index}][quantity]" value="${item.requisition_qty}">
+                    <input type="hidden" name="requisition_items[${index}][item_code]" value="${escHtml(item.code)}">
+                    <input type="hidden" name="requisition_items[${index}][item_name]" value="${escHtml(item.name)}">
+                    <input type="hidden" name="requisition_items[${index}][item_category]" value="${escHtml(item.category)}">
+                    <input type="hidden" name="requisition_items[${index}][unit]" value="${escHtml(item.unit)}">
+                    <input type="hidden" name="requisition_items[${index}][location_code]" value="${escHtml(item.location_code)}">
+                    <input type="hidden" name="requisition_items[${index}][location_name]" value="${escHtml(item.location_name)}">
+                    <input type="hidden" name="requisition_items[${index}][quantity]" value="${escHtml(item.requisition_qty)}">
                     ${item.needsPO ? `
                     <!-- Purchase Order Items -->
-                    <input type="hidden" name="purchase_order_items[${index}][item_code]" value="${item.code}">
-                    <input type="hidden" name="purchase_order_items[${index}][item_name]" value="${item.name}">
-                    <input type="hidden" name="purchase_order_items[${index}][item_category]" value="${item.category}">
-                    <input type="hidden" name="purchase_order_items[${index}][unit]" value="${item.unit}">
-                    <input type="hidden" name="purchase_order_items[${index}][location_code]" value="${item.location_code}">
-                    <input type="hidden" name="purchase_order_items[${index}][location_name]" value="${item.location_name}">
-                    <input type="hidden" name="purchase_order_items[${index}][quantity]" value="${item.po_qty}">
+                    <input type="hidden" name="purchase_order_items[${index}][item_code]" value="${escHtml(item.code)}">
+                    <input type="hidden" name="purchase_order_items[${index}][item_name]" value="${escHtml(item.name)}">
+                    <input type="hidden" name="purchase_order_items[${index}][item_category]" value="${escHtml(item.category)}">
+                    <input type="hidden" name="purchase_order_items[${index}][unit]" value="${escHtml(item.unit)}">
+                    <input type="hidden" name="purchase_order_items[${index}][location_code]" value="${escHtml(item.location_code)}">
+                    <input type="hidden" name="purchase_order_items[${index}][location_name]" value="${escHtml(item.location_name)}">
+                    <input type="hidden" name="purchase_order_items[${index}][quantity]" value="${escHtml(item.po_qty)}">
                     ` : ''}
                 </td>
                 <td>${item.category}</td>
@@ -678,38 +763,104 @@ function renderPOSummary() {
     });
 }
 
+function loadEditLocations(itemCode, preselect = null) {
+    const $locSel = $('#editLocationSelect');
+    $locSel.html('<option value="">Loading locations…</option>').prop('disabled', true);
+    $('#editAvailableQtyDisplay').text('—');
+
+    Sage300.getItemLocations(itemCode)
+        .done(function(response) {
+            $locSel.html('<option value="">Select Location</option>').prop('disabled', false);
+            if (response.success && response.data && response.data.length > 0) {
+                response.data.forEach(function(loc) {
+                    const pendingKey = `${itemCode}_${loc.location_code}`;
+                    const pendingQty = pendingApprovals[pendingKey] || 0;
+                    const available = Math.max(0, loc.quantity - pendingQty);
+                    const label = `${loc.location_code} — ${loc.location_name} (Avail: ${available}${pendingQty > 0 ? `, Pending: ${pendingQty}` : ''})`;
+                    const $opt = $('<option>').val(loc.location_code).text(label).attr('data-location', JSON.stringify(loc));
+                    if (preselect && loc.location_code === preselect) $opt.prop('selected', true);
+                    $locSel.append($opt);
+                });
+            }
+            $locSel.trigger('change'); // refresh available qty display
+        })
+        .fail(function(xhr) {
+            $locSel.empty().append($('<option>').val('').text(locationLookupError(xhr))).prop('disabled', true);
+        });
+}
+
 function editItem(index) {
     const item = allRequestedItems[index];
     $('#editIndex').val(index);
-    $('#editItemCode').val(item.code);
-    $('#editItemName').val(item.name);
-    $('#editLocation').val(`${item.location_code} - ${item.location_name}`);
-    $('#editAvailableQty').val(`${item.available_qty}${item.pending_qty > 0 ? ` (${item.pending_qty} pending)` : ''}`);
+
+    // Set item in select2 without triggering the change→loadEditLocations handler
+    suppressEditItemChange = true;
+    $('#editItemSelect').val(item.code).trigger('change');
+    suppressEditItemChange = false;
+
+    // Load locations for current item and pre-select current location
+    loadEditLocations(item.code, item.location_code);
+
     $('#editQuantity').val(item.quantity);
     $('#editModal').modal('show');
 }
 
 function saveEdit() {
     const index = parseInt($('#editIndex').val());
-    const quantity = parseInt($('#editQuantity').val());
+    const quantity = parseFloat($('#editQuantity').val());
+    const newItemCode = $('#editItemSelect').val();
+    const newLocationCode = $('#editLocationSelect').val();
 
-    if (quantity < 1) {
-        alert('Quantity must be at least 1');
+    if (!newItemCode) { alert('Please select an item'); return; }
+    if (!newLocationCode) { alert('Please select a location'); return; }
+    if (quantity <= 0) { alert('Quantity must be greater than 0'); return; }
+    if (!/^\d+(\.\d{1,4})?$/.test($('#editQuantity').val())) {
+        alert('Quantity cannot have more than 4 decimal places');
         return;
     }
 
-    const item = allRequestedItems[index];
-    
-    // Recalculate PO needs with actual available (considering pending)
-    const actualAvailable = item.available_qty;
+    // Duplicate check (skip the item being edited)
+    const dup = allRequestedItems.findIndex((i, idx) =>
+        idx !== index && i.code === newItemCode && i.location_code === newLocationCode
+    );
+    if (dup !== -1) {
+        alert('This item + location combination already exists in the list. Please edit that entry instead.');
+        return;
+    }
+
+    // Get item details from allItems
+    const itemData = allItems.find(i => i.code === newItemCode);
+    if (!itemData) { alert('Item not found. Please try again.'); return; }
+
+    // Get location details from dropdown
+    const $locOpt = $('#editLocationSelect').find('option:selected');
+    const locDataAttr = $locOpt.attr('data-location');
+    if (!locDataAttr) { alert('Location data missing. Please re-select.'); return; }
+    const locationData = JSON.parse(locDataAttr);
+
+    // Recalculate availability
+    const pendingKey = `${newItemCode}_${newLocationCode}`;
+    const pendingQty = pendingApprovals[pendingKey] || 0;
+    const stockQty = locationData.quantity;
+    const actualAvailable = Math.max(0, stockQty - pendingQty);
     const needsPO = quantity > actualAvailable;
-    const requisitionQty = Math.min(quantity, actualAvailable);
     const poQty = Math.max(0, quantity - actualAvailable);
 
-    item.quantity = quantity;
-    item.needsPO = needsPO;
-    item.requisition_qty = requisitionQty;
-    item.po_qty = poQty;
+    allRequestedItems[index] = {
+        code: itemData.code,
+        name: itemData.name,
+        category: itemData.category || 'N/A',
+        unit: itemData.unit || 'pcs',
+        location_code: newLocationCode,
+        location_name: locationData.location_name,
+        quantity: quantity,
+        stock_qty: stockQty,
+        pending_qty: pendingQty,
+        available_qty: actualAvailable,
+        needsPO: needsPO,
+        requisition_qty: quantity,
+        po_qty: poQty
+    };
 
     $('#editModal').modal('hide');
     renderTable();
@@ -730,6 +881,19 @@ function clearForm() {
     $('#itemQuantity').val(1).prop('disabled', true);
     $('#locationAvailableQty').text('-');
 }
+
+// ── Qty text-input: block non-numeric keystrokes ─────────────────────
+$(document).on('keydown', '.qty-text-input', function(e) {
+    if ([8,9,13,27,46,35,36,37,38,39,40].includes(e.keyCode)) return;
+    if ((e.ctrlKey||e.metaKey) && [65,67,86,88,90].includes(e.keyCode)) return;
+    if ((e.keyCode===190||e.keyCode===110) && !$(this).val().includes('.')) return;
+    if ((e.keyCode>=48&&e.keyCode<=57)||(e.keyCode>=96&&e.keyCode<=105)) return;
+    e.preventDefault();
+});
+$(document).on('paste', '.qty-text-input', function(e) {
+    const text = (e.originalEvent.clipboardData||window.clipboardData).getData('text');
+    if (!/^\d*\.?\d*$/.test(text)) e.preventDefault();
+});
 
 function updateSummary() {
     const totalItems = allRequestedItems.length;

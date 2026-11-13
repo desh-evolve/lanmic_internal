@@ -6,24 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 use App\Http\Middleware\CheckPermission;
 
 class UserController extends Controller
 {
-
-    // public function __construct()
-    // {
-    //     $this->middleware('auth');
-    //     $this->middleware('permission:view-users')->only(['index', 'show']);
-    //     $this->middleware('permission:create-users')->only(['create', 'store']);
-    //     $this->middleware('permission:edit-users')->only(['edit', 'update','userPermission']);
-    //     $this->middleware('permission:delete-users')->only('destroy');
-    // }
-
 
     public function __construct()
     {
@@ -56,7 +49,8 @@ class UserController extends Controller
     public function create()
     {
         $roles = Role::all();
-        return view('admin.users.create', compact('roles'));
+        $departments = Department::active()->orderBy('name')->get();
+        return view('admin.users.create', compact('roles', 'departments'));
     }
 
     /**
@@ -87,11 +81,13 @@ class UserController extends Controller
             'updated_by' => Auth::id(),
         ]);
 
-        // Attach roles
+        // Attach roles (permissions are derived from roles automatically)
         $user->roles()->attach($request->roles);
 
-        // Auto-assign permissions from roles
-        $this->autoAssignPermissionsFromRoles($user);
+        // Attach departments (optional)
+        if ($request->filled('departments')) {
+            $user->departments()->sync($request->departments);
+        }
 
         return redirect()->route('users.index')
             ->with('success', 'User created successfully.');
@@ -111,9 +107,16 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account cannot be edited.');
+        }
+
         $roles = Role::all();
         $userRoles = $user->roles->pluck('id')->toArray();
-        return view('admin.users.edit', compact('user', 'roles', 'userRoles'));
+        $departments = Department::active()->orderBy('name')->get();
+        $userDepartments = $user->departments->pluck('id')->toArray();
+        return view('admin.users.edit', compact('user', 'roles', 'userRoles', 'departments', 'userDepartments'));
     }
 
     /**
@@ -121,6 +124,11 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account cannot be edited.');
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
@@ -144,11 +152,11 @@ class UserController extends Controller
         
         $user->save();
 
-        // Sync roles
+        // Sync roles (permissions are derived from roles automatically)
         $user->roles()->sync($request->roles);
 
-        // Auto-assign permissions from updated roles
-        $this->autoAssignPermissionsFromRoles($user);
+        // Sync departments (empty array clears all assignments)
+        $user->departments()->sync($request->input('departments', []));
 
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');
@@ -156,6 +164,11 @@ class UserController extends Controller
 
    public function userPermission(Request $request, User $user)
 {
+    if ($user->email === 'admin@lanmic.com') {
+        return redirect()->route('users.show', $user->id)
+            ->with('error', 'The system administrator account permissions cannot be changed.');
+    }
+
     // Group permissions by module
     $permissions = Permission::orderBy('module')->orderBy('name')->get()->groupBy('module');
 
@@ -171,6 +184,11 @@ class UserController extends Controller
 
     public function updateUserPermission(Request $request, User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account permissions cannot be changed.');
+        }
+
         $permissions = $request->input('permissions', []);
 
         if (empty($permissions)) {
@@ -219,6 +237,11 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.index')
+                ->with('error', 'The system administrator account cannot be deleted.');
+        }
+
         if ($user->id === auth()->id()) {
             return redirect()->route('users.index')
                 ->with('error', 'You cannot delete yourself.');
@@ -237,6 +260,11 @@ class UserController extends Controller
      */
     public function permissions(User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account permissions cannot be changed.');
+        }
+
         // Get all permissions grouped by module
         $permissions = Permission::orderBy('module')->orderBy('name')->get()->groupBy('module');
 
@@ -258,6 +286,11 @@ class UserController extends Controller
      */
     public function updatePermissions(Request $request, User $user)
     {
+        if ($user->email === 'admin@lanmic.com') {
+            return redirect()->route('users.show', $user->id)
+                ->with('error', 'The system administrator account permissions cannot be changed.');
+        }
+
         $validated = $request->validate([
             'permissions' => 'nullable|array',
             'permissions.*' => 'exists:permissions,id'
