@@ -543,6 +543,14 @@ function initializeSelect2() {
     });
 }
 
+function locationLookupError(xhr) {
+    const status = xhr.status;
+    if (status === 401 || status === 419) return `Sign in again to load stock locations (HTTP ${status}).`;
+    if (status === 403) return 'Access to stock locations was denied (HTTP 403).';
+    if (status === 502 || status === 503 || status === 504) return `Could not verify stock with Sage (HTTP ${status}). Try again.`;
+    return status ? `Failed to load locations (HTTP ${status}).` : 'Could not reach the app server. Try again.';
+}
+
 function loadItemLocations(itemCode) {
     $('#locationSelect').html('<option value="">Loading locations...</option>').prop('disabled', true);
     $('#locationAvailableQty').text('-');
@@ -574,8 +582,7 @@ function loadItemLocations(itemCode) {
         })
         .fail(function(xhr, status, error) {
             console.error('Failed to load item locations:', error);
-            $('#locationSelect').html('<option value="">Error loading locations</option>');
-            alert('Failed to load locations. Please try again.');
+            $('#locationSelect').empty().append($('<option>').val('').text(locationLookupError(xhr)));
         });
 }
 
@@ -777,8 +784,8 @@ function loadEditLocations(itemCode, preselect = null) {
             }
             $locSel.trigger('change'); // refresh available qty display
         })
-        .fail(function() {
-            $locSel.html('<option value="">Error loading locations</option>').prop('disabled', false);
+        .fail(function(xhr) {
+            $locSel.empty().append($('<option>').val('').text(locationLookupError(xhr))).prop('disabled', true);
         });
 }
 

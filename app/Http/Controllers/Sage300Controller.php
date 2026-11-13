@@ -175,7 +175,7 @@ class Sage300Controller extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch item locations: ' . $e->getMessage()
-            ], 500);
+            ], 502);
         }
     }
 

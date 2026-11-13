@@ -30,16 +30,16 @@ class Sage300Service
      * @param array $params - Query parameters (optional)
      * @return array
      */
-    public function get(string $endpoint, array $params = []): array
+    public function get(string $endpoint, array $params = [], ?int $timeout = null): array
     {
         try {
             $url = $this->baseUrl . '/' . ltrim($endpoint, '/');
             
             $response = Http::withBasicAuth($this->username, $this->password)
                 ->withOptions([
-                    'verify' => false, // Disable SSL verification for local/self-signed certs
+                    'verify' => true, // Verify HTTPS certificates
                 ])
-                ->timeout($this->timeout)
+                ->timeout($timeout ?? $this->timeout)
                 ->accept('application/json')
                 ->get($url, $params);
 
@@ -84,7 +84,7 @@ class Sage300Service
 
             $response = Http::withBasicAuth($this->username, $this->password)
                 ->withOptions([
-                    'verify' => false,
+                    'verify' => true,
                 ])
                 ->timeout($this->timeout)
                 ->accept('application/json')
@@ -168,15 +168,15 @@ class Sage300Service
 
     /**
      * Fetch every item from Sage 300 and sync to the local DB table.
-     * Paginates using %24skip (%24 = URL-encoded $) until a page returns fewer
-     * than $pageSize items, meaning we have reached the end.
+     * Advances by the number of items Sage returned until it sends an empty page.
+     * The optional callback receives the processed, added, and updated counts after each saved page.
      *
      * Returns ['added'=>n, 'updated'=>n, 'deactivated'=>n, 'total'=>n].
      */
-    public function syncItems(): array
+    public function syncItems(?callable $onProgress = null, int $startOffset = 0): array
     {
         $pageSize = 1000;  // request max per page — server will return whatever its cap allows
-        $skip     = 0;
+        $skip     = $startOffset;
         $apiCodes = [];
         $added    = 0;
         $updated  = 0;
@@ -193,10 +193,14 @@ class Sage300Service
                     'skip'  => $skip,
                     'error' => $result['error'] ?? $result['message'] ?? '',
                 ]);
-                break;
+                throw new \RuntimeException('Sage item sync failed. Existing items were not deactivated.');
             }
 
-            $batch = $result['data']['value'] ?? [];
+            if (!isset($result['data']['value']) || !is_array($result['data']['value'])) {
+                throw new \RuntimeException('Invalid Sage item response. Existing items were not deactivated.');
+            }
+
+            $batch = $result['data']['value'];
 
             if (!empty($batch)) {
                 $rows = array_map(fn($item) => [
@@ -231,15 +235,18 @@ class Sage300Service
                 unset($rows);
             }
 
-            $skip += $pageSize;
+            $skip += count($batch);
+            if (!empty($batch) && $onProgress !== null) {
+                $onProgress($skip - $startOffset, $added, $updated);
+            }
             unset($result);
 
-        } while (count($batch) === $pageSize);
+        } while (!empty($batch));
 
         // Mark items no longer in Sage 300 as inactive.
         // Use a temporary flag approach to avoid whereNotIn with 10,000+ codes.
         $deactivated = 0;
-        if (!empty($apiCodes)) {
+        if ($startOffset === 0 && !empty($apiCodes)) {
             // First mark ALL active items as inactive, then re-activate the ones we just saw.
             // This is safer than a huge whereNotIn query.
             Sage300Item::where('active', true)->update(['active' => false]);
@@ -266,7 +273,7 @@ class Sage300Service
     {
         try {
             $response = Http::withBasicAuth($this->username, $this->password)
-                ->withOptions(['verify' => false])
+                ->withOptions(['verify' => true])
                 ->timeout($this->timeout)
                 ->accept('application/json')
                 ->get($url);
@@ -474,7 +481,7 @@ class Sage300Service
         return $item['QuantityAvailable'] ?? 0;
     }
 
-    public function getItemLocationQuantity(string $code, string $location): ?int
+    public function getItemLocationQuantity(string $code, string $location): ?float
     {
         $result = $this->get("IC/ICLocationDetails(ItemNumber='{$code}',Location='{$location}')");
         
@@ -482,7 +489,7 @@ class Sage300Service
             return null;
         }
         
-        return (int)($result['data']['QuantityOnHand'] ?? 0);
+        return (float)($result['data']['QuantityOnHand'] ?? 0);
     }
 
     /**
@@ -494,15 +501,29 @@ class Sage300Service
     public function getItemLocations(string $code): array
     {
         // Use $filter to get all locations for this item
-        $result = $this->get('IC/ICLocationDetails', [
-            '$filter' => "ItemNumber eq '{$code}'"
-        ]);
-        
+        $params = ['$filter' => "ItemNumber eq '" . str_replace("'", "''", $code) . "'"];
+        $timeout = max(1, min(8, $this->timeout));
+        $result = $this->get('IC/ICLocationDetails', $params, $timeout);
+
         if (!$result['success']) {
+            $status = $result['status'] ?? null;
+            $error = json_decode($result['error'] ?? '', true);
+            $retryable = in_array($status, [408, 500, 502, 503, 504], true)
+                || ($status === 409 && ($error['error']['code'] ?? null) === 'DBLinkError');
+
+            if ($retryable) {
+                Log::warning('Retrying Sage item location lookup', ['item_code' => $code, 'status' => $status]);
+                usleep(300_000);
+                $result = $this->get('IC/ICLocationDetails', $params, $timeout);
+            }
+        }
+
+        if (!$result['success'] || !is_array($result['data']['value'] ?? null)) {
             Log::error("Failed to get item locations for {$code}", [
-                'error' => $result['message'] ?? 'Unknown error'
+                'status' => $result['status'] ?? null,
+                'error' => $result['error'] ?? $result['message'] ?? 'Invalid location response',
             ]);
-            return [];
+            throw new \RuntimeException('Could not verify stock with Sage. Please try again.');
         }
         
         $locations = $result['data']['value'] ?? [];
@@ -510,14 +531,14 @@ class Sage300Service
         $itemLocations = [];
         
         foreach ($locations as $location) {
-            $quantityAvailable = (int)($location['QuantityOnHand'] ?? 0);
+            $quantityAvailable = (float)($location['QuantityOnHand'] ?? 0);
             
             // Only include locations with available quantity
             if ($quantityAvailable > 0) {
                 $itemLocations[] = [
                     'location_code' => $location['Location'] ?? '',
                     'location_name' => $location['Name'] ?? $location['Location'] ?? '',
-                    'quantity' => (int)($location['QuantityOnHand'] ?? 0),
+                    'quantity' => $quantityAvailable,
                     'average_cost' => (float)($location['AverageCost'] ?? 0),
                     //'in_use' => (bool)($location['InUse'] ?? false),
                     //'allowed' => (bool)($location['Allowed'] ?? false),
@@ -591,15 +612,9 @@ class Sage300Service
      */
     public function getLocationQuantity(string $itemCode, string $locationCode): float
     {
-        try {
-            $locations = $this->getItemLocations($itemCode);
-            $location = collect($locations)->firstWhere('location_code', $locationCode);
-            
-            return $location ? (float) $location['quantity'] : 0;
-        } catch (\Exception $e) {
-            \Log::error("Failed to get location quantity for {$itemCode} at {$locationCode}: " . $e->getMessage());
-            return 0;
-        }
+        $location = collect($this->getItemLocations($itemCode))->firstWhere('location_code', $locationCode);
+
+        return $location ? (float) $location['quantity'] : 0.0;
     }
 
     /**
@@ -664,7 +679,7 @@ class Sage300Service
                         'ItemNumber' => $adjustmentData['item_code'],
                         'Location' => $adjustmentData['location_code'],
                         'TransactionType' => 'BothDecrease',
-                        'Quantity' => (int) $adjustmentData['quantity'],
+                        'Quantity' => (float) $adjustmentData['quantity'],
                         'Comments' => $adjustmentData['notes'] ?? '',
                         'AdjustmentWriteOffAccount' => '50002' //only for engineering department
                     ]
@@ -743,7 +758,7 @@ class Sage300Service
                         'ItemNumber' => $grnData['item_code'],
                         'Location' => $grnData['location_code'],
                         'TransactionType' => 'BothIncrease', // For GRN returns - increase both qty and cost
-                        'Quantity' => (int) $grnData['quantity'],
+                        'Quantity' => (float) $grnData['quantity'],
                         'CostAdjustment' => (float) ($grnData['unit_price'] * $grnData['quantity']),
                         'Comments' => $grnData['notes'] ?? '',
                         'AdjustmentWriteOffAccount' => '50002' //only for engineering department

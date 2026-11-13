@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Services\Sage300Service;
 use App\Services\ItemAvailabilityService;
 
@@ -142,14 +143,13 @@ class RequisitionApprovalController extends Controller
 
         $requisition->load(['items.issuedItems', 'department', 'subDepartment', 'division', 'user']);
         
-        // Add available quantities and locations for each item
+        // Reuse the stock response if an item appears on more than one line.
+        $locationsByCode = [];
         foreach ($requisition->items as $item) {
+            $item->stock_lookup_failed = false;
             try {
-                // Get item locations from SAGE300
-                $locations = $this->sage300Service->getItemLocations($item->item_code);
+                $locations = $locationsByCode[$item->item_code] ??= $this->sage300Service->getItemLocations($item->item_code);
                 $item->locations = $locations;
-                $itemRequestedLocation = $this->sage300Service->getLocation($item->location_code);
-                $item->location_name = $itemRequestedLocation['Name'] ?? $item->location_code;
                 // Calculate total stock across all locations
                 $totalStock = collect($locations)->sum('quantity');
                 $pendingQuantity = $availabilityService->getPendingQuantity($item->item_code, $requisition->id);
@@ -158,6 +158,12 @@ class RequisitionApprovalController extends Controller
                 $item->stock_quantity = $totalStock;
                 $item->pending_quantity = $pendingQuantity;
             } catch (\Exception $e) {
+                Log::warning('Issue form could not verify stock', [
+                    'requisition' => $requisition->requisition_number,
+                    'item_code' => $item->item_code,
+                    'error' => $e->getMessage(),
+                ]);
+                $item->stock_lookup_failed = true;
                 $item->locations = [];
                 $item->available_quantity = 0;
                 $item->stock_quantity = 0;

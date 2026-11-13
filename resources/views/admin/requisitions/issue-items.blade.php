@@ -186,11 +186,15 @@
                                 </td>
 
                                 @else
-                                {{-- No stock --}}
                                 <td colspan="4" class="align-middle text-center">
-                                    <span class="badge badge-danger">
-                                        <i class="fas fa-exclamation-circle"></i> No Stock
-                                    </span>
+                                    @if($item->stock_lookup_failed)
+                                        <span class="badge badge-warning">Stock lookup failed</span>
+                                        <div class="small mt-1">Reload this page to check stock with Sage again.</div>
+                                    @else
+                                        <span class="badge badge-danger">
+                                            <i class="fas fa-exclamation-circle"></i> No Stock
+                                        </span>
+                                    @endif
                                 </td>
                                 @endif
 

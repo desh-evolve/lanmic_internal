@@ -21,18 +21,18 @@ Route::get('/', function () {
     return redirect('/login');
 });
 
-Auth::routes();
+Auth::routes(['register' => false]);
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
     // Sage 300 item API routes — accessible to all authenticated users (read-only reference data).
     // Kept under /admin/sage300/api to match sage300.js without requiring a browser cache bust.
-    Route::prefix('admin/sage300/api')->group(function () {
-        Route::get('/items', [Sage300Controller::class, 'getItems']);
-        Route::get('/items/{code}', [Sage300Controller::class, 'getItemDetails']);
-        Route::get('/items/{itemCode}/locations', [Sage300Controller::class, 'getItemLocations']);
-        Route::get('/locations', [Sage300Controller::class, 'getLocations']);
+    Route::prefix('admin/sage300/api')->name('sage300.api.')->group(function () {
+        Route::get('/items', [Sage300Controller::class, 'getItems'])->name('items');
+        Route::get('/items/{code}', [Sage300Controller::class, 'getItemDetails'])->name('item.details');
+        Route::get('/items/{itemCode}/locations', [Sage300Controller::class, 'getItemLocations'])->name('item.locations');
+        Route::get('/locations', [Sage300Controller::class, 'getLocations'])->name('locations');
     });
 
     // Requisition routes
